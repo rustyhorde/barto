@@ -1,0 +1,29 @@
+[package]
+name = "libbarto"
+version = "0.1.0"
+edition = "2024"
+
+[features]
+unstable = []
+
+[dependencies]
+anyhow = { workspace = true }
+clap = { workspace = true }
+config = { workspace = true }
+dirs2 = "3.0.1"
+getset = { workspace = true }
+serde = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { version = "=0.3.19", features = ["env-filter", "fmt", "time"] }
+tracing-subscriber-init = { workspace = true }
+
+[build-dependencies]
+rustversion = { workspace = true }
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(coverage,coverage_nightly)'] }
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
