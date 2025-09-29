@@ -7,11 +7,15 @@ edition = "2024"
 unstable = [ "libbarto/unstable" ]
 
 [dependencies]
+actix-web = { workspace = true, features = ["rustls-0_23"] }
+actix-ws = "0.3.0"
 anyhow = { workspace = true }
 clap = { workspace = true }
 config = { workspace = true }
+futures-util = { workspace = true }
 getset = { workspace = true }
 libbarto = { path = "../libbarto" }
+rustls = { workspace = true }
 serde = { workspace = true }
 thiserror = { workspace = true }
 tokio = { workspace = true }

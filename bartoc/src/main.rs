@@ -252,7 +252,7 @@ use libbarto::{clap_or_error, success};
 
 use crate::runtime::run;
 
-#[tokio::main]
+#[actix_web::main]
 async fn main() -> Result<()> {
     exit(
         run::<Vec<&str>, &str>(None)

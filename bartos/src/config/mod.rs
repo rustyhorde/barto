@@ -7,7 +7,7 @@
 // modified, or distributed except according to those terms.
 
 use getset::{CopyGetters, Getters};
-use libbarto::{Tracing, TracingConfigExt};
+use libbarto::{Actix, TlsConfig, Tracing, TracingConfigExt};
 use serde::{Deserialize, Serialize};
 use tracing_subscriber_init::TracingConfig;
 
@@ -21,6 +21,12 @@ pub(crate) struct Config {
     enable_std_output: bool,
     #[getset(get = "pub(crate)")]
     tracing: Tracing,
+    #[getset(get = "pub(crate)")]
+    actix: Actix,
+    #[getset(get = "pub(crate)")]
+    cert_file_path: String,
+    #[getset(get = "pub(crate)")]
+    key_file_path: String,
 }
 
 impl TracingConfig for Config {
@@ -60,5 +66,15 @@ impl TracingConfigExt for Config {
 
     fn directives(&self) -> Option<&String> {
         self.tracing.directives().as_ref()
+    }
+}
+
+impl TlsConfig for Config {
+    fn cert_file_path(&self) -> &str {
+        &self.cert_file_path
+    }
+
+    fn key_file_path(&self) -> &str {
+        &self.key_file_path
     }
 }

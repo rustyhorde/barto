@@ -8,14 +8,23 @@
 
 mod cli;
 
-use std::ffi::OsString;
+use std::{
+    ffi::OsString,
+    net::{IpAddr, SocketAddr},
+};
 
+use actix_web::{
+    App, HttpServer,
+    middleware::Compress,
+    web::{Data, scope},
+};
 use anyhow::{Context, Result};
 use clap::Parser;
-use libbarto::{init_tracing, load};
-use tracing::trace;
+use libbarto::{init_tracing, load, load_tls_config};
+use rustls::crypto::aws_lc_rs::default_provider;
+use tracing::{info, trace, warn};
 
-use crate::{config::Config, error::Error};
+use crate::{config::Config, endpoints::insecure::insecure_config, error::Error};
 
 use self::cli::Cli;
 
@@ -40,5 +49,39 @@ where
     trace!("configuration loaded");
     trace!("tracing initialized");
 
+    // Setup the default crypto provider
+    match default_provider().install_default() {
+        Ok(()) => trace!("crypto provider initialized"),
+        Err(_e) => warn!("crypto provider already initialized"),
+    }
+
+    // Load the TLS server configuration
+    let server_config = load_tls_config(&config)?;
+
+    // Add config to app data
+    let config_c = config.clone();
+    let config_data = Data::new(config_c);
+
+    let workers = usize::from(*config.actix().workers());
+    let ip = config.actix().ip();
+    let port = config.actix().port();
+    let ip_addr: IpAddr = ip.parse().with_context(|| Error::InvalidIp)?;
+    let socket_addr = SocketAddr::from((ip_addr, *port));
+
+    // Startup the server
+    trace!("Starting {} on {socket_addr:?}", env!("CARGO_PKG_NAME"));
+    info!("{} configured!", env!("CARGO_PKG_NAME"));
+    info!("{} starting!", env!("CARGO_PKG_NAME"));
+
+    HttpServer::new(move || {
+        App::new()
+            .app_data(config_data.clone())
+            .wrap(Compress::default())
+            .service(scope("/v1").configure(insecure_config))
+    })
+    .workers(workers)
+    .bind_rustls_0_23(socket_addr, server_config)?
+    .run()
+    .await?;
     Ok(())
 }

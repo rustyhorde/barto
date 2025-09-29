@@ -11,9 +11,11 @@ mod cli;
 use std::ffi::OsString;
 
 use anyhow::{Context, Result};
+use awc::{Client, error::WsClientError, http::Version};
 use clap::Parser;
+use futures_util::StreamExt as _;
 use libbarto::{init_tracing, load};
-use tracing::trace;
+use tracing::{error, trace};
 
 use crate::{config::Config, error::Error};
 
@@ -40,5 +42,49 @@ where
     trace!("configuration loaded");
     trace!("tracing initialized");
 
+    let awc = Client::builder()
+        .max_http_version(Version::HTTP_11)
+        .finish();
+
+    match awc
+        .ws("wss://localhost.ozias.net:21526/v1/ws/worker")
+        .connect()
+        .await
+    {
+        Ok((response, framed)) => {
+            trace!("connected to server: {}", response.status());
+            let (_sink, _stream) = framed.split();
+        }
+        Err(e) => handle_ws_client_error(e),
+    }
     Ok(())
+}
+
+fn handle_ws_client_error(e: WsClientError) {
+    match e {
+        WsClientError::InvalidResponseStatus(status_code) => {
+            error!("invalid response status code: {status_code}");
+        }
+        WsClientError::InvalidUpgradeHeader => {
+            error!("invalid upgrade header");
+        }
+        WsClientError::InvalidConnectionHeader(header_value) => {
+            error!("invalid connection header: {header_value:?}");
+        }
+        WsClientError::MissingConnectionHeader => {
+            error!("missing connection header");
+        }
+        WsClientError::MissingWebSocketAcceptHeader => {
+            error!("missing websocket accept header");
+        }
+        WsClientError::InvalidChallengeResponse(_, header_value) => {
+            error!("invalid challenge response: {header_value:?}");
+        }
+        WsClientError::Protocol(protocol_error) => {
+            error!("protocol error: {protocol_error}");
+        }
+        WsClientError::SendRequest(send_request_error) => {
+            error!("send request error: {send_request_error}");
+        }
+    }
 }

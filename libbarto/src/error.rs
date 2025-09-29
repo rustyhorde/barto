@@ -23,6 +23,15 @@ pub enum Error {
     /// No valid data directory could be found
     #[error("There is no valid data directory")]
     DataDir,
+    /// Unable to read the certificate file
+    #[error("Unable to read the certificate file")]
+    CertRead,
+    /// Unable to read the private key file
+    #[error("Unable to read the private key file")]
+    KeyRead,
+    /// No valid private keys found in the key file
+    #[error("No valid private keys found in the key file")]
+    NoPrivateKeys,
 }
 
 /// Converts an `anyhow::Error` into a suitable exit code or clap message for a CLI application.

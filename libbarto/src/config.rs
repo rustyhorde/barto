@@ -58,6 +58,18 @@ pub struct Tracing {
     directives: Option<String>,
 }
 
+/// hosts configuration
+#[derive(Clone, Debug, Default, Deserialize, Eq, Getters, PartialEq, Serialize)]
+#[getset(get = "pub")]
+pub struct Actix {
+    /// The number of workers to start
+    workers: u8,
+    /// The IP address to listen on
+    ip: String,
+    /// The port to listen on
+    port: u16,
+}
+
 /// Load the configuration
 ///
 /// # Errors

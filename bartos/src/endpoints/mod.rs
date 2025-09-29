@@ -6,13 +6,6 @@
 // option. All files in the project carrying such notice may not be copied,
 // modified, or distributed except according to those terms.
 
-/// Error types for bartos
-#[derive(Clone, Copy, Debug, thiserror::Error)]
-pub(crate) enum Error {
-    #[error("Unable to load a valid configuration")]
-    ConfigLoad,
-    #[error("Unable to initialize tracing")]
-    TracingInit,
-    #[error("Invalid IP address")]
-    InvalidIp,
-}
+//! Endpoints
+
+pub(crate) mod insecure;

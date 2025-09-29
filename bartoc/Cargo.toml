@@ -7,14 +7,16 @@ edition = "2024"
 unstable = []
 
 [dependencies]
+actix-web = { workspace = true }
 anyhow = { workspace = true }
+awc = { version = "3.8.0", features = ["rustls-0_23-webpki-roots"] }
 clap = { workspace = true }
 config = { workspace = true }
+futures-util = { workspace = true }
 getset = { workspace = true }
 libbarto = { path = "../libbarto" }
 serde = { workspace = true }
 thiserror = { workspace = true }
-tokio = { workspace = true }
 tracing = { workspace = true }
 tracing-subscriber-init = { workspace = true }
 
