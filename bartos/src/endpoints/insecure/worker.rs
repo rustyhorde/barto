@@ -13,7 +13,8 @@ use actix_web::{
 };
 use actix_ws::{AggregatedMessage, handle};
 use futures_util::StreamExt as _;
-use tracing::{error, info};
+use libbarto::parse_ts_ping;
+use tracing::{error, info, trace};
 
 use crate::endpoints::insecure::Name;
 
@@ -31,13 +32,22 @@ pub(crate) async fn worker(
                 AggregatedMessage::Text(_byte_string) => todo!(),
                 AggregatedMessage::Binary(_bytes) => todo!(),
                 AggregatedMessage::Ping(bytes) => {
-                    info!("ping received");
-                    if session.pong(&bytes).await.is_err() {
-                        error!("error sending pong");
-                        break;
+                    trace!("handling ping message");
+                    if let Some(dur) = parse_ts_ping(&bytes) {
+                        trace!("ping duration: {}s", dur.as_secs_f64());
+                    }
+                    // self.hb = Instant::now();
+                    if let Err(e) = session.pong(&bytes).await {
+                        error!("unable to send pong: {e}");
                     }
                 }
-                AggregatedMessage::Pong(bytes) => info!("pong: {:?}", bytes),
+                AggregatedMessage::Pong(bytes) => {
+                    trace!("handling pong message");
+                    if let Some(dur) = parse_ts_ping(&bytes) {
+                        trace!("pong duration: {}s", dur.as_secs_f64());
+                    }
+                    // self.hb = Instant::now();
+                }
                 AggregatedMessage::Close(close_reason) => {
                     info!("close received: {:?}", close_reason);
                     break;

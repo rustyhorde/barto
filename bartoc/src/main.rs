@@ -241,6 +241,7 @@
 #![cfg_attr(all(docsrs), feature(doc_cfg))]
 #![cfg_attr(coverage_nightly, feature(coverage_attribute))]
 
+// mod actor;
 mod config;
 mod error;
 mod runtime;
@@ -252,7 +253,7 @@ use libbarto::{clap_or_error, success};
 
 use crate::runtime::run;
 
-#[actix_web::main]
+#[tokio::main]
 async fn main() -> Result<()> {
     exit(
         run::<Vec<&str>, &str>(None)

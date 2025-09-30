@@ -243,6 +243,7 @@
 
 mod config;
 mod error;
+mod message;
 mod tls;
 mod tracing;
 mod utils;
@@ -254,7 +255,10 @@ pub use self::config::load;
 pub use self::error::Error;
 pub use self::error::clap_or_error;
 pub use self::error::success;
+pub use self::message::client::WorkerClientToWorkerSession;
 pub use self::tls::TlsConfig;
 pub use self::tls::load_tls_config;
 pub use self::tracing::TracingConfigExt;
 pub use self::tracing::init_tracing;
+pub use self::utils::parse_ts_ping;
+pub use self::utils::send_ts_ping;
