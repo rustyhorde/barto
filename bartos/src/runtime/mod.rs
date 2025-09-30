@@ -23,15 +23,13 @@ use anyhow::{Context, Result};
 use clap::Parser;
 use libbarto::{init_tracing, load, load_tls_config};
 use rustls::crypto::aws_lc_rs::default_provider;
-#[cfg(not(unix))]
-use tokio::signal::ctrl_c;
-use tokio::{select, spawn, time::sleep};
-use tracing::{info, trace, warn};
 #[cfg(unix)]
-use {
-    tokio::signal::unix::{SignalKind, signal},
-    tokio_util::sync::CancellationToken,
-};
+use tokio::signal::unix::{SignalKind, signal};
+use tokio::{select, spawn, time::sleep};
+use tokio_util::sync::CancellationToken;
+use tracing::{info, trace, warn};
+#[cfg(not(unix))]
+use {tokio::signal::ctrl_c, tracing::error};
 
 use crate::{config::Config, endpoints::insecure::insecure_config, error::Error};
 
@@ -114,8 +112,6 @@ where
 
 #[cfg(unix)]
 async fn handle_signals(token: CancellationToken) -> Result<()> {
-    use tokio::select;
-
     let mut sigint = signal(SignalKind::interrupt())?;
     let mut sigterm = signal(SignalKind::terminate())?;
     let mut sighup = signal(SignalKind::hangup())?;
