@@ -6,13 +6,15 @@
 // option. All files in the project carrying such notice may not be copied,
 // modified, or distributed except according to those terms.
 
-use actix::Message;
 use bincode::{Decode, Encode};
 
 /// A message from a worker client to a worker session
-#[derive(Clone, Debug, Decode, Encode, Message)]
-#[rtype(result = "()")]
-pub enum WorkerClientToWorkerSession {
-    /// A text message for a server
-    Text(String),
+#[derive(Clone, Debug, Decode, Encode)]
+pub enum BartocToBartos {
+    /// A close message from bartoc
+    Close(Option<(u16, String)>),
+    /// A ping message from bartoc
+    Ping(Vec<u8>),
+    /// A pong message from bartos
+    Pong(Vec<u8>),
 }

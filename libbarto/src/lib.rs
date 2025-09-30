@@ -255,7 +255,7 @@ pub use self::config::load;
 pub use self::error::Error;
 pub use self::error::clap_or_error;
 pub use self::error::success;
-pub use self::message::client::WorkerClientToWorkerSession;
+pub use self::message::client::BartocToBartos;
 pub use self::tls::TlsConfig;
 pub use self::tls::load_tls_config;
 pub use self::tracing::TracingConfigExt;

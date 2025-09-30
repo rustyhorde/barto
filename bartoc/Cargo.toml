@@ -8,8 +8,8 @@ unstable = []
 
 [dependencies]
 anyhow = { workspace = true }
-# bincode = "2.0.1"
-# bon = "3.7.2"
+bincode = { workspace = true }
+bon = "3.7.2"
 # bytes = { workspace = true }
 clap = { workspace = true }
 config = { workspace = true }
@@ -18,8 +18,8 @@ getset = { workspace = true }
 libbarto = { path = "../libbarto" }
 serde = { workspace = true }
 thiserror = { workspace = true }
-tokio = { workspace = true, features = ["signal", "sync"] }
-tokio-tungstenite = { version = "0.28.0", features = [ "rustls-tls-webpki-roots" ] }
+tokio = { workspace = true, features = ["signal", "sync", "time"] }
+tokio-tungstenite = { workspace = true }
 tokio-util = "0.7.16"
 tracing = { workspace = true }
 tracing-subscriber-init = { workspace = true }
@@ -28,7 +28,9 @@ tracing-subscriber-init = { workspace = true }
 rustversion = { workspace = true }
 
 [lints.rust]
-unexpected_cfgs = { level = "warn", check-cfg = ['cfg(coverage,coverage_nightly)'] }
+unexpected_cfgs = { level = "warn", check-cfg = [
+    'cfg(coverage,coverage_nightly)',
+] }
 
 [package.metadata.docs.rs]
 all-features = true

@@ -6,6 +6,7 @@ members = ["bartoc", "bartos", "libbarto"]
 [workspace.dependencies]
 actix-web = { version = "4.11.0" }
 anyhow = "1.0.100"
+bincode = "2.0.1"
 bytes = "1.10.1"
 clap = { version = "4.5.48", features = ["derive"] }
 config = { version = "0.15.17", features = [ "toml" ] }
@@ -16,6 +17,7 @@ rustversion = "1.0.22"
 serde = { version = "1.0.228", features = ["derive"] }
 thiserror = "2.0.17"
 tokio = { version = "1.47.1", features = ["macros", "rt-multi-thread"] }
+tokio-tungstenite = { version = "0.28.0", features = [ "rustls-tls-webpki-roots" ] }
 tracing = { version = "0.1.41", features = [
   "max_level_trace",
   "release_max_level_trace",

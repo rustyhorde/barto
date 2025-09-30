@@ -49,7 +49,16 @@ pub(crate) async fn worker(
                     // self.hb = Instant::now();
                 }
                 AggregatedMessage::Close(close_reason) => {
-                    info!("close received: {:?}", close_reason);
+                    trace!("handling close message");
+                    if let Some(cr) = &close_reason {
+                        if let Some(desc) = &cr.description {
+                            trace!("close reason: code={} reason={desc}", u16::from(cr.code));
+                        } else {
+                            trace!("close reason: code={} no reason given", u16::from(cr.code));
+                        }
+                    } else {
+                        trace!("close reason: none");
+                    }
                     break;
                 }
             }

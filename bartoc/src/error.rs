@@ -13,4 +13,8 @@ pub(crate) enum Error {
     ConfigLoad,
     #[error("Unable to initialize tracing")]
     TracingInit,
+    #[error("bartoc is shutting down")]
+    Shutdown,
+    #[error("Invalid bartoc message for bartos")]
+    InvalidBartocMessage,
 }

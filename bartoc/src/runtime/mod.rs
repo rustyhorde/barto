@@ -8,28 +8,29 @@
 
 mod cli;
 
-use std::ffi::OsString;
+use std::{ffi::OsString, time::Duration};
 
 use anyhow::{Context, Result};
 use clap::Parser;
-use futures_util::{SinkExt, StreamExt};
+use futures_util::StreamExt;
 use libbarto::{init_tracing, load};
 #[cfg(not(unix))]
 use tokio::signal::ctrl_c;
 #[cfg(unix)]
 use tokio::signal::unix::{SignalKind, signal};
-use tokio::{select, spawn, sync::mpsc::unbounded_channel};
+use tokio::{select, spawn, sync::mpsc::unbounded_channel, time::sleep};
 use tokio_tungstenite::{
     connect_async,
-    tungstenite::{
-        Message,
-        protocol::{CloseFrame, frame::coding::CloseCode},
-    },
+    tungstenite::{Message, protocol::frame::coding::CloseCode},
 };
 use tokio_util::sync::CancellationToken;
 use tracing::{error, trace};
 
-use crate::{config::Config, error::Error};
+use crate::{
+    config::Config,
+    error::Error,
+    handler::{BartocMessage, Handler},
+};
 
 use self::cli::Cli;
 
@@ -55,33 +56,26 @@ where
     trace!("tracing initialized");
 
     let token = CancellationToken::new();
-    let cloned_token = token.clone();
+    let stream_token = token.clone();
+    let heartbeat_token = token.clone();
     let (tx, mut rx) = unbounded_channel();
     let (ws_stream, _) = connect_async("wss://localhost.ozias.net:21526/v1/ws/worker").await?;
     trace!("websocket connected");
+    let (sink, mut stream) = ws_stream.split();
+    let mut handler = Handler::builder()
+        .sink(sink)
+        .tx(tx.clone())
+        .token(heartbeat_token)
+        .build();
+    handler.heartbeat();
+    trace!("bartoc heartbeat started");
 
-    let (mut sink, mut stream) = ws_stream.split();
     let sink_handle = spawn(async move {
         while let Some(msg) = rx.recv().await {
-            match &msg {
-                Message::Close(close_reason) => {
-                    if let Some(reason) = close_reason {
-                        trace!(
-                            "websocket close message received: code={}, reason={}",
-                            reason.code, reason.reason
-                        );
-                    } else {
-                        trace!("websocket close message received");
-                    }
-                    trace!("shutting down bartoc");
-                    break;
-                }
-                _ => {
-                    if let Err(e) = sink.send(msg).await {
-                        error!("unable to send message to websocket: {e}");
-                        break;
-                    }
-                }
+            if let Err(e) = handler.handle_msg(msg).await {
+                error!("{e}");
+                trace!("shutting down sink handler");
+                break;
             }
         }
     });
@@ -91,35 +85,44 @@ where
 
     loop {
         select! {
-            () = cloned_token.cancelled() => {
-                trace!("cancellation token triggered, shutting down bartoc");
-                let close_frame = CloseFrame {
-                    code: CloseCode::Normal,
-                    reason: "cancellation token triggered, shutting down bartoc".into(),
-                };
-                if let Err(e) = tx.send(Message::Close(Some(close_frame))) {
-                    error!("unable to send close message to websocket: {e}");
+            () = stream_token.cancelled() => {
+                let cr = Some((u16::from(CloseCode::Normal), "cancellation token triggered, shutting down bartoc".into()));
+                if let Err(e) = tx.send(BartocMessage::close(cr)) {
+                    error!("unable to send close message to bartos: {e}");
                 }
+                if let Err(e) = tx.send(BartocMessage::Close) {
+                    error!("unable to send close message to handler: {e}");
+                }
+                trace!("cancellation token triggered, shutting down bartoc");
+                // sleep a bit to allow the close message to be sent to bartos
+                sleep(Duration::from_secs(1)).await;
                 break;
             }
             next_opt = stream.next() => {
                 if let Some(msg_res) = next_opt {
                     match msg_res {
                         Ok(msg) => match msg {
-                            Message::Text(_utf8_bytes) => todo!(),
+                            Message::Text(_utf8_bytes) => error!("text message received, ignoring"),
                             Message::Binary(_bytes) => todo!(),
                             Message::Ping(bytes) => {
-                                if let Err(e) = tx.send(Message::Pong(bytes)) {
-                                    error!("unable to send pong message to websocket: {e}");
+                                trace!("ping message received, sending pong");
+                                if let Err(e) = tx.send(BartocMessage::Ping(bytes.into())) {
+                                    error!("unable to send ping message to handler: {e}");
                                 }
                             }
-                            Message::Pong(_bytes) => todo!(),
+                            Message::Pong(bytes) => {
+                                trace!("pong message received");
+                                if let Err(e) = tx.send(BartocMessage::Pong(bytes.into())) {
+                                    error!("unable to send pong message to handler: {e}");
+                                }
+                            },
                             Message::Close(_close_frame) => todo!(),
-                            Message::Frame(_frame) => todo!(),
+                            Message::Frame(_frame) => error!("frame message received, ignoring"),
                         },
                         Err(e) => {
                             error!("websocket error: {e}");
-                            tx.send(Message::Close(None))?;
+                            stream_token.cancel();
+                            tx.send(BartocMessage::Close)?;
                         }
                     }
                 }
@@ -139,6 +142,9 @@ async fn handle_signals(token: CancellationToken) -> Result<()> {
     let mut sighup = signal(SignalKind::hangup())?;
 
     select! {
+        () = token.cancelled() => {
+            trace!("cancellation token triggered, shutting down signal handler");
+        }
         _ = sigint.recv() => {
             trace!("received SIGINT, shutting down bartoc");
             token.cancel();
@@ -156,37 +162,20 @@ async fn handle_signals(token: CancellationToken) -> Result<()> {
 
 #[cfg(not(unix))]
 async fn handle_signals(token: CancellationToken) -> Result<()> {
-    tokio::signal::ctrl_c().await?;
-    trace!("received CTRL-C, shutting down bartoc");
-    token.cancel();
-    Ok(())
+    select! {
+        () = token.cancelled() => {
+            trace!("cancellation token triggered, shutting down signal handler");
+            Ok(())
+        }
+        res = ctrl_c() => {
+            if let Err(e) = res {
+                error!("unable to listen for CTRL-C: {e}");
+                Err(e.into())
+            } else {
+                trace!("received CTRL-C, shutting down bartoc");
+                token.cancel();
+                Ok(())
+            }
+        }
+    }
 }
-
-// fn handle_ws_client_error(e: WsClientError) {
-//     match e {
-//         WsClientError::InvalidResponseStatus(status_code) => {
-//             error!("invalid response status code: {status_code}");
-//         }
-//         WsClientError::InvalidUpgradeHeader => {
-//             error!("invalid upgrade header");
-//         }
-//         WsClientError::InvalidConnectionHeader(header_value) => {
-//             error!("invalid connection header: {header_value:?}");
-//         }
-//         WsClientError::MissingConnectionHeader => {
-//             error!("missing connection header");
-//         }
-//         WsClientError::MissingWebSocketAcceptHeader => {
-//             error!("missing websocket accept header");
-//         }
-//         WsClientError::InvalidChallengeResponse(_, header_value) => {
-//             error!("invalid challenge response: {header_value:?}");
-//         }
-//         WsClientError::Protocol(protocol_error) => {
-//             error!("protocol error: {protocol_error}");
-//         }
-//         WsClientError::SendRequest(send_request_error) => {
-//             error!("send request error: {send_request_error}");
-//         }
-//     }
-// }
