@@ -116,7 +116,23 @@ where
                                     error!("unable to send pong message to handler: {e}");
                                 }
                             },
-                            Message::Close(_close_frame) => todo!(),
+                            Message::Close(close_frame) => {
+                                trace!("close message received, shutting down bartoc");
+                                if let Some(cf) = &close_frame {
+                                    let code = u16::from(cf.code);
+                                    if cf.reason.is_empty() {
+                                        trace!("close reason: code={code} no reason given");
+                                    } else {
+                                        trace!("close reason: code={code} reason={}", cf.reason);
+                                    }
+                                } else {
+                                    trace!("close reason: none");
+                                }
+                                if let Err(e) = tx.send(BartocMessage::Close) {
+                                    error!("unable to send close message to handler: {e}");
+                                }
+                                stream_token.cancel();
+                            },
                             Message::Frame(_frame) => error!("frame message received, ignoring"),
                         },
                         Err(e) => {

@@ -10,7 +10,6 @@ unstable = []
 anyhow = { workspace = true }
 bincode = { workspace = true }
 bon = "3.7.2"
-# bytes = { workspace = true }
 clap = { workspace = true }
 config = { workspace = true }
 futures-util = { workspace = true }
@@ -20,7 +19,7 @@ serde = { workspace = true }
 thiserror = { workspace = true }
 tokio = { workspace = true, features = ["signal", "sync", "time"] }
 tokio-tungstenite = { workspace = true }
-tokio-util = "0.7.16"
+tokio-util = { workspace = true }
 tracing = { workspace = true }
 tracing-subscriber-init = { workspace = true }
 
