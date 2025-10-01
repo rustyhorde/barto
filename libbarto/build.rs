@@ -10,7 +10,6 @@ use anyhow::Result;
 use vergen_gix::{Build, Cargo, Emitter, Gix, Rustc, Sysinfo};
 
 pub fn main() -> Result<()> {
-    println!("cargo:rerun-if-changed=build.rs");
     println!("cargo:rustc-check-cfg=cfg(coverage_nightly)");
     nightly();
     Emitter::default()

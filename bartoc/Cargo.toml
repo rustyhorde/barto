@@ -24,9 +24,7 @@ tracing = { workspace = true }
 tracing-subscriber-init = { workspace = true }
 
 [build-dependencies]
-anyhow = { workspace = true }
 rustversion = { workspace = true }
-vergen-gix = { workspace = true }
 
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = [

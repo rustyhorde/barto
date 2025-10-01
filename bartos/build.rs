@@ -7,7 +7,6 @@
 // modified, or distributed except according to those terms.
 
 pub fn main() {
-    println!("cargo:rerun-if-changed=build.rs");
     println!("cargo:rustc-check-cfg=cfg(coverage_nightly)");
     nightly();
 }

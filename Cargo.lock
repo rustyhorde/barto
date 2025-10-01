@@ -409,7 +409,6 @@ dependencies = [
  "tokio-util",
  "tracing",
  "tracing-subscriber-init",
- "vergen-gix",
 ]
 
 [[package]]
