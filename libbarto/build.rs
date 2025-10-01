@@ -6,10 +6,20 @@
 // option. All files in the project carrying such notice may not be copied,
 // modified, or distributed except according to those terms.
 
-pub fn main() {
+use anyhow::Result;
+use vergen_gix::{Build, Cargo, Emitter, Gix, Rustc, Sysinfo};
+
+pub fn main() -> Result<()> {
     println!("cargo:rerun-if-changed=build.rs");
     println!("cargo:rustc-check-cfg=cfg(coverage_nightly)");
     nightly();
+    Emitter::default()
+        .add_instructions(&Build::all_build())?
+        .add_instructions(&Cargo::all_cargo())?
+        .add_instructions(&Gix::all_git())?
+        .add_instructions(&Rustc::all_rustc())?
+        .add_instructions(&Sysinfo::all_sysinfo())?
+        .emit()
 }
 
 #[rustversion::nightly]

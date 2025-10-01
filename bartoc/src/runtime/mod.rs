@@ -8,23 +8,31 @@
 
 mod cli;
 
-use std::{ffi::OsString, time::Duration};
+use std::{
+    ffi::OsString,
+    io::{Write, stdout},
+    time::Duration,
+};
 
 use anyhow::{Context, Result};
 use clap::Parser;
 use futures_util::StreamExt;
-use libbarto::{init_tracing, load};
+use libbarto::{header, init_tracing, load};
 #[cfg(not(unix))]
 use tokio::signal::ctrl_c;
 #[cfg(unix)]
 use tokio::signal::unix::{SignalKind, signal};
-use tokio::{select, spawn, sync::mpsc::unbounded_channel, time::sleep};
+use tokio::{
+    select, spawn,
+    sync::mpsc::{UnboundedSender, unbounded_channel},
+    time::sleep,
+};
 use tokio_tungstenite::{
     connect_async,
     tungstenite::{Message, protocol::frame::coding::CloseCode},
 };
 use tokio_util::sync::CancellationToken;
-use tracing::{error, trace};
+use tracing::{error, info, trace};
 
 use crate::{
     config::Config,
@@ -33,6 +41,13 @@ use crate::{
 };
 
 use self::cli::Cli;
+
+const HEADER_PREFIX: &str = r"██████╗  █████╗ ██████╗ ████████╗ ██████╗  ██████╗
+██╔══██╗██╔══██╗██╔══██╗╚══██╔══╝██╔═══██╗██╔════╝
+██████╔╝███████║██████╔╝   ██║   ██║   ██║██║     
+██╔══██╗██╔══██║██╔══██╗   ██║   ██║   ██║██║     
+██████╔╝██║  ██║██║  ██║   ██║   ╚██████╔╝╚██████╗
+╚═════╝ ╚═╝  ╚═╝╚═╝  ╚═╝   ╚═╝    ╚═════╝  ╚═════╝";
 
 pub(crate) async fn run<I, T>(args: Option<I>) -> Result<()>
 where
@@ -55,11 +70,20 @@ where
     trace!("configuration loaded");
     trace!("tracing initialized");
 
+    // Display the bartoc header
+    let writer: Option<&mut dyn Write> = if config.enable_std_output() {
+        Some(&mut stdout())
+    } else {
+        None
+    };
+    header::<Config, dyn Write>(&config, HEADER_PREFIX, writer)?;
+
     let token = CancellationToken::new();
     let stream_token = token.clone();
     let heartbeat_token = token.clone();
     let (tx, mut rx) = unbounded_channel();
-    let (ws_stream, _) = connect_async("wss://localhost.ozias.net:21526/v1/ws/worker").await?;
+    let (ws_stream, _) =
+        connect_async("wss://localhost.ozias.net:21526/v1/ws/worker?name=garuda").await?;
     trace!("websocket connected");
     let (sink, mut stream) = ws_stream.split();
     let mut handler = Handler::builder()
@@ -83,19 +107,11 @@ where
     // Setup the signal handling
     let sighan_handle = spawn(async move { handle_signals(token).await });
 
+    info!("bartoc started!");
     loop {
         select! {
             () = stream_token.cancelled() => {
-                let cr = Some((u16::from(CloseCode::Normal), "cancellation token triggered, shutting down bartoc".into()));
-                if let Err(e) = tx.send(BartocMessage::close(cr)) {
-                    error!("unable to send close message to bartos: {e}");
-                }
-                if let Err(e) = tx.send(BartocMessage::Close) {
-                    error!("unable to send close message to handler: {e}");
-                }
-                trace!("cancellation token triggered, shutting down bartoc");
-                // sleep a bit to allow the close message to be sent to bartos
-                sleep(Duration::from_secs(1)).await;
+                handle_cancellation(tx).await;
                 break;
             }
             next_opt = stream.next() => {
@@ -194,4 +210,20 @@ async fn handle_signals(token: CancellationToken) -> Result<()> {
             }
         }
     }
+}
+
+async fn handle_cancellation(tx: UnboundedSender<BartocMessage>) {
+    let cr = Some((
+        u16::from(CloseCode::Normal),
+        "cancellation token triggered, shutting down bartoc".into(),
+    ));
+    if let Err(e) = tx.send(BartocMessage::close(cr)) {
+        error!("unable to send close message to bartos: {e}");
+    }
+    if let Err(e) = tx.send(BartocMessage::Close) {
+        error!("unable to send close message to handler: {e}");
+    }
+    trace!("cancellation token triggered, shutting down bartoc");
+    // sleep a bit to allow the close message to be sent to bartos
+    sleep(Duration::from_secs(1)).await;
 }

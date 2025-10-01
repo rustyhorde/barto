@@ -10,6 +10,7 @@ mod cli;
 
 use std::{
     ffi::OsString,
+    io::{Write, stdout},
     net::{IpAddr, SocketAddr},
     time::Duration,
 };
@@ -21,7 +22,7 @@ use actix_web::{
 };
 use anyhow::{Context, Result};
 use clap::Parser;
-use libbarto::{init_tracing, load, load_tls_config};
+use libbarto::{header, init_tracing, load, load_tls_config};
 use rustls::crypto::aws_lc_rs::default_provider;
 #[cfg(unix)]
 use tokio::signal::unix::{SignalKind, signal};
@@ -34,6 +35,13 @@ use {tokio::signal::ctrl_c, tracing::error};
 use crate::{config::Config, endpoints::insecure::insecure_config, error::Error};
 
 use self::cli::Cli;
+
+const HEADER_PREFIX: &str = r"██████╗  █████╗ ██████╗ ████████╗ ██████╗ ███████╗
+██╔══██╗██╔══██╗██╔══██╗╚══██╔══╝██╔═══██╗██╔════╝
+██████╔╝███████║██████╔╝   ██║   ██║   ██║███████╗
+██╔══██╗██╔══██║██╔══██╗   ██║   ██║   ██║╚════██║
+██████╔╝██║  ██║██║  ██║   ██║   ╚██████╔╝███████║
+╚═════╝ ╚═╝  ╚═╝╚═╝  ╚═╝   ╚═╝    ╚═════╝ ╚══════╝";
 
 pub(crate) async fn run<I, T>(args: Option<I>) -> Result<()>
 where
@@ -55,6 +63,14 @@ where
 
     trace!("configuration loaded");
     trace!("tracing initialized");
+
+    // Display the bartoc header
+    let writer: Option<&mut dyn Write> = if config.enable_std_output() {
+        Some(&mut stdout())
+    } else {
+        None
+    };
+    header::<Config, dyn Write>(&config, HEADER_PREFIX, writer)?;
 
     // Setup the default crypto provider
     match default_provider().install_default() {

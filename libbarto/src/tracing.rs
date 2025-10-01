@@ -22,6 +22,8 @@ pub trait TracingConfigExt: TracingConfig {
     fn enable_stdout(&self) -> bool;
     /// Additional tracing directives
     fn directives(&self) -> Option<&String>;
+    /// Current tracing level
+    fn level(&self) -> Level;
 }
 
 /// Initialize tracing
@@ -43,7 +45,8 @@ where
     // Setup the stdout tracing layer if enabled
     if config.enable_stdout() {
         let (layer, level_filter) = compact(config);
-        let directives = directives(config, level_filter);
+        let mut directives = directives(config, level_filter);
+        directives.push_str(",vergen_pretty=error");
         let filter = EnvFilter::builder()
             .with_default_directive(level_filter.into())
             .parse_lossy(directives);

@@ -9,18 +9,28 @@ anyhow = "1.0.100"
 bincode = "2.0.1"
 bytes = "1.10.1"
 clap = { version = "4.5.48", features = ["derive"] }
-config = { version = "0.15.17", features = [ "toml" ] }
-futures-util = { version = "0.3.17", default-features = false, features = ["std"] }
+config = { version = "0.15.17", features = ["toml"] }
+futures-util = { version = "0.3.17", default-features = false, features = [
+  "std",
+] }
 getset = "0.1.6"
 rustls = { version = "0.23.32" }
 rustversion = "1.0.22"
 serde = { version = "1.0.228", features = ["derive"] }
 thiserror = "2.0.17"
 tokio = { version = "1.47.1", features = ["macros", "rt-multi-thread"] }
-tokio-tungstenite = { version = "0.28.0", features = [ "rustls-tls-webpki-roots" ] }
+tokio-tungstenite = { version = "0.28.0", features = [
+  "rustls-tls-webpki-roots",
+] }
 tokio-util = "0.7.16"
 tracing = { version = "0.1.41", features = [
   "max_level_trace",
   "release_max_level_trace",
 ] }
-tracing-subscriber-init = { version = "0.1.5", features = ["tstime"] }
+tracing-subscriber-init = { version = "0.2.0", features = ["tstime"] }
+vergen-gix = { version = "2.1.0-beta.6", features = [
+  "build",
+  "cargo",
+  "rustc",
+  "si",
+] }

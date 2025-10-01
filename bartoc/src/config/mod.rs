@@ -9,7 +9,8 @@
 use getset::{CopyGetters, Getters};
 use libbarto::{Tracing, TracingConfigExt};
 use serde::{Deserialize, Serialize};
-use tracing_subscriber_init::TracingConfig;
+use tracing::Level;
+use tracing_subscriber_init::{TracingConfig, get_effective_level};
 
 #[derive(Clone, CopyGetters, Debug, Default, Deserialize, Eq, Getters, PartialEq, Serialize)]
 pub(crate) struct Config {
@@ -60,5 +61,9 @@ impl TracingConfigExt for Config {
 
     fn directives(&self) -> Option<&String> {
         self.tracing.directives().as_ref()
+    }
+
+    fn level(&self) -> Level {
+        get_effective_level(self.quiet, self.verbose)
     }
 }
