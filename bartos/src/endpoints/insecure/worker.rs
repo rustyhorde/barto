@@ -8,12 +8,14 @@
 
 use actix_web::{
     HttpRequest, Responder, Result,
+    error::ErrorInternalServerError,
     rt::spawn,
     web::{Data, Payload, Query},
 };
-use actix_ws::{AggregatedMessage, handle};
+use actix_ws::{AggregatedMessage, Session, handle};
+use bincode::{config::standard, encode_to_vec};
 use futures_util::StreamExt as _;
-use libbarto::parse_ts_ping;
+use libbarto::{BartosToBartoc, parse_ts_ping};
 use tokio::select;
 use tokio_util::sync::CancellationToken;
 use tracing::{error, info, trace};
@@ -32,11 +34,13 @@ pub(crate) async fn worker(
     let mut agms = msg_stream.aggregate_continuations();
     let ws_token = token.get_ref().clone();
     let mut ws_session = session.clone();
-    let schedule = name
-        .name()
-        .as_ref()
-        .and_then(|name| config.schedules().get(name));
-    info!("worker schedule: {schedule:?}");
+    let mut init_session = session.clone();
+    if let Err(e) = initialize(&mut init_session, name, config).await {
+        error!("unable to initialize worker session: {e}");
+        let _ = init_session.close(None).await;
+        return Err(e);
+    }
+
     let _handle = spawn(async move {
         loop {
             select! {
@@ -90,4 +94,25 @@ pub(crate) async fn worker(
     });
 
     Ok(response)
+}
+
+async fn initialize(session: &mut Session, name: Query<Name>, config: Data<Config>) -> Result<()> {
+    let schedules = name
+        .name()
+        .as_ref()
+        .and_then(|name| config.schedules().get(name));
+    info!("worker schedules: {schedules:?}");
+    let init_bytes = if let Some(schedules) = schedules {
+        encode_to_vec(BartosToBartoc::Initialize(schedules.clone()), standard()).map_err(|e| {
+            error!("unable to encode initialization message: {e}");
+            ErrorInternalServerError("internal server error")
+        })?
+    } else {
+        vec![]
+    };
+    session.binary(init_bytes).await.map_err(|e| {
+        error!("unable to send initialization message: {e}");
+        ErrorInternalServerError("internal server error")
+    })?;
+    Ok(())
 }

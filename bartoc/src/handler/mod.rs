@@ -6,13 +6,15 @@
 // option. All files in the project carrying such notice may not be copied,
 // modified, or distributed except according to those terms.
 
+pub(crate) mod stream;
+
 use std::time::{Duration, Instant};
 
 use anyhow::Result;
 use bincode::{Decode, Encode, config::standard, encode_to_vec};
 use bon::Builder;
 use futures_util::{SinkExt as _, stream::SplitSink};
-use libbarto::{BartocToBartos, parse_ts_ping, send_ts_ping};
+use libbarto::{BartocToBartos, BartosToBartoc, parse_ts_ping, send_ts_ping};
 use tokio::{net::TcpStream, select, spawn, sync::mpsc::UnboundedSender, time::interval};
 use tokio_tungstenite::{
     MaybeTlsStream, WebSocketStream,
@@ -34,7 +36,7 @@ pub(crate) enum BartocMessage {
     Ping(Vec<u8>),
     Pong(Vec<u8>),
     BartocToBartos(BartocToBartos),
-    BartosToBartoc(Vec<u8>),
+    BartosToBartoc(BartosToBartoc),
 }
 
 impl BartocMessage {

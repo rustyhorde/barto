@@ -27,17 +27,14 @@ use tokio::{
     sync::mpsc::{UnboundedSender, unbounded_channel},
     time::sleep,
 };
-use tokio_tungstenite::{
-    connect_async,
-    tungstenite::{Message, protocol::frame::coding::CloseCode},
-};
+use tokio_tungstenite::{connect_async, tungstenite::protocol::frame::coding::CloseCode};
 use tokio_util::sync::CancellationToken;
 use tracing::{error, info, trace};
 
 use crate::{
     config::Config,
     error::Error,
-    handler::{BartocMessage, Handler},
+    handler::{BartocMessage, Handler, stream::WsHandler},
 };
 
 use self::cli::Cli;
@@ -93,6 +90,10 @@ where
         .build();
     handler.heartbeat();
     trace!("bartoc heartbeat started");
+    let mut ws_handler = WsHandler::builder()
+        .tx(tx.clone())
+        .token(stream_token.clone())
+        .build();
 
     let sink_handle = spawn(async move {
         while let Some(msg) = rx.recv().await {
@@ -115,48 +116,8 @@ where
                 break;
             }
             next_opt = stream.next() => {
-                if let Some(msg_res) = next_opt {
-                    match msg_res {
-                        Ok(msg) => match msg {
-                            Message::Text(_utf8_bytes) => error!("text message received, ignoring"),
-                            Message::Binary(_bytes) => todo!(),
-                            Message::Ping(bytes) => {
-                                trace!("ping message received, sending pong");
-                                if let Err(e) = tx.send(BartocMessage::Ping(bytes.into())) {
-                                    error!("unable to send ping message to handler: {e}");
-                                }
-                            }
-                            Message::Pong(bytes) => {
-                                trace!("pong message received");
-                                if let Err(e) = tx.send(BartocMessage::Pong(bytes.into())) {
-                                    error!("unable to send pong message to handler: {e}");
-                                }
-                            },
-                            Message::Close(close_frame) => {
-                                trace!("close message received, shutting down bartoc");
-                                if let Some(cf) = &close_frame {
-                                    let code = u16::from(cf.code);
-                                    if cf.reason.is_empty() {
-                                        trace!("close reason: code={code} no reason given");
-                                    } else {
-                                        trace!("close reason: code={code} reason={}", cf.reason);
-                                    }
-                                } else {
-                                    trace!("close reason: none");
-                                }
-                                if let Err(e) = tx.send(BartocMessage::Close) {
-                                    error!("unable to send close message to handler: {e}");
-                                }
-                                stream_token.cancel();
-                            },
-                            Message::Frame(_frame) => error!("frame message received, ignoring"),
-                        },
-                        Err(e) => {
-                            error!("websocket error: {e}");
-                            stream_token.cancel();
-                            tx.send(BartocMessage::Close)?;
-                        }
-                    }
+                if let Err(e) = ws_handler.handle_msg(next_opt) {
+                    error!("{e}");
                 }
             }
         }

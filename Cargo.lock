@@ -418,6 +418,7 @@ dependencies = [
  "actix-web",
  "actix-ws",
  "anyhow",
+ "bincode",
  "clap",
  "config",
  "futures-util",

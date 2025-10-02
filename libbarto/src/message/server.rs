@@ -6,5 +6,13 @@
 // option. All files in the project carrying such notice may not be copied,
 // modified, or distributed except according to those terms.
 
-pub(crate) mod client;
-pub(crate) mod server;
+use bincode::{Decode, Encode};
+
+use crate::Schedules;
+
+/// A message from a worker client to a worker session
+#[derive(Clone, Debug, Decode, Encode)]
+pub enum BartosToBartoc {
+    /// Initialize bartoc with the given schedules
+    Initialize(Schedules),
+}

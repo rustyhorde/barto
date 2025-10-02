@@ -262,6 +262,7 @@ pub use self::error::clap_or_error;
 pub use self::error::success;
 pub use self::header::header;
 pub use self::message::client::BartocToBartos;
+pub use self::message::server::BartosToBartoc;
 pub use self::schedule::Realtime;
 pub use self::schedule::dow::DayOfWeek;
 pub use self::schedule::hms::Hour;
