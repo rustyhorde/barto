@@ -6,8 +6,10 @@
 // option. All files in the project carrying such notice may not be copied,
 // modified, or distributed except according to those terms.
 
+use std::collections::BTreeMap;
+
 use getset::{CopyGetters, Getters};
-use libbarto::{Actix, TlsConfig, Tracing, TracingConfigExt};
+use libbarto::{Actix, Schedules, TlsConfig, Tracing, TracingConfigExt};
 use serde::{Deserialize, Serialize};
 use tracing::Level;
 use tracing_subscriber_init::{TracingConfig, get_effective_level};
@@ -28,6 +30,8 @@ pub(crate) struct Config {
     cert_file_path: String,
     #[getset(get = "pub(crate)")]
     key_file_path: String,
+    #[getset(get = "pub(crate)")]
+    schedules: BTreeMap<String, Schedules>,
 }
 
 impl TracingConfig for Config {

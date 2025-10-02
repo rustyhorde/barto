@@ -42,3 +42,14 @@ pub fn parse_ts_ping(bytes: &Bytes) -> Option<Duration> {
         None
     }
 }
+
+#[allow(clippy::mut_mut)]
+pub(crate) fn until_err<T>(err: &mut &mut Result<()>, item: Result<T>) -> Option<T> {
+    match item {
+        Ok(item) => Some(item),
+        Err(e) => {
+            **err = Err(e);
+            None
+        }
+    }
+}

@@ -18,19 +18,25 @@ use tokio::select;
 use tokio_util::sync::CancellationToken;
 use tracing::{error, info, trace};
 
-use crate::endpoints::insecure::Name;
+use crate::{config::Config, endpoints::insecure::Name};
 
 pub(crate) async fn worker(
     request: HttpRequest,
     body: Payload,
     name: Query<Name>,
     token: Data<CancellationToken>,
+    config: Data<Config>,
 ) -> Result<impl Responder> {
     info!("worker connection from {}", name.describe(&request));
     let (response, session, msg_stream) = handle(&request, body)?;
     let mut agms = msg_stream.aggregate_continuations();
     let ws_token = token.get_ref().clone();
     let mut ws_session = session.clone();
+    let schedule = name
+        .name()
+        .as_ref()
+        .and_then(|name| config.schedules().get(name));
+    info!("worker schedule: {schedule:?}");
     let _handle = spawn(async move {
         loop {
             select! {

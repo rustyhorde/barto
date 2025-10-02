@@ -12,9 +12,11 @@ use actix_web::{
     HttpRequest,
     web::{ServiceConfig, get},
 };
+use getset::Getters;
 use serde::Deserialize;
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Getters)]
+#[getset(get = "pub(crate)")]
 pub(crate) struct Name {
     name: Option<String>,
 }

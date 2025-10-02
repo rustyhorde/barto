@@ -1,0 +1,284 @@
+// Copyright (c) 2025 barto developers
+//
+// Licensed under the Apache License, Version 2.0
+// <LICENSE-APACHE or https://www.apache.org/licenses/LICENSE-2.0> or the MIT
+// license <LICENSE-MIT or https://opensource.org/licenses/MIT>, at your
+// option. All files in the project carrying such notice may not be copied,
+// modified, or distributed except according to those terms.
+
+use std::{collections::HashSet, fmt::Display, sync::LazyLock};
+
+use anyhow::{Error, Result, anyhow};
+use regex::Regex;
+use time::Weekday;
+
+use crate::{
+    error::Error::{InvalidFirstCapture, InvalidRange, InvalidSecondCapture, NoValidCaptures},
+    utils::until_err,
+};
+
+static DOW_RANGE_RE: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"([a-zA-Z]{3,})\.\.([a-zA-Z]{3,})").expect("invalid day of week range regex")
+});
+
+/// The day of the week for a realtime schedule
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
+pub enum DayOfWeek {
+    /// Every day of the week
+    All,
+    /// Specific days of the week
+    Days(Vec<u8>),
+}
+
+impl DayOfWeek {
+    pub(crate) fn matches(&self, given: Weekday) -> bool {
+        match self {
+            DayOfWeek::All => true,
+            DayOfWeek::Days(days) => {
+                let given_u = match given {
+                    Weekday::Monday => 1,
+                    Weekday::Tuesday => 2,
+                    Weekday::Wednesday => 3,
+                    Weekday::Thursday => 4,
+                    Weekday::Friday => 5,
+                    Weekday::Saturday => 6,
+                    Weekday::Sunday => 0,
+                };
+                days.contains(&given_u)
+            }
+        }
+    }
+}
+
+impl From<u8> for DayOfWeek {
+    fn from(value: u8) -> Self {
+        DayOfWeek::Days(vec![value])
+    }
+}
+
+impl From<Vec<u8>> for DayOfWeek {
+    fn from(value: Vec<u8>) -> Self {
+        DayOfWeek::Days(value)
+    }
+}
+
+impl TryFrom<&str> for DayOfWeek {
+    type Error = Error;
+
+    fn try_from(dowish: &str) -> Result<Self> {
+        if dowish == "*" {
+            Ok(DayOfWeek::All)
+        } else {
+            let mut err = Ok(());
+            let mut dows: Vec<u8> = dowish
+                .split(',')
+                .map(parse_range_or_dow)
+                .scan(&mut err, until_err)
+                .flatten()
+                .collect::<HashSet<_>>()
+                .into_iter()
+                .collect();
+            err?;
+            dows.sort_unstable();
+            Ok(DayOfWeek::Days(dows))
+        }
+    }
+}
+
+impl Display for DayOfWeek {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            DayOfWeek::All => {
+                write!(f, "*")?;
+            }
+            DayOfWeek::Days(vals) => {
+                let len = vals.len();
+                for (idx, val) in vals.iter().enumerate() {
+                    match val {
+                        0 => write!(f, "Sun")?,
+                        1 => write!(f, "Mon")?,
+                        2 => write!(f, "Tue")?,
+                        3 => write!(f, "Wed")?,
+                        4 => write!(f, "Thu")?,
+                        5 => write!(f, "Fri")?,
+                        6 => write!(f, "Sat")?,
+                        _ => write!(f, "Unk")?,
+                    }
+                    if idx < len - 1 {
+                        write!(f, ", ")?;
+                    }
+                }
+            }
+        }
+        Ok(())
+    }
+}
+
+fn parse_range_or_dow(dow_str: &str) -> Result<Vec<u8>> {
+    if DOW_RANGE_RE.is_match(dow_str) {
+        parse_dow_range(dow_str)
+    } else {
+        parse_dow_v(dow_str)
+    }
+}
+
+fn parse_dow_range(dow_range: &str) -> Result<Vec<u8>> {
+    let caps = DOW_RANGE_RE.captures(dow_range).ok_or(NoValidCaptures)?;
+    let first = parse_dow(caps.get(1).ok_or(InvalidFirstCapture)?.as_str())?;
+    let second = parse_dow(caps.get(2).ok_or(InvalidSecondCapture)?.as_str())?;
+    if second < first {
+        Err(InvalidRange {
+            range: dow_range.to_string(),
+        }
+        .into())
+    } else {
+        Ok((first..=second).collect())
+    }
+}
+
+fn parse_dow_v(dow: &str) -> Result<Vec<u8>> {
+    parse_dow(dow).map(|x| vec![x])
+}
+
+fn parse_dow(dow: &str) -> Result<u8> {
+    let dow_l = dow.to_ascii_lowercase();
+
+    Ok(if &dow_l == "sun" || &dow_l == "sunday" {
+        0
+    } else if &dow_l == "mon" || &dow_l == "monday" {
+        1
+    } else if &dow_l == "tue" || &dow_l == "tuesday" {
+        2
+    } else if &dow_l == "wed" || &dow_l == "wednesday" {
+        3
+    } else if &dow_l == "thu" || &dow_l == "thursday" {
+        4
+    } else if &dow_l == "fri" || &dow_l == "friday" {
+        5
+    } else if &dow_l == "sat" || &dow_l == "saturday" {
+        6
+    } else {
+        return Err(anyhow!("invalid day of week: {dow}"));
+    })
+}
+
+#[cfg(test)]
+mod test {
+    use super::DayOfWeek;
+    use anyhow::{Result, anyhow};
+
+    #[test]
+    fn simple() -> Result<()> {
+        assert_eq!(DayOfWeek::Days(vec![0]), TryFrom::try_from("Sun")?);
+        assert_eq!(DayOfWeek::Days(vec![0]), TryFrom::try_from("Sunday")?);
+        Ok(())
+    }
+
+    #[test]
+    fn range() -> Result<()> {
+        assert_eq!(
+            DayOfWeek::Days(vec![1, 2, 3, 4, 5]),
+            TryFrom::try_from("Mon..Fri")?
+        );
+        assert_eq!(
+            DayOfWeek::Days(vec![1, 2, 3, 4, 5]),
+            TryFrom::try_from("Monday..Friday")?
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn all() -> Result<()> {
+        assert_eq!(DayOfWeek::All, TryFrom::try_from("*")?);
+        Ok(())
+    }
+
+    #[test]
+    fn multiple() -> Result<()> {
+        assert_eq!(
+            DayOfWeek::Days(vec![0, 2, 4, 6]),
+            TryFrom::try_from("Sun,Tue,Thu,Sat")?
+        );
+        assert_eq!(
+            DayOfWeek::Days(vec![0, 2, 4, 6]),
+            TryFrom::try_from("Sunday,Tuesday,Thursday,Saturday")?
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn day_already_in_range() -> Result<()> {
+        assert_eq!(
+            DayOfWeek::Days(vec![1, 2, 3, 4, 5]),
+            TryFrom::try_from("Mon..Fri,Tue")?
+        );
+        assert_eq!(
+            DayOfWeek::Days(vec![1, 2, 3, 4, 5]),
+            TryFrom::try_from("Monday..Friday,Tuesday")?
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn one_day_range() -> Result<()> {
+        assert_eq!(
+            DayOfWeek::Days(vec![1, 5]),
+            TryFrom::try_from("Mon..Mon,Fri..Fri")?
+        );
+        assert_eq!(
+            DayOfWeek::Days(vec![1, 5]),
+            TryFrom::try_from("Monday..Monday,Friday..Friday")?
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn funky() -> Result<()> {
+        assert_eq!(
+            DayOfWeek::Days(vec![0, 1, 2, 3, 4, 6]),
+            TryFrom::try_from("Mon..Thu,Sat,Sun")?
+        );
+        assert_eq!(
+            DayOfWeek::Days(vec![0, 1, 2, 3, 4, 6]),
+            TryFrom::try_from("Monday..Thursday,Saturday,Sunday")?
+        );
+        assert_eq!(
+            DayOfWeek::Days(vec![0, 1, 2, 3, 4, 6]),
+            TryFrom::try_from("Mon..Thursday,SAt,SuNdaY")?
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn invalid() -> Result<()> {
+        match <DayOfWeek>::try_from("Hogwash,Wed") {
+            Ok(_) => Err(anyhow!("this day of week should be invalid")),
+            Err(e) => {
+                assert_eq!(format!("{e}"), "invalid day of week: Hogwash");
+                Ok(())
+            }
+        }
+    }
+
+    #[test]
+    fn invalid_range() -> Result<()> {
+        match <DayOfWeek>::try_from("Mon..Hogwash,Wed") {
+            Ok(_) => Err(anyhow!("this day of week should be invalid")),
+            Err(e) => {
+                assert_eq!(format!("{e}"), "invalid day of week: Hogwash");
+                Ok(())
+            }
+        }
+    }
+
+    #[test]
+    fn invalid_range_order() -> Result<()> {
+        match <DayOfWeek>::try_from("Fri..Mon") {
+            Ok(_) => Err(anyhow!("this day of week should be invalid")),
+            Err(e) => {
+                assert_eq!(format!("{e}"), "invalid range: 'Fri..Mon'");
+                Ok(())
+            }
+        }
+    }
+}

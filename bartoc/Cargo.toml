@@ -9,7 +9,7 @@ unstable = []
 [dependencies]
 anyhow = { workspace = true }
 bincode = { workspace = true }
-bon = "3.7.2"
+bon = { workspace = true }
 clap = { workspace = true }
 config = { workspace = true }
 futures-util = { workspace = true }

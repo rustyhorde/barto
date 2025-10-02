@@ -58,6 +58,14 @@ pub struct Tracing {
     directives: Option<String>,
 }
 
+/// A command to run on a worker
+#[derive(Clone, Debug, Default, Deserialize, Eq, Getters, PartialEq, Serialize)]
+#[getset(get = "pub")]
+pub struct Command {
+    /// The command to run
+    cmd: String,
+}
+
 /// hosts configuration
 #[derive(Clone, Debug, Default, Deserialize, Eq, Getters, PartialEq, Serialize)]
 #[getset(get = "pub")]
@@ -68,6 +76,24 @@ pub struct Actix {
     ip: String,
     /// The port to listen on
     port: u16,
+}
+
+/// The schedule to run commands on a given worker client
+#[derive(Clone, Debug, Deserialize, Eq, Getters, PartialEq, Serialize)]
+#[getset(get = "pub")]
+pub struct Schedules {
+    /// All of the schedules for a worker client
+    schedules: Vec<Schedule>,
+}
+
+/// A schedule
+#[derive(Clone, Debug, Default, Deserialize, Eq, Getters, PartialEq, Serialize)]
+#[getset(get = "pub")]
+pub struct Schedule {
+    /// A calendar string similar to cron format
+    on_calendar: String,
+    /// The commands to run
+    cmds: Vec<String>,
 }
 
 /// Load the configuration

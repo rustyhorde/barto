@@ -9,7 +9,7 @@
 use clap::error::ErrorKind;
 
 /// Error types for the barto library
-#[derive(Clone, Copy, Debug, thiserror::Error)]
+#[derive(Clone, Debug, thiserror::Error)]
 pub enum Error {
     /// No valid config directory could be found
     #[error("There is no valid config directory")]
@@ -32,6 +32,39 @@ pub enum Error {
     /// No valid private keys found in the key file
     #[error("No valid private keys found in the key file")]
     NoPrivateKeys,
+    /// No valid captures when parsing a realtime schedule
+    #[error("no valid captures")]
+    NoValidCaptures,
+    /// An invalid range was specified when parsing a realtime schedule
+    #[error("invalid range: '{}'", range)]
+    InvalidRange {
+        /// The invalid range
+        range: String,
+    },
+    /// An invalid first capture when parsing a realtime schedule
+    #[error("invalid first capture")]
+    InvalidFirstCapture,
+    /// An invalid second capture when parsing a realtime schedule
+    #[error("invalid second capture")]
+    InvalidSecondCapture,
+    /// An invalid time string was specified when parsing a realtime schedule
+    #[error("invalid time string: '{}'", time)]
+    InvalidTime {
+        /// The invalid time string
+        time: String,
+    },
+    /// An invalid date string was specified when parsing a realtime schedule
+    #[error("invalid date string: '{}'", date)]
+    InvalidDate {
+        /// The invalid date string
+        date: String,
+    },
+    /// An invalid calendar string was specified when parsing a realtime schedule
+    #[error("invalid calendar string: '{}'", calendar)]
+    InvalidCalendar {
+        /// The invalid calendar string
+        calendar: String,
+    },
 }
 
 /// Converts an `anyhow::Error` into a suitable exit code or clap message for a CLI application.
