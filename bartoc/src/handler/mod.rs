@@ -18,7 +18,10 @@ use bincode::{Decode, Encode, config::standard, encode_to_vec};
 use bon::Builder;
 use futures_util::{SinkExt as _, stream::SplitSink};
 use libbarto::{BartocToBartos, BartosToBartoc, Realtime, parse_ts_ping, send_ts_ping};
-use tokio::{net::TcpStream, select, spawn, sync::mpsc::UnboundedSender, time::interval};
+use time::OffsetDateTime;
+use tokio::{
+    net::TcpStream, select, spawn, sync::mpsc::UnboundedSender, task::JoinHandle, time::interval,
+};
 use tokio_tungstenite::{
     MaybeTlsStream, WebSocketStream,
     tungstenite::{Message, protocol::CloseFrame},
@@ -80,6 +83,7 @@ pub(crate) struct Handler {
     sink: SplitSink<WebSocketStream<MaybeTlsStream<TcpStream>>, Message>,
     #[builder(default = HashMap::new())]
     rt_map: HashMap<Realtime, Vec<String>>,
+    rt_monitor_handle: Option<JoinHandle<()>>,
 }
 
 impl Handler {
@@ -149,6 +153,7 @@ impl Handler {
                         });
                         let count = schedules.schedules().len();
                         info!("bartoc {} schedules", count);
+                        self.rt_monitor();
                     }
                 }
                 Ok(())
@@ -195,5 +200,35 @@ impl Handler {
                 }
             }
         });
+    }
+
+    pub(crate) fn rt_monitor(&mut self) {
+        let mut interval = interval(Duration::from_secs(1));
+        trace!("Starting bartoc realtime monitor");
+        let _cloned_sender = self.tx.clone();
+        let cloned_token = self.token.clone();
+        let cloned_rt_map = self.rt_map.clone();
+        if let Some(handle) = &self.rt_monitor_handle {
+            handle.abort();
+        }
+        let rt_mon_handle = spawn(async move {
+            loop {
+                select! {
+                    () = cloned_token.cancelled() => {
+                        trace!("cancellation token triggered, shutting down realtime monitor");
+                        break;
+                    }
+                    _ = interval.tick() => {
+                        let now = OffsetDateTime::now_utc();
+                        for (rt, cmds) in &cloned_rt_map {
+                            if rt.should_run(now) {
+                                info!("running commands: {}", cmds.join(", "));
+                            }
+                        }
+                    }
+                }
+            }
+        });
+        self.rt_monitor_handle = Some(rt_mon_handle);
     }
 }

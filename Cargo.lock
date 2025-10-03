@@ -404,6 +404,7 @@ dependencies = [
  "rustversion",
  "serde",
  "thiserror 2.0.17",
+ "time",
  "tokio",
  "tokio-tungstenite",
  "tokio-util",

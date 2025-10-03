@@ -17,6 +17,7 @@ getset = { workspace = true }
 libbarto = { path = "../libbarto" }
 serde = { workspace = true }
 thiserror = { workspace = true }
+time = { workspace = true }
 tokio = { workspace = true, features = ["signal", "sync", "time"] }
 tokio-tungstenite = { workspace = true }
 tokio-util = { workspace = true }
