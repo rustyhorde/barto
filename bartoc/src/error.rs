@@ -17,4 +17,8 @@ pub(crate) enum Error {
     Shutdown,
     #[error("Invalid bartoc message for bartos")]
     InvalidBartocMessage,
+    #[error("Unable to get stdout handle")]
+    StdoutHandle,
+    #[error("Unable to get stderr handle")]
+    StderrHandle,
 }

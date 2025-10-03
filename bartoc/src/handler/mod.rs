@@ -10,17 +10,26 @@ pub(crate) mod stream;
 
 use std::{
     collections::HashMap,
+    env::var_os,
+    process::Stdio,
     time::{Duration, Instant},
 };
 
-use anyhow::Result;
+use anyhow::{Result, anyhow};
 use bincode::{Decode, Encode, config::standard, encode_to_vec};
 use bon::Builder;
 use futures_util::{SinkExt as _, stream::SplitSink};
 use libbarto::{BartocToBartos, BartosToBartoc, Realtime, parse_ts_ping, send_ts_ping};
 use time::OffsetDateTime;
 use tokio::{
-    net::TcpStream, select, spawn, sync::mpsc::UnboundedSender, task::JoinHandle, time::interval,
+    io::{AsyncBufReadExt as _, BufReader},
+    net::TcpStream,
+    process::Command,
+    select, spawn,
+    sync::mpsc::UnboundedSender,
+    task::JoinHandle,
+    time::interval,
+    try_join,
 };
 use tokio_tungstenite::{
     MaybeTlsStream, WebSocketStream,
@@ -223,6 +232,9 @@ impl Handler {
                         for (rt, cmds) in &cloned_rt_map {
                             if rt.should_run(now) {
                                 info!("running commands: {}", cmds.join(", "));
+                                for cmd in cmds {
+                                    Self::run_cmd(cmd).await.unwrap_or_else(|e| error!("unable to run command: {e}"));
+                                }
                             }
                         }
                     }
@@ -230,5 +242,56 @@ impl Handler {
             }
         });
         self.rt_monitor_handle = Some(rt_mon_handle);
+    }
+
+    pub(crate) async fn run_cmd(cmd_str: &str) -> Result<()> {
+        if let Some(shell_path) = var_os("SHELL") {
+            let mut cmd = Command::new(shell_path);
+            let _ = cmd.arg("-c");
+            let _ = cmd.arg(cmd_str);
+            let _ = cmd.stdout(Stdio::piped());
+            let _ = cmd.stderr(Stdio::piped());
+            let mut child = cmd.spawn()?;
+            let stdout = child.stdout.take().ok_or(Error::StdoutHandle)?;
+            let stderr = child.stderr.take().ok_or(Error::StderrHandle)?;
+            let cmd_handle = spawn(async move { child.wait().await.map_err(Into::into) });
+
+            let stdout_handle = spawn(async move {
+                let mut reader = BufReader::new(stdout).lines();
+                while let Some(line) = reader.next_line().await.unwrap_or(None) {
+                    info!("stdout: {}", line);
+                }
+                Ok(())
+            });
+            let stderr_handle = spawn(async move {
+                let mut reader = BufReader::new(stderr).lines();
+                while let Some(line) = reader.next_line().await.unwrap_or(None) {
+                    info!("stderr: {}", line);
+                }
+                Ok(())
+            });
+
+            match try_join!(
+                flatten(cmd_handle),
+                flatten(stdout_handle),
+                flatten(stderr_handle)
+            ) {
+                Ok((status, _stdout_res, _stderr_res)) => {
+                    info!("command exited with status: {status}");
+                }
+                Err(e) => error!("command handling failed: {e}"),
+            }
+        } else {
+            error!("no SHELL environment variable set");
+        }
+        Ok(())
+    }
+}
+
+async fn flatten<T>(handle: JoinHandle<Result<T>>) -> Result<T> {
+    match handle.await {
+        Ok(Ok(result)) => Ok(result),
+        Ok(Err(err)) => Err(err),
+        Err(_err) => Err(anyhow!("handling failed")),
     }
 }
