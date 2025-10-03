@@ -53,7 +53,7 @@ pub(crate) async fn worker(
                     if let Some(Ok(msg)) = res {
                         match msg {
                             AggregatedMessage::Text(_byte_string) => error!("unexpected text message"),
-                            AggregatedMessage::Binary(_bytes) => todo!(),
+                            AggregatedMessage::Binary(_bytes) => error!("unexpected binary message"),
                             AggregatedMessage::Ping(bytes) => {
                                 trace!("handling ping message");
                                 if let Some(dur) = parse_ts_ping(&bytes) {
@@ -97,11 +97,12 @@ pub(crate) async fn worker(
 }
 
 async fn initialize(session: &mut Session, name: Query<Name>, config: Data<Config>) -> Result<()> {
-    let schedules = name
-        .name()
-        .as_ref()
-        .and_then(|name| config.schedules().get(name));
-    info!("worker schedules: {schedules:?}");
+    let schedules = name.name().as_ref().and_then(|name| {
+        let schedules = config.schedules().get(name);
+        let count = schedules.as_ref().map_or(0, |s| s.schedules().len());
+        info!("sending bartoc '{}' {} schedules", name, count);
+        schedules
+    });
     let init_bytes = if let Some(schedules) = schedules {
         encode_to_vec(BartosToBartoc::Initialize(schedules.clone()), standard()).map_err(|e| {
             error!("unable to encode initialization message: {e}");

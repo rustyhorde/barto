@@ -8,20 +8,23 @@
 
 pub(crate) mod stream;
 
-use std::time::{Duration, Instant};
+use std::{
+    collections::HashMap,
+    time::{Duration, Instant},
+};
 
 use anyhow::Result;
 use bincode::{Decode, Encode, config::standard, encode_to_vec};
 use bon::Builder;
 use futures_util::{SinkExt as _, stream::SplitSink};
-use libbarto::{BartocToBartos, BartosToBartoc, parse_ts_ping, send_ts_ping};
+use libbarto::{BartocToBartos, BartosToBartoc, Realtime, parse_ts_ping, send_ts_ping};
 use tokio::{net::TcpStream, select, spawn, sync::mpsc::UnboundedSender, time::interval};
 use tokio_tungstenite::{
     MaybeTlsStream, WebSocketStream,
     tungstenite::{Message, protocol::CloseFrame},
 };
 use tokio_util::sync::CancellationToken;
-use tracing::{error, trace};
+use tracing::{error, info, trace};
 
 use crate::error::Error;
 
@@ -75,6 +78,8 @@ pub(crate) struct Handler {
     origin: Instant,
     tx: UnboundedSender<BartocMessage>,
     sink: SplitSink<WebSocketStream<MaybeTlsStream<TcpStream>>, Message>,
+    #[builder(default = HashMap::new())]
+    rt_map: HashMap<Realtime, Vec<String>>,
 }
 
 impl Handler {
@@ -126,7 +131,28 @@ impl Handler {
                 }
                 Ok(())
             }
-            BartocMessage::BartosToBartoc(_) => Ok(()),
+            BartocMessage::BartosToBartoc(btb) => {
+                match btb {
+                    BartosToBartoc::Initialize(schedules) => {
+                        trace!("received initialize message from bartos");
+                        schedules.schedules().iter().for_each(|s| {
+                            if let Ok(rt) = Realtime::try_from(&s.on_calendar()[..]) {
+                                info!(
+                                    "bartoc schedule: {} -> {}",
+                                    s.on_calendar(),
+                                    s.cmds().join(", ")
+                                );
+                                self.rt_map.entry(rt).or_default().clone_from(s.cmds());
+                            } else {
+                                error!("unable to parse bartoc schedule: {}", s.on_calendar());
+                            }
+                        });
+                        let count = schedules.schedules().len();
+                        info!("bartoc {} schedules", count);
+                    }
+                }
+                Ok(())
+            }
         }
     }
 

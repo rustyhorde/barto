@@ -39,7 +39,7 @@ impl WsHandler {
                         if let Ok((btb, _size)) =
                             decode_from_slice::<BartosToBartoc, Configuration>(&bytes, standard())
                         {
-                            trace!("binary message received: {btb:?}");
+                            trace!("binary message received");
                             let bm = BartocMessage::BartosToBartoc(btb);
                             if let Err(e) = self.tx.send(bm) {
                                 error!("unable to send binary message to handler: {e}");
