@@ -21,4 +21,8 @@ pub(crate) enum Error {
     StdoutHandle,
     #[error("Unable to get stderr handle")]
     StderrHandle,
+    #[error("There is no valid data directory")]
+    DataDir,
+    #[error("No redb database path specified")]
+    NoRedbPath,
 }

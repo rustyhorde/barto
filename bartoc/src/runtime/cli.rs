@@ -11,6 +11,8 @@ use config::{ConfigError, Map, Source, Value, ValueKind};
 use getset::Getters;
 use libbarto::PathDefaults;
 
+use crate::config::PathDefaultsExt;
+
 #[derive(Clone, Debug, Getters, Parser)]
 #[command(author, version, about, long_about = None)]
 #[getset(get = "pub(crate)")]
@@ -47,6 +49,13 @@ pub(crate) struct Cli {
         help = "Specify the absolute path to the tracing output file"
     )]
     tracing_absolute_path: Option<String>,
+    /// The absolute path to a non-standard redb database file
+    #[clap(
+        short,
+        long,
+        help = "Specify the absolute path to the redb database file"
+    )]
+    redb_absolute_path: Option<String>,
 }
 
 impl Source for Cli {
@@ -81,6 +90,12 @@ impl Source for Cli {
                 Value::new(Some(&origin), ValueKind::String(tracing_path.clone())),
             );
         }
+        if let Some(redb_path) = &self.redb_absolute_path {
+            let _old = map.insert(
+                "redb_path".to_string(),
+                Value::new(Some(&origin), ValueKind::String(redb_path.clone())),
+            );
+        }
         Ok(map)
     }
 }
@@ -111,6 +126,20 @@ impl PathDefaults for Cli {
     }
 
     fn default_tracing_file_name(&self) -> String {
+        env!("CARGO_PKG_NAME").to_string()
+    }
+}
+
+impl PathDefaultsExt for Cli {
+    fn redb_absolute_path(&self) -> Option<String> {
+        self.redb_absolute_path.clone()
+    }
+
+    fn default_redb_path(&self) -> String {
+        format!("{}/db", env!("CARGO_PKG_NAME"))
+    }
+
+    fn default_redb_file_name(&self) -> String {
         env!("CARGO_PKG_NAME").to_string()
     }
 }

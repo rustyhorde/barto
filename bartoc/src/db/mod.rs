@@ -8,10 +8,15 @@
 
 use anyhow::Result;
 use redb::{Database, TableDefinition};
+use tracing::info;
 
-use crate::db::data::{
-    bincode::Bincode,
-    output::{OutputKey, OutputValue},
+use crate::{
+    config::Config,
+    db::data::{
+        bincode::Bincode,
+        output::{OutputKey, OutputValue},
+    },
+    error::Error,
 };
 
 pub(crate) mod data;
@@ -25,8 +30,10 @@ pub(crate) struct BartocDatabase {
 }
 
 impl BartocDatabase {
-    pub(crate) fn new() -> Result<Self> {
-        let db = Database::create("bincode_keys.redb")?;
+    pub(crate) fn new(config: &Config) -> Result<Self> {
+        let redb_path = config.redb_path().as_ref().ok_or(Error::NoRedbPath)?;
+        info!("Using redb database path: {}", redb_path.display());
+        let db = Database::create(config.redb_path().as_ref().ok_or(Error::NoRedbPath)?)?;
         Ok(Self { db })
     }
 

@@ -392,6 +392,7 @@ dependencies = [
  "bon",
  "clap",
  "config",
+ "dirs2",
  "futures-util",
  "getset",
  "libbarto",

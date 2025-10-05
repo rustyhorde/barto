@@ -14,8 +14,13 @@ use std::{
 use anyhow::Result;
 use bytes::Bytes;
 
+/// Convert a string to a `PathBuf`
+///
+/// # Errors
+/// * This function never errors, but is wrapped to use with `map_or_else` and similar
+///
 #[allow(clippy::unnecessary_wraps)]
-pub(crate) fn to_path_buf(path: &String) -> Result<PathBuf> {
+pub fn to_path_buf(path: &String) -> Result<PathBuf> {
     Ok(PathBuf::from(path))
 }
 

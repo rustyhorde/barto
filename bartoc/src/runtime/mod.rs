@@ -17,7 +17,7 @@ use std::{
 use anyhow::{Context, Result};
 use clap::Parser;
 use futures_util::StreamExt;
-use libbarto::{header, init_tracing, load};
+use libbarto::{header, init_tracing};
 #[cfg(not(unix))]
 use tokio::signal::ctrl_c;
 #[cfg(unix)]
@@ -32,7 +32,7 @@ use tokio_util::sync::CancellationToken;
 use tracing::{error, info, trace};
 
 use crate::{
-    config::Config,
+    config::{Config, load_bartoc},
     db::{
         BartocDatabase,
         data::output::{OutputKey, OutputValue},
@@ -41,7 +41,7 @@ use crate::{
     handler::{BartocMessage, Handler, stream::WsHandler},
 };
 
-use self::cli::Cli;
+pub(crate) use self::cli::Cli;
 
 const HEADER_PREFIX: &str = r"██████╗  █████╗ ██████╗ ████████╗ ██████╗  ██████╗
 ██╔══██╗██╔══██╗██╔══██╗╚══██╔══╝██╔═══██╗██╔════╝
@@ -64,7 +64,7 @@ where
     };
 
     // Load the configuration
-    let config = load::<Cli, Config, Cli>(&cli, &cli).with_context(|| Error::ConfigLoad)?;
+    let config = load_bartoc::<Cli, Cli>(&cli, &cli).with_context(|| Error::ConfigLoad)?;
 
     // Initialize tracing
     init_tracing(&config, &cli, None).with_context(|| Error::TracingInit)?;
@@ -81,7 +81,7 @@ where
     header::<Config, dyn Write>(&config, HEADER_PREFIX, writer)?;
 
     // Create or open the database
-    let mut db = BartocDatabase::new()?;
+    let mut db = BartocDatabase::new(&config)?;
 
     let token = CancellationToken::new();
     let stream_token = token.clone();

@@ -12,6 +12,7 @@ bincode = { workspace = true }
 bon = { workspace = true }
 clap = { workspace = true }
 config = { workspace = true }
+dirs2 = { workspace = true }
 futures-util = { workspace = true }
 getset = { workspace = true }
 libbarto = { path = "../libbarto" }
