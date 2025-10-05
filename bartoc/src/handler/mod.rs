@@ -11,6 +11,7 @@ pub(crate) mod stream;
 use std::{
     collections::HashMap,
     env::var_os,
+    fmt::{Display, Formatter},
     process::Stdio,
     time::{Duration, Instant},
 };
@@ -45,6 +46,21 @@ const HEARTBEAT_INTERVAL: Duration = Duration::from_secs(5);
 /// How long before lack of client response causes a timeout
 const CLIENT_TIMEOUT: Duration = Duration::from_secs(10);
 
+#[derive(Clone, Debug, Decode, Encode, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub(crate) enum OutputKind {
+    Stdout,
+    Stderr,
+}
+
+impl Display for OutputKind {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            OutputKind::Stdout => write!(f, "stdout"),
+            OutputKind::Stderr => write!(f, "stderr"),
+        }
+    }
+}
+
 #[derive(Clone, Debug, Decode, Encode)]
 pub(crate) enum BartocMessage {
     Close,
@@ -52,6 +68,7 @@ pub(crate) enum BartocMessage {
     Pong(Vec<u8>),
     BartocToBartos(BartocToBartos),
     BartosToBartoc(BartosToBartoc),
+    Output((OutputKind, Vec<u8>)),
 }
 
 impl BartocMessage {
@@ -93,6 +110,8 @@ pub(crate) struct Handler {
     #[builder(default = HashMap::new())]
     rt_map: HashMap<Realtime, Vec<String>>,
     rt_monitor_handle: Option<JoinHandle<()>>,
+    // the stdout queue
+    output_tx: UnboundedSender<(OutputKind, Vec<u8>)>,
 }
 
 impl Handler {
@@ -167,6 +186,10 @@ impl Handler {
                 }
                 Ok(())
             }
+            BartocMessage::Output(output) => {
+                self.output_tx.send(output.clone())?;
+                Ok(())
+            }
         }
     }
 
@@ -217,6 +240,7 @@ impl Handler {
         let _cloned_sender = self.tx.clone();
         let cloned_token = self.token.clone();
         let cloned_rt_map = self.rt_map.clone();
+        let cloned_tx = self.tx.clone();
         if let Some(handle) = &self.rt_monitor_handle {
             handle.abort();
         }
@@ -233,7 +257,7 @@ impl Handler {
                             if rt.should_run(now) {
                                 info!("running commands: {}", cmds.join(", "));
                                 for cmd in cmds {
-                                    Self::run_cmd(cmd).await.unwrap_or_else(|e| error!("unable to run command: {e}"));
+                                    Self::run_cmd(cmd, cloned_tx.clone()).await.unwrap_or_else(|e| error!("unable to run command: {e}"));
                                 }
                             }
                         }
@@ -244,7 +268,7 @@ impl Handler {
         self.rt_monitor_handle = Some(rt_mon_handle);
     }
 
-    pub(crate) async fn run_cmd(cmd_str: &str) -> Result<()> {
+    pub(crate) async fn run_cmd(cmd_str: &str, tx: UnboundedSender<BartocMessage>) -> Result<()> {
         if let Some(shell_path) = var_os("SHELL") {
             let mut cmd = Command::new(shell_path);
             let _ = cmd.arg("-c");
@@ -256,17 +280,24 @@ impl Handler {
             let stderr = child.stderr.take().ok_or(Error::StderrHandle)?;
             let cmd_handle = spawn(async move { child.wait().await.map_err(Into::into) });
 
+            let cloned_tx = tx.clone();
             let stdout_handle = spawn(async move {
                 let mut reader = BufReader::new(stdout).lines();
                 while let Some(line) = reader.next_line().await.unwrap_or(None) {
-                    info!("stdout: {}", line);
+                    cloned_tx.send(BartocMessage::Output((
+                        OutputKind::Stdout,
+                        line.as_bytes().to_vec(),
+                    )))?;
                 }
                 Ok(())
             });
             let stderr_handle = spawn(async move {
                 let mut reader = BufReader::new(stderr).lines();
                 while let Some(line) = reader.next_line().await.unwrap_or(None) {
-                    info!("stderr: {}", line);
+                    tx.send(BartocMessage::Output((
+                        OutputKind::Stderr,
+                        line.as_bytes().to_vec(),
+                    )))?;
                 }
                 Ok(())
             });
@@ -277,7 +308,7 @@ impl Handler {
                 flatten(stderr_handle)
             ) {
                 Ok((status, _stdout_res, _stderr_res)) => {
-                    info!("command exited with status: {status}");
+                    info!("{status}");
                 }
                 Err(e) => error!("command handling failed: {e}"),
             }

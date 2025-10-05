@@ -18,6 +18,8 @@ use anyhow::{Context, Result};
 use clap::Parser;
 use futures_util::StreamExt;
 use libbarto::{header, init_tracing, load};
+use redb::{Database, TableDefinition};
+use time::OffsetDateTime;
 #[cfg(not(unix))]
 use tokio::signal::ctrl_c;
 #[cfg(unix)]
@@ -33,6 +35,7 @@ use tracing::{error, info, trace};
 
 use crate::{
     config::Config,
+    db::{Bincode, OdtWrapper, OutKey, OutValue},
     error::Error,
     handler::{BartocMessage, Handler, stream::WsHandler},
 };
@@ -46,6 +49,10 @@ const HEADER_PREFIX: &str = r"██████╗  █████╗ ██�
 ██████╔╝██║  ██║██║  ██║   ██║   ╚██████╔╝╚██████╗
 ╚═════╝ ╚═╝  ╚═╝╚═╝  ╚═╝   ╚═╝    ╚═════╝  ╚═════╝";
 
+const TABLE: TableDefinition<'_, Bincode<OutKey>, Bincode<OutValue>> =
+    TableDefinition::new("my_data");
+
+#[allow(clippy::too_many_lines)]
 pub(crate) async fn run<I, T>(args: Option<I>) -> Result<()>
 where
     I: IntoIterator<Item = T>,
@@ -75,10 +82,15 @@ where
     };
     header::<Config, dyn Write>(&config, HEADER_PREFIX, writer)?;
 
+    // Create or open the database
+    let db = Database::create("bincode_keys.redb")?;
+
     let token = CancellationToken::new();
     let stream_token = token.clone();
     let heartbeat_token = token.clone();
+    let output_token = token.clone();
     let (tx, mut rx) = unbounded_channel();
+    let (output_tx, mut output_rx) = unbounded_channel();
     let (ws_stream, _) =
         connect_async("wss://localhost.ozias.net:21526/v1/ws/worker?name=garuda").await?;
     trace!("websocket connected");
@@ -86,6 +98,7 @@ where
     let mut handler = Handler::builder()
         .sink(sink)
         .tx(tx.clone())
+        .output_tx(output_tx.clone())
         .token(heartbeat_token)
         .build();
     handler.heartbeat();
@@ -101,6 +114,35 @@ where
                 error!("{e}");
                 trace!("shutting down sink handler");
                 break;
+            }
+        }
+    });
+
+    let output_handle = spawn(async move {
+        loop {
+            select! {
+                () = output_token.cancelled() => {
+                    trace!("cancellation token triggered, shutting down output handler");
+                    break;
+                }
+                rx_opt = output_rx.recv() => {
+                    if let Some(output) = rx_opt {
+                        let _res = || -> Result<()> {
+                            let now = OffsetDateTime::now_utc();
+                            let out_key = OutKey::builder().timestamp(OdtWrapper(now)).build();
+
+                            let out_value = OutValue::builder().data(output).build();
+                            info!("{} => {}", out_key, out_value);
+                            let write_txn = db.begin_write()?;
+                            {
+                                let mut table = write_txn.open_table(TABLE)?;
+                                let _old = table.insert(&out_key, &out_value).unwrap();
+                            }
+                            write_txn.commit()?;
+                            Ok(())
+                        }();
+                    }
+                },
             }
         }
     });
@@ -124,6 +166,7 @@ where
     }
 
     sink_handle.await?;
+    output_handle.await?;
     let _res = sighan_handle.await?;
     Ok(())
 }

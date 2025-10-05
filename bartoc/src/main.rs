@@ -241,8 +241,8 @@
 #![cfg_attr(all(docsrs), feature(doc_cfg))]
 #![cfg_attr(coverage_nightly, feature(coverage_attribute))]
 
-// mod actor;
 mod config;
+mod db;
 mod error;
 mod handler;
 mod runtime;
