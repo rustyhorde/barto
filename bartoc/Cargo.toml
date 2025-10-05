@@ -24,6 +24,7 @@ tokio-tungstenite = { workspace = true }
 tokio-util = { workspace = true }
 tracing = { workspace = true }
 tracing-subscriber-init = { workspace = true }
+uuid = { workspace = true }
 
 [build-dependencies]
 rustversion = { workspace = true }

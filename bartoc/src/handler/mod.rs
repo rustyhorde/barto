@@ -11,7 +11,6 @@ pub(crate) mod stream;
 use std::{
     collections::HashMap,
     env::var_os,
-    fmt::{Display, Formatter},
     process::Stdio,
     time::{Duration, Instant},
 };
@@ -38,28 +37,21 @@ use tokio_tungstenite::{
 };
 use tokio_util::sync::CancellationToken;
 use tracing::{error, info, trace};
+use uuid::Uuid;
 
-use crate::error::Error;
+use crate::{
+    db::data::{
+        odt::OffsetDataTimeWrapper,
+        output::{Output, OutputKind},
+        uuid::UuidWrapper,
+    },
+    error::Error,
+};
 
 /// How often heartbeat pings are sent
 const HEARTBEAT_INTERVAL: Duration = Duration::from_secs(5);
 /// How long before lack of client response causes a timeout
 const CLIENT_TIMEOUT: Duration = Duration::from_secs(10);
-
-#[derive(Clone, Debug, Decode, Encode, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub(crate) enum OutputKind {
-    Stdout,
-    Stderr,
-}
-
-impl Display for OutputKind {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        match self {
-            OutputKind::Stdout => write!(f, "stdout"),
-            OutputKind::Stderr => write!(f, "stderr"),
-        }
-    }
-}
 
 #[derive(Clone, Debug, Decode, Encode)]
 pub(crate) enum BartocMessage {
@@ -68,7 +60,7 @@ pub(crate) enum BartocMessage {
     Pong(Vec<u8>),
     BartocToBartos(BartocToBartos),
     BartosToBartoc(BartosToBartoc),
-    Output((OutputKind, Vec<u8>)),
+    Output(Output),
 }
 
 impl BartocMessage {
@@ -111,7 +103,7 @@ pub(crate) struct Handler {
     rt_map: HashMap<Realtime, Vec<String>>,
     rt_monitor_handle: Option<JoinHandle<()>>,
     // the stdout queue
-    output_tx: UnboundedSender<(OutputKind, Vec<u8>)>,
+    output_tx: UnboundedSender<Output>,
 }
 
 impl Handler {
@@ -270,6 +262,7 @@ impl Handler {
 
     pub(crate) async fn run_cmd(cmd_str: &str, tx: UnboundedSender<BartocMessage>) -> Result<()> {
         if let Some(shell_path) = var_os("SHELL") {
+            let uuid = Uuid::new_v4();
             let mut cmd = Command::new(shell_path);
             let _ = cmd.arg("-c");
             let _ = cmd.arg(cmd_str);
@@ -284,20 +277,26 @@ impl Handler {
             let stdout_handle = spawn(async move {
                 let mut reader = BufReader::new(stdout).lines();
                 while let Some(line) = reader.next_line().await.unwrap_or(None) {
-                    cloned_tx.send(BartocMessage::Output((
-                        OutputKind::Stdout,
-                        line.as_bytes().to_vec(),
-                    )))?;
+                    let output = Output::builder()
+                        .timestamp(OffsetDataTimeWrapper(OffsetDateTime::now_utc()))
+                        .uuid(UuidWrapper(uuid))
+                        .kind(OutputKind::Stdout)
+                        .data(line)
+                        .build();
+                    cloned_tx.send(BartocMessage::Output(output))?;
                 }
                 Ok(())
             });
             let stderr_handle = spawn(async move {
                 let mut reader = BufReader::new(stderr).lines();
                 while let Some(line) = reader.next_line().await.unwrap_or(None) {
-                    tx.send(BartocMessage::Output((
-                        OutputKind::Stderr,
-                        line.as_bytes().to_vec(),
-                    )))?;
+                    let output = Output::builder()
+                        .timestamp(OffsetDataTimeWrapper(OffsetDateTime::now_utc()))
+                        .uuid(UuidWrapper(uuid))
+                        .kind(OutputKind::Stderr)
+                        .data(line)
+                        .build();
+                    tx.send(BartocMessage::Output(output))?;
                 }
                 Ok(())
             });

@@ -18,8 +18,6 @@ use anyhow::{Context, Result};
 use clap::Parser;
 use futures_util::StreamExt;
 use libbarto::{header, init_tracing, load};
-use redb::{Database, TableDefinition};
-use time::OffsetDateTime;
 #[cfg(not(unix))]
 use tokio::signal::ctrl_c;
 #[cfg(unix)]
@@ -35,7 +33,10 @@ use tracing::{error, info, trace};
 
 use crate::{
     config::Config,
-    db::{Bincode, OdtWrapper, OutKey, OutValue},
+    db::{
+        BartocDatabase,
+        data::output::{OutputKey, OutputValue},
+    },
     error::Error,
     handler::{BartocMessage, Handler, stream::WsHandler},
 };
@@ -48,9 +49,6 @@ const HEADER_PREFIX: &str = r"██████╗  █████╗ ██�
 ██╔══██╗██╔══██║██╔══██╗   ██║   ██║   ██║██║     
 ██████╔╝██║  ██║██║  ██║   ██║   ╚██████╔╝╚██████╗
 ╚═════╝ ╚═╝  ╚═╝╚═╝  ╚═╝   ╚═╝    ╚═════╝  ╚═════╝";
-
-const TABLE: TableDefinition<'_, Bincode<OutKey>, Bincode<OutValue>> =
-    TableDefinition::new("my_data");
 
 #[allow(clippy::too_many_lines)]
 pub(crate) async fn run<I, T>(args: Option<I>) -> Result<()>
@@ -83,7 +81,7 @@ where
     header::<Config, dyn Write>(&config, HEADER_PREFIX, writer)?;
 
     // Create or open the database
-    let db = Database::create("bincode_keys.redb")?;
+    let mut db = BartocDatabase::new()?;
 
     let token = CancellationToken::new();
     let stream_token = token.clone();
@@ -126,21 +124,8 @@ where
                     break;
                 }
                 rx_opt = output_rx.recv() => {
-                    if let Some(output) = rx_opt {
-                        let _res = || -> Result<()> {
-                            let now = OffsetDateTime::now_utc();
-                            let out_key = OutKey::builder().timestamp(OdtWrapper(now)).build();
-
-                            let out_value = OutValue::builder().data(output).build();
-                            info!("{} => {}", out_key, out_value);
-                            let write_txn = db.begin_write()?;
-                            {
-                                let mut table = write_txn.open_table(TABLE)?;
-                                let _old = table.insert(&out_key, &out_value).unwrap();
-                            }
-                            write_txn.commit()?;
-                            Ok(())
-                        }();
+                    if let Some(output) = rx_opt && let Err(e) = db.write_kv(&OutputKey::from(&output), &OutputValue::from(&output)) {
+                        error!("unable to write output to database: {e}");
                     }
                 },
             }

@@ -107,7 +107,7 @@ where
         () = server_token.cancelled() => {
             trace!("cancellation token triggered, shutting down bartos");
             // sleep to allow existing connections to send close messages
-            sleep(Duration::from_secs(3)).await;
+            sleep(Duration::from_secs(1)).await;
         }
         _ = HttpServer::new(move || {
                 App::new()
