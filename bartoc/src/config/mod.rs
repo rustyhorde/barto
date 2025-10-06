@@ -41,6 +41,12 @@ pub(crate) struct Config {
     redb_path: Option<PathBuf>,
     #[getset(get = "pub(crate)")]
     name: String,
+    #[getset(get = "pub(crate)")]
+    bartos_prefix: String,
+    #[getset(get = "pub(crate)")]
+    bartos_host: String,
+    #[getset(get = "pub(crate)")]
+    bartos_port: u16,
 }
 
 impl TracingConfig for Config {

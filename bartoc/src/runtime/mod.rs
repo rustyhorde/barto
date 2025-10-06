@@ -87,9 +87,13 @@ where
     let (tx, mut rx) = unbounded_channel();
     let (output_tx, mut output_rx) = unbounded_channel();
     let url = format!(
-        "wss://localhost.ozias.net:21526/v1/ws/worker?name={}",
+        "{}://{}:{}/v1/ws/worker?name={}",
+        config.bartos_prefix(),
+        config.bartos_host(),
+        config.bartos_port(),
         config.name()
     );
+    trace!("connecting to bartos at {url}");
     let (ws_stream, _) = connect_async(&url).await?;
     trace!("websocket connected");
     let (sink, mut stream) = ws_stream.split();
