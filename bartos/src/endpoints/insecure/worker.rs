@@ -15,10 +15,14 @@ use actix_web::{
 use actix_ws::{AggregatedMessage, Session, handle};
 use bincode::{config::standard, decode_from_slice, encode_to_vec};
 use futures_util::StreamExt as _;
-use libbarto::{Bartoc, BartosToBartoc, parse_ts_ping};
+use libbarto::{
+    Bartoc, BartosToBartoc, Initialize, Output, OutputKind, UuidWrapper, parse_ts_ping,
+};
+use sqlx::MySqlPool;
 use tokio::select;
 use tokio_util::sync::CancellationToken;
 use tracing::{error, info, trace};
+use uuid::Uuid;
 
 use crate::{config::Config, endpoints::insecure::Name};
 
@@ -28,6 +32,7 @@ pub(crate) async fn worker(
     name: Query<Name>,
     token: Data<CancellationToken>,
     config: Data<Config>,
+    pool: Data<MySqlPool>,
 ) -> Result<impl Responder> {
     info!("worker connection from {}", name.describe(&request));
     let (response, session, msg_stream) = handle(&request, body)?;
@@ -58,6 +63,10 @@ pub(crate) async fn worker(
                                     match bartoc_msg {
                                         Bartoc::Record(output) => {
                                             info!("handling record message: {}", output);
+                                            let _id = insert_record(&pool, &output).await.unwrap_or_else(|e| {
+                                                error!("unable to insert record into database: {e}");
+                                                0
+                                            });
                                         }
                                     }
                                 } else {
@@ -107,14 +116,17 @@ pub(crate) async fn worker(
 }
 
 async fn initialize(session: &mut Session, name: Query<Name>, config: Data<Config>) -> Result<()> {
-    let schedules = name.name().as_ref().and_then(|name| {
-        let schedules = config.schedules().get(name);
-        let count = schedules.as_ref().map_or(0, |s| s.schedules().len());
+    let name = name.name().clone().unwrap_or_else(|| "default".to_string());
+    let schedules_opt = config.schedules().get(&name);
+    let init_bytes = if let Some(schedules) = schedules_opt {
+        let count = schedules.schedules().len();
         info!("sending bartoc '{}' {} schedules", name, count);
-        schedules
-    });
-    let init_bytes = if let Some(schedules) = schedules {
-        encode_to_vec(BartosToBartoc::Initialize(schedules.clone()), standard()).map_err(|e| {
+        let uuid = UuidWrapper(Uuid::new_v4());
+        let init = Initialize::builder()
+            .id(uuid)
+            .schedules(schedules.clone())
+            .build();
+        encode_to_vec(BartosToBartoc::Initialize(init), standard()).map_err(|e| {
             error!("unable to encode initialization message: {e}");
             ErrorInternalServerError("internal server error")
         })?
@@ -126,4 +138,21 @@ async fn initialize(session: &mut Session, name: Query<Name>, config: Data<Confi
         ErrorInternalServerError("internal server error")
     })?;
     Ok(())
+}
+
+async fn insert_record(pool: &MySqlPool, output: &Output) -> anyhow::Result<u64> {
+    let id = sqlx::query!(
+        r#"INSERT INTO output (bartoc_uuid, bartoc_name, cmd_uuid, timestamp, kind, data)
+VALUES (?, ?, ?, ?, ?, ?)"#,
+        output.bartoc_uuid().0,
+        output.bartoc_name(),
+        output.cmd_uuid().0,
+        output.timestamp().0,
+        <OutputKind as Into<&'static str>>::into(output.kind()),
+        output.data()
+    )
+    .execute(pool)
+    .await?
+    .last_insert_id();
+    Ok(id)
 }

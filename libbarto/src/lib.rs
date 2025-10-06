@@ -253,6 +253,7 @@ mod utils;
 
 pub use self::config::Actix;
 pub use self::config::Command;
+pub use self::config::Mariadb;
 pub use self::config::PathDefaults;
 pub use self::config::Schedule;
 pub use self::config::Schedules;
@@ -266,6 +267,7 @@ pub use self::header::header;
 pub use self::message::client::Bartoc;
 pub use self::message::client::BartocWs;
 pub use self::message::server::BartosToBartoc;
+pub use self::message::shared::init::Initialize;
 pub use self::message::shared::odt::OffsetDataTimeWrapper;
 pub use self::message::shared::output::Output;
 pub use self::message::shared::output::OutputKind;

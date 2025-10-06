@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2024"
 
 [features]
-unstable = [ "libbarto/unstable" ]
+unstable = ["libbarto/unstable"]
 
 [dependencies]
 actix-web = { workspace = true, features = ["rustls-0_23"] }
@@ -18,17 +18,21 @@ getset = { workspace = true }
 libbarto = { path = "../libbarto" }
 rustls = { workspace = true }
 serde = { workspace = true }
+sqlx = { workspace = true }
 thiserror = { workspace = true }
 tokio = { workspace = true }
 tokio-util = { workspace = true }
 tracing = { workspace = true }
 tracing-subscriber-init = { workspace = true }
+uuid = { workspace = true }
 
 [build-dependencies]
 rustversion = { workspace = true }
 
 [lints.rust]
-unexpected_cfgs = { level = "warn", check-cfg = ['cfg(coverage,coverage_nightly)'] }
+unexpected_cfgs = { level = "warn", check-cfg = [
+    'cfg(coverage,coverage_nightly)',
+] }
 
 [package.metadata.docs.rs]
 all-features = true

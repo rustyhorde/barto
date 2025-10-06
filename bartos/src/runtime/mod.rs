@@ -9,6 +9,7 @@
 mod cli;
 
 use std::{
+    env,
     ffi::OsString,
     io::{Write, stdout},
     net::{IpAddr, SocketAddr},
@@ -24,6 +25,7 @@ use anyhow::{Context, Result};
 use clap::Parser;
 use libbarto::{header, init_tracing, load, load_tls_config};
 use rustls::crypto::aws_lc_rs::default_provider;
+use sqlx::MySqlPool;
 #[cfg(unix)]
 use tokio::signal::unix::{SignalKind, signal};
 use tokio::{select, spawn, time::sleep};
@@ -98,6 +100,16 @@ where
     let app_token_data = Data::new(app_token);
     let sighan_handle = spawn(async move { handle_signals(token).await });
 
+    // Setup the database pool
+    let url = format!(
+        "mariadb://{}:{}@localhost/{}",
+        config.mariadb().username(),
+        config.mariadb().password(),
+        config.mariadb().database()
+    );
+    let pool = MySqlPool::connect(&url).await?;
+    let pool_data = Data::new(pool);
+
     // Startup the server
     trace!("Starting {} on {socket_addr:?}", env!("CARGO_PKG_NAME"));
     info!("{} configured!", env!("CARGO_PKG_NAME"));
@@ -113,6 +125,7 @@ where
                 App::new()
                     .app_data(app_token_data.clone())
                     .app_data(config_data.clone())
+                    .app_data(pool_data.clone())
                     .wrap(Compress::default())
                     .service(scope("/v1").configure(insecure_config))
                 })

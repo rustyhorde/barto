@@ -20,7 +20,8 @@ use time::format_description::well_known;
 #[get_copy = "pub(crate)"]
 pub(crate) struct OutputKey {
     timestamp: OffsetDataTimeWrapper,
-    uuid: UuidWrapper,
+    bartoc_id: UuidWrapper,
+    cmd_uuid: UuidWrapper,
 }
 
 impl Display for OutputKey {
@@ -30,7 +31,7 @@ impl Display for OutputKey {
             .0
             .format(&well_known::Rfc3339)
             .unwrap_or("invalid timestamp".to_string());
-        write!(f, "{} {}", ts, self.uuid.0)
+        write!(f, "{} {}", ts, self.cmd_uuid.0)
     }
 }
 
@@ -38,7 +39,8 @@ impl From<&Output> for OutputKey {
     fn from(output: &Output) -> Self {
         OutputKey {
             timestamp: output.timestamp(),
-            uuid: output.uuid(),
+            bartoc_id: output.bartoc_uuid(),
+            cmd_uuid: output.cmd_uuid(),
         }
     }
 }

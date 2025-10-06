@@ -39,6 +39,8 @@ pub(crate) struct Config {
     tracing: Tracing,
     #[getset(get = "pub(crate)", set)]
     redb_path: Option<PathBuf>,
+    #[getset(get = "pub(crate)")]
+    name: String,
 }
 
 impl TracingConfig for Config {

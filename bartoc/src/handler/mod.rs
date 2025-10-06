@@ -101,6 +101,8 @@ pub(crate) struct Handler {
     rt_monitor_handle: Option<JoinHandle<()>>,
     // the stdout queue
     output_tx: UnboundedSender<Output>,
+    id: Option<UuidWrapper>,
+    bartoc_name: String,
 }
 
 impl Handler {
@@ -154,21 +156,31 @@ impl Handler {
             }
             BartocMessage::BartosToBartoc(btb) => {
                 match btb {
-                    BartosToBartoc::Initialize(schedules) => {
+                    BartosToBartoc::Initialize(initialize) => {
                         trace!("received initialize message from bartos");
-                        schedules.schedules().iter().for_each(|s| {
-                            if let Ok(rt) = Realtime::try_from(&s.on_calendar()[..]) {
+                        let schedules = initialize.schedules().schedules();
+                        let id = initialize.id().0;
+                        info!("bartoc id: {id}");
+                        self.id = Some(initialize.id());
+                        for schedule in schedules {
+                            if let Ok(rt) = Realtime::try_from(&schedule.on_calendar()[..]) {
                                 info!(
                                     "bartoc schedule: {} -> {}",
-                                    s.on_calendar(),
-                                    s.cmds().join(", ")
+                                    schedule.on_calendar(),
+                                    schedule.cmds().join(", ")
                                 );
-                                self.rt_map.entry(rt).or_default().clone_from(s.cmds());
+                                self.rt_map
+                                    .entry(rt)
+                                    .or_default()
+                                    .clone_from(schedule.cmds());
                             } else {
-                                error!("unable to parse bartoc schedule: {}", s.on_calendar());
+                                error!(
+                                    "unable to parse bartoc schedule: {}",
+                                    schedule.on_calendar()
+                                );
                             }
-                        });
-                        let count = schedules.schedules().len();
+                        }
+                        let count = schedules.len();
                         info!("bartoc {} schedules", count);
                         self.rt_monitor();
                     }
@@ -214,12 +226,9 @@ impl Handler {
                         trace!("checking heartbeat");
                         // check heartbeat
                         if Instant::now().duration_since(Instant::from(b)) > CLIENT_TIMEOUT {
-                            // heartbeat timed out
+                            // heartbeat timed out so we disconnect this bartoc
                             error!("heartbeat timed out, disconnecting!");
-
-                            // TODO: notify the bartoc about the timeout and shutdown
-
-                            // don't try to send a ping
+                            cloned_token.cancel();
                             break;
                         }
                         let bytes = send_ts_ping(origin_c);
@@ -239,38 +248,49 @@ impl Handler {
         let cloned_token = self.token.clone();
         let cloned_rt_map = self.rt_map.clone();
         let cloned_tx = self.tx.clone();
-        if let Some(handle) = &self.rt_monitor_handle {
-            handle.abort();
-        }
-        let rt_mon_handle = spawn(async move {
-            loop {
-                select! {
-                    () = cloned_token.cancelled() => {
-                        trace!("cancellation token triggered, shutting down realtime monitor");
-                        break;
-                    }
-                    _ = interval.tick() => {
-                        let now = OffsetDateTime::now_utc();
-                        for (rt, cmds) in &cloned_rt_map {
-                            if rt.should_run(now) {
-                                info!("running commands: {}", cmds.join(", "));
-                                for cmd in cmds {
-                                    let cctx = cloned_tx.clone();
-                                    let cc = cmd.clone();
-                                    let _handle = spawn(async move {
-                                        Self::run_cmd(&cc, cctx).await.unwrap_or_else(|e| error!("unable to run command: {e}"));
-                                    });
+        let cloned_bartoc_name = self.bartoc_name.clone();
+        if let Some(bartoc_id) = self.id {
+            if let Some(handle) = &self.rt_monitor_handle {
+                handle.abort();
+            }
+            let rt_mon_handle = spawn(async move {
+                loop {
+                    select! {
+                        () = cloned_token.cancelled() => {
+                            trace!("cancellation token triggered, shutting down realtime monitor");
+                            break;
+                        }
+                        _ = interval.tick() => {
+                            let now = OffsetDateTime::now_utc();
+                            for (rt, cmds) in &cloned_rt_map {
+                                if rt.should_run(now) {
+                                    info!("running commands: {}", cmds.join(", "));
+                                    for cmd in cmds {
+                                        let cctx = cloned_tx.clone();
+                                        let cc = cmd.clone();
+                                        let bnc = cloned_bartoc_name.clone();
+                                        let _handle = spawn(async move {
+                                            Self::run_cmd(bartoc_id, bnc, &cc, cctx).await.unwrap_or_else(|e| error!("unable to run command: {e}"));
+                                        });
+                                    }
                                 }
                             }
                         }
                     }
                 }
-            }
-        });
-        self.rt_monitor_handle = Some(rt_mon_handle);
+            });
+            self.rt_monitor_handle = Some(rt_mon_handle);
+        } else {
+            error!("unable to start realtime monitor without bartoc id");
+        }
     }
 
-    pub(crate) async fn run_cmd(cmd_str: &str, tx: UnboundedSender<BartocMessage>) -> Result<()> {
+    pub(crate) async fn run_cmd(
+        bartoc_id: UuidWrapper,
+        bartoc_name: String,
+        cmd_str: &str,
+        tx: UnboundedSender<BartocMessage>,
+    ) -> Result<()> {
         if let Some(shell_path) = var_os("SHELL") {
             let uuid = Uuid::new_v4();
             let mut cmd = Command::new(shell_path);
@@ -284,12 +304,15 @@ impl Handler {
             let cmd_handle = spawn(async move { child.wait().await.map_err(Into::into) });
 
             let cloned_tx = tx.clone();
+            let cloned_bartoc_name = bartoc_name.clone();
             let stdout_handle = spawn(async move {
                 let mut reader = BufReader::new(stdout).lines();
                 while let Some(line) = reader.next_line().await.unwrap_or(None) {
                     let output = Output::builder()
                         .timestamp(OffsetDataTimeWrapper(OffsetDateTime::now_utc()))
-                        .uuid(UuidWrapper(uuid))
+                        .bartoc_uuid(bartoc_id)
+                        .bartoc_name(cloned_bartoc_name.clone())
+                        .cmd_uuid(UuidWrapper(uuid))
                         .kind(OutputKind::Stdout)
                         .data(line)
                         .build();
@@ -302,7 +325,9 @@ impl Handler {
                 while let Some(line) = reader.next_line().await.unwrap_or(None) {
                     let output = Output::builder()
                         .timestamp(OffsetDataTimeWrapper(OffsetDateTime::now_utc()))
-                        .uuid(UuidWrapper(uuid))
+                        .bartoc_uuid(bartoc_id)
+                        .bartoc_name(bartoc_name.clone())
+                        .cmd_uuid(UuidWrapper(uuid))
                         .kind(OutputKind::Stderr)
                         .data(line)
                         .build();

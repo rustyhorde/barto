@@ -79,6 +79,18 @@ pub struct Actix {
     port: u16,
 }
 
+/// hosts configuration
+#[derive(Clone, Debug, Default, Deserialize, Eq, Getters, PartialEq, Serialize)]
+#[getset(get = "pub")]
+pub struct Mariadb {
+    /// The username for the database
+    username: String,
+    /// The password for the database
+    password: String,
+    /// The database name
+    database: String,
+}
+
 /// The schedule to run commands on a given worker client
 #[derive(Clone, Debug, Decode, Deserialize, Encode, Eq, Getters, PartialEq, Serialize)]
 #[getset(get = "pub")]

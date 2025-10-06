@@ -8,11 +8,11 @@
 
 use bincode::{Decode, Encode};
 
-use crate::Schedules;
+use crate::Initialize;
 
 /// A message from a worker client to a worker session
 #[derive(Clone, Debug, Decode, Encode)]
 pub enum BartosToBartoc {
     /// Initialize bartoc with the given schedules
-    Initialize(Schedules),
+    Initialize(Initialize),
 }

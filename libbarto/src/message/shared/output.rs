@@ -32,6 +32,15 @@ impl Display for OutputKind {
     }
 }
 
+impl From<OutputKind> for &'static str {
+    fn from(kind: OutputKind) -> Self {
+        match kind {
+            OutputKind::Stdout => "stdout",
+            OutputKind::Stderr => "stderr",
+        }
+    }
+}
+
 /// An output record from a bartoc client
 #[derive(
     Builder,
@@ -48,12 +57,18 @@ impl Display for OutputKind {
     PartialOrd,
 )]
 pub struct Output {
+    /// The id of the bartoc that produced the output
+    #[get_copy = "pub"]
+    bartoc_uuid: UuidWrapper,
+    /// The name of the bartoc that produced the output
+    #[get = "pub"]
+    bartoc_name: String,
     /// The timestamp of the output
     #[get_copy = "pub"]
     timestamp: OffsetDataTimeWrapper,
     /// The UUID of the bartoc command that produced the output
     #[get_copy = "pub"]
-    uuid: UuidWrapper,
+    cmd_uuid: UuidWrapper,
     /// The kind of output (stdout or stderr)
     #[get_copy = "pub"]
     kind: OutputKind,
@@ -64,6 +79,10 @@ pub struct Output {
 
 impl Display for Output {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "({} {}) => {}", self.uuid, self.kind, self.data,)
+        write!(
+            f,
+            "({} {} {}) => {}",
+            self.bartoc_uuid, self.cmd_uuid, self.kind, self.data,
+        )
     }
 }

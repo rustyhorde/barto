@@ -9,7 +9,7 @@
 use std::collections::BTreeMap;
 
 use getset::{CopyGetters, Getters};
-use libbarto::{Actix, Schedules, TlsConfig, Tracing, TracingConfigExt};
+use libbarto::{Actix, Mariadb, Schedules, TlsConfig, Tracing, TracingConfigExt};
 use serde::{Deserialize, Serialize};
 use tracing::Level;
 use tracing_subscriber_init::{TracingConfig, get_effective_level};
@@ -32,6 +32,8 @@ pub(crate) struct Config {
     key_file_path: String,
     #[getset(get = "pub(crate)")]
     schedules: BTreeMap<String, Schedules>,
+    #[getset(get = "pub(crate)")]
+    mariadb: Mariadb,
 }
 
 impl TracingConfig for Config {
