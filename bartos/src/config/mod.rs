@@ -34,6 +34,8 @@ pub(crate) struct Config {
     schedules: BTreeMap<String, Schedules>,
     #[getset(get = "pub(crate)")]
     mariadb: Mariadb,
+    #[getset(get = "pub(crate)")]
+    bartos_host: String,
 }
 
 impl TracingConfig for Config {

@@ -92,6 +92,7 @@ where
     let port = config.actix().port();
     let ip_addr: IpAddr = ip.parse().with_context(|| Error::InvalidIp)?;
     let socket_addr = SocketAddr::from((ip_addr, *port));
+    let bartos_host = config.bartos_host();
 
     // Setup the signal handling
     let token = CancellationToken::new();
@@ -131,6 +132,7 @@ where
                 })
             .workers(workers)
             .bind_rustls_0_23(socket_addr, server_config)?
+            .bind((bartos_host.as_str(), *port))?
             .run() => {
         }
     }
