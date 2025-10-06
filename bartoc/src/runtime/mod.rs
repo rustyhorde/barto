@@ -25,7 +25,7 @@ use tokio::signal::unix::{SignalKind, signal};
 use tokio::{
     select, spawn,
     sync::mpsc::{UnboundedSender, unbounded_channel},
-    time::sleep,
+    time::{interval, sleep},
 };
 use tokio_tungstenite::{connect_async, tungstenite::protocol::frame::coding::CloseCode};
 use tokio_util::sync::CancellationToken;
@@ -80,9 +80,6 @@ where
     };
     header::<Config, dyn Write>(&config, HEADER_PREFIX, writer)?;
 
-    // Create or open the database
-    let mut db = BartocDatabase::new(&config)?;
-
     let token = CancellationToken::new();
     let stream_token = token.clone();
     let heartbeat_token = token.clone();
@@ -116,7 +113,12 @@ where
         }
     });
 
-    let output_handle = spawn(async move {
+    // Setup the database handler
+    let db_tx = tx.clone();
+    let mut db = BartocDatabase::new(&config, db_tx)?;
+
+    let db_handle = spawn(async move {
+        let mut interval = interval(Duration::from_mins(1));
         loop {
             select! {
                 () = output_token.cancelled() => {
@@ -128,6 +130,11 @@ where
                         error!("unable to write output to database: {e}");
                     }
                 },
+                _val = interval.tick() => {
+                    if let Err(e) = db.flush() {
+                        error!("unable to flush database: {e}");
+                    }
+                }
             }
         }
     });
@@ -151,7 +158,7 @@ where
     }
 
     sink_handle.await?;
-    output_handle.await?;
+    db_handle.await?;
     let _res = sighan_handle.await?;
     Ok(())
 }

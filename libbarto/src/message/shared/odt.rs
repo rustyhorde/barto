@@ -14,8 +14,9 @@ use bincode::{
 };
 use time::{OffsetDateTime, format_description::well_known};
 
+/// An `OffsetDateTime` wrapper that implements `bincode::Encode` and `bincode::Decode`
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub(crate) struct OffsetDataTimeWrapper(pub OffsetDateTime);
+pub struct OffsetDataTimeWrapper(pub OffsetDateTime);
 
 impl<Context> Decode<Context> for OffsetDataTimeWrapper {
     fn decode<D: Decoder<Context = Context>>(decoder: &mut D) -> Result<Self, DecodeError> {

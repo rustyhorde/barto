@@ -16,7 +16,7 @@ dirs2 = { workspace = true }
 futures-util = { workspace = true }
 getset = { workspace = true }
 libbarto = { path = "../libbarto" }
-redb = "3.1.0"
+redb = { workspace = true }
 serde = { workspace = true }
 thiserror = { workspace = true }
 time = { workspace = true }

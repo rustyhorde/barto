@@ -242,6 +242,7 @@
 #![cfg_attr(coverage_nightly, feature(coverage_attribute))]
 
 mod config;
+mod db;
 mod error;
 mod header;
 mod message;
@@ -257,12 +258,18 @@ pub use self::config::Schedule;
 pub use self::config::Schedules;
 pub use self::config::Tracing;
 pub use self::config::load;
+pub use self::db::bincode::Bincode;
 pub use self::error::Error;
 pub use self::error::clap_or_error;
 pub use self::error::success;
 pub use self::header::header;
-pub use self::message::client::BartocToBartos;
+pub use self::message::client::Bartoc;
+pub use self::message::client::BartocWs;
 pub use self::message::server::BartosToBartoc;
+pub use self::message::shared::odt::OffsetDataTimeWrapper;
+pub use self::message::shared::output::Output;
+pub use self::message::shared::output::OutputKind;
+pub use self::message::shared::uuid::UuidWrapper;
 pub use self::schedule::Realtime;
 pub use self::schedule::dow::DayOfWeek;
 pub use self::schedule::hms::Hour;

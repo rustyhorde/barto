@@ -11,11 +11,13 @@ use std::fmt::{Display, Formatter};
 use bincode::{Decode, Encode};
 use bon::Builder;
 use getset::{CopyGetters, Getters};
+use libbarto::{OffsetDataTimeWrapper, Output, OutputKind, UuidWrapper};
 use time::format_description::well_known;
 
-use crate::db::data::{odt::OffsetDataTimeWrapper, uuid::UuidWrapper};
-
-#[derive(Builder, Clone, Debug, Decode, Encode, Eq, Hash, Ord, PartialEq, PartialOrd)]
+#[derive(
+    Builder, Clone, Copy, CopyGetters, Debug, Decode, Encode, Eq, Hash, Ord, PartialEq, PartialOrd,
+)]
+#[get_copy = "pub(crate)"]
 pub(crate) struct OutputKey {
     timestamp: OffsetDataTimeWrapper,
     uuid: UuidWrapper,
@@ -41,9 +43,24 @@ impl From<&Output> for OutputKey {
     }
 }
 
-#[derive(Builder, Clone, Debug, Decode, Encode, Eq, Hash, Ord, PartialEq, PartialOrd)]
+#[derive(
+    Builder,
+    Clone,
+    CopyGetters,
+    Debug,
+    Decode,
+    Encode,
+    Eq,
+    Getters,
+    Hash,
+    Ord,
+    PartialEq,
+    PartialOrd,
+)]
 pub(crate) struct OutputValue {
+    #[get_copy = "pub(crate)"]
     kind: OutputKind,
+    #[get = "pub(crate)"]
     data: String,
 }
 
@@ -59,51 +76,5 @@ impl From<&Output> for OutputValue {
             kind: output.kind(),
             data: output.data().clone(),
         }
-    }
-}
-
-#[derive(Clone, Copy, Debug, Decode, Encode, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub(crate) enum OutputKind {
-    Stdout,
-    Stderr,
-}
-
-impl Display for OutputKind {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        match self {
-            OutputKind::Stdout => write!(f, "stdout"),
-            OutputKind::Stderr => write!(f, "stderr"),
-        }
-    }
-}
-
-#[derive(
-    Builder,
-    Clone,
-    CopyGetters,
-    Debug,
-    Decode,
-    Encode,
-    Eq,
-    Getters,
-    Hash,
-    Ord,
-    PartialEq,
-    PartialOrd,
-)]
-pub(crate) struct Output {
-    #[get_copy = "pub(crate)"]
-    timestamp: OffsetDataTimeWrapper,
-    #[get_copy = "pub(crate)"]
-    uuid: UuidWrapper,
-    #[get_copy = "pub(crate)"]
-    kind: OutputKind,
-    #[get = "pub(crate)"]
-    data: String,
-}
-
-impl Display for Output {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "({} {}) => {}", self.uuid, self.kind, self.data,)
     }
 }

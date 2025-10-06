@@ -7,16 +7,16 @@
 // modified, or distributed except according to those terms.
 
 use anyhow::Result;
+use libbarto::{Bincode, Output};
 use redb::{Database, TableDefinition};
+use tokio::sync::mpsc::UnboundedSender;
 use tracing::info;
 
 use crate::{
     config::Config,
-    db::data::{
-        bincode::Bincode,
-        output::{OutputKey, OutputValue},
-    },
+    db::data::output::{OutputKey, OutputValue},
     error::Error,
+    handler::BartocMessage,
 };
 
 pub(crate) mod data;
@@ -27,14 +27,15 @@ const OUTPUT_TABLE: TableDefinition<'_, Bincode<OutputKey>, Bincode<OutputValue>
 #[derive(Debug)]
 pub(crate) struct BartocDatabase {
     db: Database,
+    db_tx: UnboundedSender<BartocMessage>,
 }
 
 impl BartocDatabase {
-    pub(crate) fn new(config: &Config) -> Result<Self> {
+    pub(crate) fn new(config: &Config, db_tx: UnboundedSender<BartocMessage>) -> Result<Self> {
         let redb_path = config.redb_path().as_ref().ok_or(Error::NoRedbPath)?;
         info!("Using redb database path: {}", redb_path.display());
         let db = Database::create(config.redb_path().as_ref().ok_or(Error::NoRedbPath)?)?;
-        Ok(Self { db })
+        Ok(Self { db, db_tx })
     }
 
     pub(crate) fn write_kv(&mut self, key: &OutputKey, value: &OutputValue) -> Result<()> {
@@ -42,6 +43,34 @@ impl BartocDatabase {
         {
             let mut table = write_txn.open_table(OUTPUT_TABLE)?;
             let _old = table.insert(key, value)?;
+        }
+        write_txn.commit()?;
+        Ok(())
+    }
+
+    pub(crate) fn flush(&mut self) -> Result<()> {
+        let write_txn = self.db.begin_write()?;
+        info!("Flushing database to bartos");
+        {
+            let mut table = write_txn.open_table(OUTPUT_TABLE)?;
+            loop {
+                match table.pop_first() {
+                    Ok(Some((key, value))) => {
+                        let output = Output::builder()
+                            .uuid(key.value().uuid())
+                            .timestamp(key.value().timestamp())
+                            .kind(value.value().kind())
+                            .data(value.value().data().clone())
+                            .build();
+                        self.db_tx.send(BartocMessage::Record(output))?;
+                        info!("Flushed record with UUID: {}", key.value().uuid());
+                    }
+                    Ok(None) => break,
+                    Err(e) => {
+                        return Err(e.into());
+                    }
+                }
+            }
         }
         write_txn.commit()?;
         Ok(())

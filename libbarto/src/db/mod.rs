@@ -6,6 +6,4 @@
 // option. All files in the project carrying such notice may not be copied,
 // modified, or distributed except according to those terms.
 
-pub(crate) mod client;
-pub(crate) mod server;
-pub(crate) mod shared;
+pub(crate) mod bincode;

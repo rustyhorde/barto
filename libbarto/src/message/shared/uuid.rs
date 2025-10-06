@@ -16,8 +16,9 @@ use bincode::{
 };
 use uuid::Uuid;
 
+/// A `Uuid` wrapper that implements `bincode::Encode` and `bincode::Decode`
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub(crate) struct UuidWrapper(pub Uuid);
+pub struct UuidWrapper(pub Uuid);
 
 impl Display for UuidWrapper {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {

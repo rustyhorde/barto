@@ -13,9 +13,9 @@ use actix_web::{
     web::{Data, Payload, Query},
 };
 use actix_ws::{AggregatedMessage, Session, handle};
-use bincode::{config::standard, encode_to_vec};
+use bincode::{config::standard, decode_from_slice, encode_to_vec};
 use futures_util::StreamExt as _;
-use libbarto::{BartosToBartoc, parse_ts_ping};
+use libbarto::{Bartoc, BartosToBartoc, parse_ts_ping};
 use tokio::select;
 use tokio_util::sync::CancellationToken;
 use tracing::{error, info, trace};
@@ -53,7 +53,17 @@ pub(crate) async fn worker(
                     if let Some(Ok(msg)) = res {
                         match msg {
                             AggregatedMessage::Text(_byte_string) => error!("unexpected text message"),
-                            AggregatedMessage::Binary(_bytes) => error!("unexpected binary message"),
+                            AggregatedMessage::Binary(bytes) => {
+                                if let Ok((bartoc_msg, _)) = decode_from_slice(&bytes, standard()) {
+                                    match bartoc_msg {
+                                        Bartoc::Record(output) => {
+                                            info!("handling record message: {}", output);
+                                        }
+                                    }
+                                } else {
+                                    error!("unable to decode binary message");
+                                }
+                            },
                             AggregatedMessage::Ping(bytes) => {
                                 trace!("handling ping message");
                                 if let Some(dur) = parse_ts_ping(&bytes) {

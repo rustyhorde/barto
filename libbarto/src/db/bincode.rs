@@ -13,7 +13,7 @@ use redb::{Key, TypeName, Value};
 
 /// Wrapper type to handle keys and values using bincode serialization
 #[derive(Debug)]
-pub(crate) struct Bincode<T>(pub T);
+pub struct Bincode<T>(pub T);
 
 impl<T> Value for Bincode<T>
 where

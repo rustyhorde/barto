@@ -19,7 +19,10 @@ use anyhow::{Result, anyhow};
 use bincode::{Decode, Encode, config::standard, encode_to_vec};
 use bon::Builder;
 use futures_util::{SinkExt as _, stream::SplitSink};
-use libbarto::{BartocToBartos, BartosToBartoc, Realtime, parse_ts_ping, send_ts_ping};
+use libbarto::{
+    Bartoc, BartocWs, BartosToBartoc, OffsetDataTimeWrapper, Output, OutputKind, Realtime,
+    UuidWrapper, parse_ts_ping, send_ts_ping,
+};
 use time::OffsetDateTime;
 use tokio::{
     io::{AsyncBufReadExt as _, BufReader},
@@ -39,14 +42,7 @@ use tokio_util::sync::CancellationToken;
 use tracing::{error, info, trace};
 use uuid::Uuid;
 
-use crate::{
-    db::data::{
-        odt::OffsetDataTimeWrapper,
-        output::{Output, OutputKind},
-        uuid::UuidWrapper,
-    },
-    error::Error,
-};
+use crate::error::Error;
 
 /// How often heartbeat pings are sent
 const HEARTBEAT_INTERVAL: Duration = Duration::from_secs(5);
@@ -58,18 +54,19 @@ pub(crate) enum BartocMessage {
     Close,
     Ping(Vec<u8>),
     Pong(Vec<u8>),
-    BartocToBartos(BartocToBartos),
+    BartocToBartos(BartocWs),
     BartosToBartoc(BartosToBartoc),
     Output(Output),
+    Record(Output),
 }
 
 impl BartocMessage {
     pub(crate) fn ping(bytes: Vec<u8>) -> Self {
-        Self::BartocToBartos(BartocToBartos::Ping(bytes))
+        Self::BartocToBartos(BartocWs::Ping(bytes))
     }
 
     pub(crate) fn close(cr: Option<(u16, String)>) -> Self {
-        Self::BartocToBartos(BartocToBartos::Close(cr))
+        Self::BartocToBartos(BartocWs::Close(cr))
     }
 }
 
@@ -134,18 +131,18 @@ impl Handler {
             }
             BartocMessage::BartocToBartos(bts) => {
                 let msg = match bts {
-                    BartocToBartos::Close(close_reason) => {
+                    BartocWs::Close(close_reason) => {
                         trace!("sending close message to bartos");
                         Message::Close(close_reason.as_ref().map(|(code, reason)| CloseFrame {
                             code: (*code).into(),
                             reason: reason.clone().into(),
                         }))
                     }
-                    BartocToBartos::Ping(items) => {
+                    BartocWs::Ping(items) => {
                         trace!("sending ping message to bartos");
                         Message::Ping(items.clone().into())
                     }
-                    BartocToBartos::Pong(items) => {
+                    BartocWs::Pong(items) => {
                         trace!("sending pong message to bartos");
                         Message::Pong(items.clone().into())
                     }
@@ -180,6 +177,15 @@ impl Handler {
             }
             BartocMessage::Output(output) => {
                 self.output_tx.send(output.clone())?;
+                Ok(())
+            }
+            BartocMessage::Record(output) => {
+                let bartoc_msg = Bartoc::Record(output.clone());
+                let msg_bytes = encode_to_vec(&bartoc_msg, standard())?;
+                let msg = Message::Binary(msg_bytes.into());
+                if let Err(e) = self.send_message(msg).await {
+                    error!("unable to send message to websocket: {e}");
+                }
                 Ok(())
             }
         }
@@ -249,7 +255,11 @@ impl Handler {
                             if rt.should_run(now) {
                                 info!("running commands: {}", cmds.join(", "));
                                 for cmd in cmds {
-                                    Self::run_cmd(cmd, cloned_tx.clone()).await.unwrap_or_else(|e| error!("unable to run command: {e}"));
+                                    let cctx = cloned_tx.clone();
+                                    let cc = cmd.clone();
+                                    let _handle = spawn(async move {
+                                        Self::run_cmd(&cc, cctx).await.unwrap_or_else(|e| error!("unable to run command: {e}"));
+                                    });
                                 }
                             }
                         }
