@@ -358,7 +358,9 @@ impl Handler {
     #[cfg(windows)]
     #[allow(clippy::unnecessary_wraps)]
     fn setup_cmd(cmd_str: &str) -> Result<Command> {
-        let mut cmd = Command::new(cmd_str);
+        let mut cmd = Command::new("cmd");
+        let _ = cmd.arg("/C");
+        let _ = cmd.arg(cmd_str);
         let _ = cmd.stdout(Stdio::piped());
         let _ = cmd.stderr(Stdio::piped());
         Ok(cmd)
