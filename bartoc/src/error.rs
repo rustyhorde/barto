@@ -25,6 +25,7 @@ pub(crate) enum Error {
     DataDir,
     #[error("No redb database path specified")]
     NoRedbPath,
+    #[cfg(unix)]
     #[error("No shell found in environment variables")]
     NoShell,
 }

@@ -8,9 +8,10 @@
 
 pub(crate) mod stream;
 
+#[cfg(unix)]
+use std::env::var_os;
 use std::{
     collections::HashMap,
-    env::var_os,
     process::Stdio,
     time::{Duration, Instant},
 };
@@ -355,6 +356,7 @@ impl Handler {
     }
 
     #[cfg(windows)]
+    #[allow(clippy::unnecessary_wraps)]
     fn setup_cmd(cmd_str: &str) -> Result<Command> {
         let mut cmd = Command::new(cmd_str);
         let _ = cmd.stdout(Stdio::piped());
