@@ -287,65 +287,79 @@ impl Handler {
         cmd_str: &str,
         tx: UnboundedSender<BartocMessage>,
     ) -> Result<()> {
+        let uuid = Uuid::new_v4();
+        let mut cmd = Self::setup_cmd(cmd_str)?;
+        let mut child = cmd.spawn()?;
+        let stdout = child.stdout.take().ok_or(Error::StdoutHandle)?;
+        let stderr = child.stderr.take().ok_or(Error::StderrHandle)?;
+        let cmd_handle = spawn(async move { child.wait().await.map_err(Into::into) });
+
+        let cloned_tx = tx.clone();
+        let cloned_bartoc_name = bartoc_name.clone();
+        let stdout_handle = spawn(async move {
+            let mut reader = BufReader::new(stdout).lines();
+            while let Some(line) = reader.next_line().await.unwrap_or(None) {
+                let output = Output::builder()
+                    .timestamp(OffsetDataTimeWrapper(OffsetDateTime::now_utc()))
+                    .bartoc_uuid(bartoc_id)
+                    .bartoc_name(cloned_bartoc_name.clone())
+                    .cmd_uuid(UuidWrapper(uuid))
+                    .kind(OutputKind::Stdout)
+                    .data(line)
+                    .build();
+                cloned_tx.send(BartocMessage::Output(output))?;
+            }
+            Ok(())
+        });
+        let stderr_handle = spawn(async move {
+            let mut reader = BufReader::new(stderr).lines();
+            while let Some(line) = reader.next_line().await.unwrap_or(None) {
+                let output = Output::builder()
+                    .timestamp(OffsetDataTimeWrapper(OffsetDateTime::now_utc()))
+                    .bartoc_uuid(bartoc_id)
+                    .bartoc_name(bartoc_name.clone())
+                    .cmd_uuid(UuidWrapper(uuid))
+                    .kind(OutputKind::Stderr)
+                    .data(line)
+                    .build();
+                tx.send(BartocMessage::Output(output))?;
+            }
+            Ok(())
+        });
+
+        match try_join!(
+            flatten(cmd_handle),
+            flatten(stdout_handle),
+            flatten(stderr_handle)
+        ) {
+            Ok((status, _stdout_res, _stderr_res)) => {
+                info!("{status}");
+            }
+            Err(e) => error!("command handling failed: {e}"),
+        }
+        Ok(())
+    }
+
+    #[cfg(unix)]
+    fn setup_cmd(cmd_str: &str) -> Result<Command> {
         if let Some(shell_path) = var_os("SHELL") {
-            let uuid = Uuid::new_v4();
             let mut cmd = Command::new(shell_path);
             let _ = cmd.arg("-c");
             let _ = cmd.arg(cmd_str);
             let _ = cmd.stdout(Stdio::piped());
             let _ = cmd.stderr(Stdio::piped());
-            let mut child = cmd.spawn()?;
-            let stdout = child.stdout.take().ok_or(Error::StdoutHandle)?;
-            let stderr = child.stderr.take().ok_or(Error::StderrHandle)?;
-            let cmd_handle = spawn(async move { child.wait().await.map_err(Into::into) });
-
-            let cloned_tx = tx.clone();
-            let cloned_bartoc_name = bartoc_name.clone();
-            let stdout_handle = spawn(async move {
-                let mut reader = BufReader::new(stdout).lines();
-                while let Some(line) = reader.next_line().await.unwrap_or(None) {
-                    let output = Output::builder()
-                        .timestamp(OffsetDataTimeWrapper(OffsetDateTime::now_utc()))
-                        .bartoc_uuid(bartoc_id)
-                        .bartoc_name(cloned_bartoc_name.clone())
-                        .cmd_uuid(UuidWrapper(uuid))
-                        .kind(OutputKind::Stdout)
-                        .data(line)
-                        .build();
-                    cloned_tx.send(BartocMessage::Output(output))?;
-                }
-                Ok(())
-            });
-            let stderr_handle = spawn(async move {
-                let mut reader = BufReader::new(stderr).lines();
-                while let Some(line) = reader.next_line().await.unwrap_or(None) {
-                    let output = Output::builder()
-                        .timestamp(OffsetDataTimeWrapper(OffsetDateTime::now_utc()))
-                        .bartoc_uuid(bartoc_id)
-                        .bartoc_name(bartoc_name.clone())
-                        .cmd_uuid(UuidWrapper(uuid))
-                        .kind(OutputKind::Stderr)
-                        .data(line)
-                        .build();
-                    tx.send(BartocMessage::Output(output))?;
-                }
-                Ok(())
-            });
-
-            match try_join!(
-                flatten(cmd_handle),
-                flatten(stdout_handle),
-                flatten(stderr_handle)
-            ) {
-                Ok((status, _stdout_res, _stderr_res)) => {
-                    info!("{status}");
-                }
-                Err(e) => error!("command handling failed: {e}"),
-            }
+            Ok(cmd)
         } else {
-            error!("no SHELL environment variable set");
+            Err(Error::NoShell.into())
         }
-        Ok(())
+    }
+
+    #[cfg(windows)]
+    fn setup_cmd(cmd_str: &str) -> Result<Command> {
+        let mut cmd = Command::new(cmd_str);
+        let _ = cmd.stdout(Stdio::piped());
+        let _ = cmd.stderr(Stdio::piped());
+        Ok(cmd)
     }
 }
 

@@ -150,7 +150,7 @@ where
     // Setup the signal handling
     let sighan_handle = spawn(async move { handle_signals(token).await });
 
-    info!("bartoc started!");
+    info!("{} bartoc started!", config.name());
     loop {
         select! {
             () = stream_token.cancelled() => {
