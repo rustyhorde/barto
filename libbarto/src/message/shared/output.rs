@@ -14,6 +14,15 @@ use getset::{CopyGetters, Getters};
 
 use crate::message::shared::{odt::OffsetDataTimeWrapper, uuid::UuidWrapper};
 
+/// A record of data from a bartoc client
+#[derive(Clone, Debug, Decode, Encode, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub enum Data {
+    /// An output record
+    Output(Output),
+    /// A status record
+    Status(Status),
+}
+
 /// The kind of output (stdout or stderr)
 #[derive(Clone, Copy, Debug, Decode, Encode, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub enum OutputKind {
@@ -84,5 +93,52 @@ impl Display for Output {
             "({} {} {}) => {}",
             self.bartoc_uuid, self.cmd_uuid, self.kind, self.data,
         )
+    }
+}
+
+/// An output record from a bartoc client
+#[derive(
+    Builder,
+    Clone,
+    Copy,
+    CopyGetters,
+    Debug,
+    Decode,
+    Encode,
+    Eq,
+    Getters,
+    Hash,
+    Ord,
+    PartialEq,
+    PartialOrd,
+)]
+pub struct Status {
+    /// The command `Uuid` of the bartoc command that produced the status
+    #[get_copy = "pub"]
+    cmd_uuid: UuidWrapper,
+    /// The exit code of the command
+    #[get_copy = "pub"]
+    #[builder(required)]
+    exit_code: Option<i32>,
+    /// The success status of the command
+    #[get_copy = "pub"]
+    success: bool,
+}
+
+impl Display for Status {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        if let Some(code) = self.exit_code {
+            write!(
+                f,
+                "({} exit_code={} success={})",
+                self.cmd_uuid, code, self.success,
+            )
+        } else {
+            write!(
+                f,
+                "({} exit_code=None success={})",
+                self.cmd_uuid, self.success,
+            )
+        }
     }
 }

@@ -21,7 +21,7 @@ use std::{
 use anyhow::{Context, Result};
 use clap::Parser;
 use futures_util::StreamExt;
-use libbarto::{header, init_tracing};
+use libbarto::{Data, header, init_tracing};
 #[cfg(not(unix))]
 use tokio::signal::ctrl_c;
 #[cfg(unix)]
@@ -39,7 +39,10 @@ use crate::{
     config::{Config, load_bartoc},
     db::{
         BartocDatabase,
-        data::output::{OutputKey, OutputValue},
+        data::{
+            output::{OutputKey, OutputValue},
+            status::{StatusKey, StatusValue},
+        },
     },
     error::Error,
     handler::{BartocMessage, Handler, stream::WsHandler},
@@ -101,7 +104,7 @@ where
             let heartbeat_token = token.clone();
             let output_token = token.clone();
             let (tx, mut rx) = unbounded_channel();
-            let (output_tx, mut output_rx) = unbounded_channel();
+            let (data_tx, mut data_rx) = unbounded_channel();
             let url = format!(
                 "{}://{}:{}/v1/ws/worker?name={}",
                 config.bartos_prefix(),
@@ -116,7 +119,7 @@ where
             let mut handler = Handler::builder()
                 .sink(sink)
                 .tx(tx.clone())
-                .output_tx(output_tx.clone())
+                .data_tx(data_tx.clone())
                 .token(heartbeat_token)
                 .bartoc_name(config.name().clone())
                 .build();
@@ -149,14 +152,28 @@ where
                             trace!("cancellation token triggered, shutting down output handler");
                             break;
                         }
-                        rx_opt = output_rx.recv() => {
-                            if let Some(output) = rx_opt && let Err(e) = db.write_kv(&OutputKey::from(&output), &OutputValue::from(&output)) {
-                                error!("unable to write output to database: {e}");
+                        rx_opt = data_rx.recv() => {
+                            if let Some(data) = rx_opt {
+                                match data {
+                                    Data::Output(output) => {
+                                        if let Err(e) = db.write_output(&OutputKey::from(&output), &OutputValue::from(&output)) {
+                                            error!("unable to write output to database: {e}");
+                                        }
+                                    }
+                                    Data::Status(status) => {
+                                        if let Err(e) = db.write_status(&StatusKey::from(&status), &StatusValue::from(&status)) {
+                                            error!("unable to write status to database: {e}");
+                                        }
+                                    }
+                                }
                             }
                         },
                         _val = interval.tick() => {
-                            if let Err(e) = db.flush() {
-                                error!("unable to flush database: {e}");
+                            if let Err(e) = db.flush_output() {
+                                error!("unable to flush output table: {e}");
+                            }
+                            if let Err(e) = db.flush_status() {
+                                error!("unable to flush status table: {e}");
                             }
                         }
                     }
@@ -190,7 +207,7 @@ where
         }
 
         let sd = shutdown.load(Ordering::SeqCst);
-        info!("is bartoc shutting down? {sd}");
+        trace!("is bartoc shutting down? {sd}");
         if sd {
             break;
         }

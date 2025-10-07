@@ -7,3 +7,4 @@
 // modified, or distributed except according to those terms.
 
 pub(crate) mod output;
+pub(crate) mod status;

@@ -21,8 +21,8 @@ use bincode::{Decode, Encode, config::standard, encode_to_vec};
 use bon::Builder;
 use futures_util::{SinkExt as _, stream::SplitSink};
 use libbarto::{
-    Bartoc, BartocWs, BartosToBartoc, OffsetDataTimeWrapper, Output, OutputKind, Realtime,
-    UuidWrapper, parse_ts_ping, send_ts_ping,
+    Bartoc, BartocWs, BartosToBartoc, Data, OffsetDataTimeWrapper, Output, OutputKind, Realtime,
+    Status, UuidWrapper, parse_ts_ping, send_ts_ping,
 };
 use time::OffsetDateTime;
 use tokio::{
@@ -57,8 +57,8 @@ pub(crate) enum BartocMessage {
     Pong(Vec<u8>),
     BartocToBartos(BartocWs),
     BartosToBartoc(BartosToBartoc),
-    Output(Output),
-    Record(Output),
+    Data(Data),
+    RecordData(Data),
 }
 
 impl BartocMessage {
@@ -101,7 +101,7 @@ pub(crate) struct Handler {
     rt_map: HashMap<Realtime, Vec<String>>,
     rt_monitor_handle: Option<JoinHandle<()>>,
     // the stdout queue
-    output_tx: UnboundedSender<Output>,
+    data_tx: UnboundedSender<Data>,
     id: Option<UuidWrapper>,
     bartoc_name: String,
 }
@@ -177,19 +177,17 @@ impl Handler {
                                 );
                             }
                         }
-                        let count = schedules.len();
-                        info!("bartoc {} schedules", count);
                         self.rt_monitor();
                     }
                 }
                 Ok(())
             }
-            BartocMessage::Output(output) => {
-                self.output_tx.send(output.clone())?;
+            BartocMessage::Data(data) => {
+                self.data_tx.send(data.clone())?;
                 Ok(())
             }
-            BartocMessage::Record(output) => {
-                let bartoc_msg = Bartoc::Record(output.clone());
+            BartocMessage::RecordData(data) => {
+                let bartoc_msg = Bartoc::Record(data.clone());
                 let msg_bytes = encode_to_vec(&bartoc_msg, standard())?;
                 let msg = Message::Binary(msg_bytes.into());
                 if let Err(e) = self.send_message(msg).await {
@@ -261,13 +259,15 @@ impl Handler {
                             let now = OffsetDateTime::now_utc();
                             for (rt, cmds) in &cloned_rt_map {
                                 if rt.should_run(now) {
-                                    info!("running commands: {}", cmds.join(", "));
+                                    trace!("running commands: {}", cmds.join(", "));
                                     for cmd in cmds {
+                                        let id = Uuid::new_v4();
                                         let cctx = cloned_tx.clone();
                                         let cc = cmd.clone();
                                         let bnc = cloned_bartoc_name.clone();
+                                        info!("running command: {id}");
                                         let _handle = spawn(async move {
-                                            Self::run_cmd(bartoc_id, bnc, &cc, cctx).await.unwrap_or_else(|e| error!("unable to run command: {e}"));
+                                            Self::run_cmd(id, bartoc_id, bnc, &cc, cctx).await.unwrap_or_else(|e| error!("unable to run command: {e}"));
                                         });
                                     }
                                 }
@@ -283,19 +283,19 @@ impl Handler {
     }
 
     pub(crate) async fn run_cmd(
+        id: Uuid,
         bartoc_id: UuidWrapper,
         bartoc_name: String,
         cmd_str: &str,
         tx: UnboundedSender<BartocMessage>,
     ) -> Result<()> {
-        let uuid = Uuid::new_v4();
         let mut cmd = Self::setup_cmd(cmd_str)?;
         let mut child = cmd.spawn()?;
         let stdout = child.stdout.take().ok_or(Error::StdoutHandle)?;
         let stderr = child.stderr.take().ok_or(Error::StderrHandle)?;
         let cmd_handle = spawn(async move { child.wait().await.map_err(Into::into) });
 
-        let cloned_tx = tx.clone();
+        let stdout_tx = tx.clone();
         let cloned_bartoc_name = bartoc_name.clone();
         let stdout_handle = spawn(async move {
             let mut reader = BufReader::new(stdout).lines();
@@ -304,14 +304,15 @@ impl Handler {
                     .timestamp(OffsetDataTimeWrapper(OffsetDateTime::now_utc()))
                     .bartoc_uuid(bartoc_id)
                     .bartoc_name(cloned_bartoc_name.clone())
-                    .cmd_uuid(UuidWrapper(uuid))
+                    .cmd_uuid(UuidWrapper(id))
                     .kind(OutputKind::Stdout)
                     .data(line)
                     .build();
-                cloned_tx.send(BartocMessage::Output(output))?;
+                stdout_tx.send(BartocMessage::Data(Data::Output(output)))?;
             }
             Ok(())
         });
+        let stderr_tx = tx.clone();
         let stderr_handle = spawn(async move {
             let mut reader = BufReader::new(stderr).lines();
             while let Some(line) = reader.next_line().await.unwrap_or(None) {
@@ -319,11 +320,11 @@ impl Handler {
                     .timestamp(OffsetDataTimeWrapper(OffsetDateTime::now_utc()))
                     .bartoc_uuid(bartoc_id)
                     .bartoc_name(bartoc_name.clone())
-                    .cmd_uuid(UuidWrapper(uuid))
+                    .cmd_uuid(UuidWrapper(id))
                     .kind(OutputKind::Stderr)
                     .data(line)
                     .build();
-                tx.send(BartocMessage::Output(output))?;
+                stderr_tx.send(BartocMessage::Data(Data::Output(output)))?;
             }
             Ok(())
         });
@@ -334,7 +335,23 @@ impl Handler {
             flatten(stderr_handle)
         ) {
             Ok((status, _stdout_res, _stderr_res)) => {
-                info!("{status}");
+                if let Some(code) = status.code() {
+                    if status.success() {
+                        info!("command {id} exited successfully with code: {code}");
+                    } else {
+                        error!("command {id} exited with failure code: {code}");
+                    }
+                } else if status.success() {
+                    info!("command {id} exited successfully without a code");
+                } else {
+                    error!("command {id} exited with failure without a code");
+                }
+                let status = Status::builder()
+                    .cmd_uuid(UuidWrapper(id))
+                    .exit_code(status.code())
+                    .success(status.success())
+                    .build();
+                tx.send(BartocMessage::Data(Data::Status(status)))?;
             }
             Err(e) => error!("command handling failed: {e}"),
         }
