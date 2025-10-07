@@ -47,6 +47,8 @@ pub(crate) struct Config {
     bartos_host: String,
     #[getset(get = "pub(crate)")]
     bartos_port: u16,
+    #[getset(get = "pub(crate)")]
+    retry_count: u8,
 }
 
 impl TracingConfig for Config {

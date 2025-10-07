@@ -11,6 +11,10 @@ mod cli;
 use std::{
     ffi::OsString,
     io::{Write, stdout},
+    sync::{
+        Arc,
+        atomic::{AtomicBool, Ordering},
+    },
     time::Duration,
 };
 
@@ -80,99 +84,139 @@ where
     };
     header::<Config, dyn Write>(&config, HEADER_PREFIX, writer)?;
 
+    let mut retry_count = *config.retry_count();
+    let mut error_count = 0;
+    let shutdown = Arc::new(AtomicBool::new(false));
     let token = CancellationToken::new();
-    let stream_token = token.clone();
-    let heartbeat_token = token.clone();
-    let output_token = token.clone();
-    let (tx, mut rx) = unbounded_channel();
-    let (output_tx, mut output_rx) = unbounded_channel();
-    let url = format!(
-        "{}://{}:{}/v1/ws/worker?name={}",
-        config.bartos_prefix(),
-        config.bartos_host(),
-        config.bartos_port(),
-        config.name()
-    );
-    trace!("connecting to bartos at {url}");
-    let (ws_stream, _) = connect_async(&url).await?;
-    trace!("websocket connected");
-    let (sink, mut stream) = ws_stream.split();
-    let mut handler = Handler::builder()
-        .sink(sink)
-        .tx(tx.clone())
-        .output_tx(output_tx.clone())
-        .token(heartbeat_token)
-        .bartoc_name(config.name().clone())
-        .build();
-    handler.heartbeat();
-    trace!("bartoc heartbeat started");
-    let mut ws_handler = WsHandler::builder()
-        .tx(tx.clone())
-        .token(stream_token.clone())
-        .build();
+    let sig_token = token.clone();
 
-    let sink_handle = spawn(async move {
-        while let Some(msg) = rx.recv().await {
-            if let Err(e) = handler.handle_msg(msg).await {
-                error!("{e}");
-                trace!("shutting down sink handler");
-                break;
-            }
-        }
-    });
-
-    // Setup the database handler
-    let db_tx = tx.clone();
-    let mut db = BartocDatabase::new(&config, db_tx)?;
-
-    let db_handle = spawn(async move {
-        let mut interval = interval(Duration::from_mins(1));
-        loop {
-            select! {
-                () = output_token.cancelled() => {
-                    trace!("cancellation token triggered, shutting down output handler");
-                    break;
-                }
-                rx_opt = output_rx.recv() => {
-                    if let Some(output) = rx_opt && let Err(e) = db.write_kv(&OutputKey::from(&output), &OutputValue::from(&output)) {
-                        error!("unable to write output to database: {e}");
-                    }
-                },
-                _val = interval.tick() => {
-                    if let Err(e) = db.flush() {
-                        error!("unable to flush database: {e}");
-                    }
-                }
-            }
-        }
-    });
-
+    let sd_c = Arc::clone(&shutdown);
     // Setup the signal handling
-    let sighan_handle = spawn(async move { handle_signals(token).await });
+    let sighan_handle = spawn(async move { handle_signals(sig_token, sd_c).await });
 
-    info!("{} bartoc started!", config.name());
-    loop {
+    while retry_count > 0 {
+        let sd_r = Arc::clone(&shutdown);
+        let res: Result<()> = async {
+            let stream_token = token.clone();
+            let heartbeat_token = token.clone();
+            let output_token = token.clone();
+            let (tx, mut rx) = unbounded_channel();
+            let (output_tx, mut output_rx) = unbounded_channel();
+            let url = format!(
+                "{}://{}:{}/v1/ws/worker?name={}",
+                config.bartos_prefix(),
+                config.bartos_host(),
+                config.bartos_port(),
+                config.name()
+            );
+            trace!("connecting to bartos at {url}");
+            let (ws_stream, _) = connect_async(&url).await?;
+            trace!("websocket connected");
+            let (sink, mut stream) = ws_stream.split();
+            let mut handler = Handler::builder()
+                .sink(sink)
+                .tx(tx.clone())
+                .output_tx(output_tx.clone())
+                .token(heartbeat_token)
+                .bartoc_name(config.name().clone())
+                .build();
+            handler.heartbeat();
+            trace!("bartoc heartbeat started");
+            let mut ws_handler = WsHandler::builder()
+                .tx(tx.clone())
+                .token(stream_token.clone())
+                .build();
+
+            let sink_handle = spawn(async move {
+                while let Some(msg) = rx.recv().await {
+                    if let Err(e) = handler.handle_msg(msg).await {
+                        error!("{e}");
+                        trace!("shutting down sink handler");
+                        break;
+                    }
+                }
+            });
+
+            // Setup the database handler
+            let db_tx = tx.clone();
+            let mut db = BartocDatabase::new(&config, db_tx)?;
+
+            let db_handle = spawn(async move {
+                let mut interval = interval(Duration::from_mins(1));
+                loop {
+                    select! {
+                        () = output_token.cancelled() => {
+                            trace!("cancellation token triggered, shutting down output handler");
+                            break;
+                        }
+                        rx_opt = output_rx.recv() => {
+                            if let Some(output) = rx_opt && let Err(e) = db.write_kv(&OutputKey::from(&output), &OutputValue::from(&output)) {
+                                error!("unable to write output to database: {e}");
+                            }
+                        },
+                        _val = interval.tick() => {
+                            if let Err(e) = db.flush() {
+                                error!("unable to flush database: {e}");
+                            }
+                        }
+                    }
+                }
+            });
+
+
+
+            info!("{} bartoc started!", config.name());
+            loop {
+                select! {
+                    () = stream_token.cancelled() => {
+                        handle_cancellation(tx).await;
+                        break;
+                    }
+                    next_opt = stream.next() => {
+                        if let Err(e) = ws_handler.handle_msg(next_opt) {
+                            error!("{e}");
+                        }
+                    }
+                }
+            }
+
+            sink_handle.await?;
+            db_handle.await?;
+            Ok(())
+        }.await;
+
+        if let Err(e) = res {
+            error!("{e}");
+        }
+
+        let sd = shutdown.load(Ordering::SeqCst);
+        info!("is bartoc shutting down? {sd}");
+        if sd {
+            break;
+        }
+        let retry_token = CancellationToken::new();
+        let rt_c = retry_token.clone();
+        let sighan_handle = spawn(async move { handle_signals(rt_c, sd_r).await });
+        info!("retrying in {} seconds...", 2u64.pow(error_count));
+
         select! {
-            () = stream_token.cancelled() => {
-                handle_cancellation(tx).await;
+            () = retry_token.cancelled() => {
                 break;
             }
-            next_opt = stream.next() => {
-                if let Err(e) = ws_handler.handle_msg(next_opt) {
-                    error!("{e}");
-                }
+            () = sleep(Duration::from_secs(2u64.pow(error_count))) => {
+                trace!("retrying now");
+                retry_count -= 1;
+                error_count += 1;
+                sighan_handle.abort();
             }
         }
     }
-
-    sink_handle.await?;
-    db_handle.await?;
     let _res = sighan_handle.await?;
     Ok(())
 }
 
 #[cfg(unix)]
-async fn handle_signals(token: CancellationToken) -> Result<()> {
+async fn handle_signals(token: CancellationToken, shutdown: Arc<AtomicBool>) -> Result<()> {
     let mut sigint = signal(SignalKind::interrupt())?;
     let mut sigterm = signal(SignalKind::terminate())?;
     let mut sighup = signal(SignalKind::hangup())?;
@@ -182,22 +226,24 @@ async fn handle_signals(token: CancellationToken) -> Result<()> {
             trace!("cancellation token triggered, shutting down signal handler");
         }
         _ = sigint.recv() => {
-            trace!("received SIGINT, shutting down bartoc");
+            info!("received SIGINT, shutting down bartoc");
+            shutdown.store(true, Ordering::SeqCst);
             token.cancel();
         }
         _ = sigterm.recv() => {
-            trace!("received SIGTERM, shutting down bartoc");
+            info!("received SIGTERM, shutting down bartoc");
+            shutdown.store(true, Ordering::SeqCst);
             token.cancel();
         }
         _ = sighup.recv() => {
-            trace!("received SIGHUP, reloading configuration");
+            info!("received SIGHUP, reloading configuration");
         }
     }
     Ok(())
 }
 
 #[cfg(not(unix))]
-async fn handle_signals(token: CancellationToken) -> Result<()> {
+async fn handle_signals(token: CancellationToken, shutdown: Arc<AtomicBool>) -> Result<()> {
     select! {
         () = token.cancelled() => {
             trace!("cancellation token triggered, shutting down signal handler");
@@ -209,6 +255,7 @@ async fn handle_signals(token: CancellationToken) -> Result<()> {
                 Err(e.into())
             } else {
                 trace!("received CTRL-C, shutting down bartoc");
+                shutdown.store(true, Ordering::SeqCst);
                 token.cancel();
                 Ok(())
             }
