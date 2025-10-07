@@ -6,7 +6,10 @@
 // option. All files in the project carrying such notice may not be copied,
 // modified, or distributed except according to those terms.
 
-use std::vec;
+use std::{
+    fmt::{Display, Formatter},
+    vec,
+};
 
 use anyhow::{Error, Result};
 use bon::Builder;
@@ -16,6 +19,7 @@ use rand::Rng;
 use crate::{
     error::Error::InvalidTime,
     schedule::{All, parse_time_chunk},
+    utils::as_two_digit,
 };
 
 const HOURS_PER_DAY: u8 = 24;
@@ -70,6 +74,17 @@ impl From<u8> for Hour {
     }
 }
 
+impl Display for Hour {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Hour::All => write!(f, "*"),
+            Hour::Hours(hours) => {
+                write!(f, "{}", as_two_digit(hours))
+            }
+        }
+    }
+}
+
 /// The minute for a realtime schedule
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub enum Minute {
@@ -115,6 +130,17 @@ impl From<Vec<u8>> for Minute {
 impl From<u8> for Minute {
     fn from(value: u8) -> Self {
         Minute::Minutes(vec![value])
+    }
+}
+
+impl Display for Minute {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Minute::All => write!(f, "*"),
+            Minute::Minutes(minutes) => {
+                write!(f, "{}", as_two_digit(minutes))
+            }
+        }
     }
 }
 
@@ -166,6 +192,16 @@ impl From<u8> for Second {
     }
 }
 
+impl Display for Second {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Second::All => write!(f, "*"),
+            Second::Seconds(seconds) => {
+                write!(f, "{}", as_two_digit(seconds))
+            }
+        }
+    }
+}
 /// An hour, minute, and second combination
 #[derive(Builder, Clone, Debug, Default, Eq, Getters, Hash, PartialEq)]
 #[getset(get = "pub")]
@@ -225,6 +261,12 @@ impl TryFrom<&str> for HourMinuteSecond {
             }
             .into())
         }
+    }
+}
+
+impl Display for HourMinuteSecond {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{} {} {}", self.hour, self.minute, self.second)
     }
 }
 

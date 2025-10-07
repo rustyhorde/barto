@@ -6,6 +6,8 @@
 // option. All files in the project carrying such notice may not be copied,
 // modified, or distributed except according to those terms.
 
+use std::fmt::{Display, Formatter};
+
 use anyhow::{Error, Result, anyhow};
 use bon::Builder;
 use getset::{CopyGetters, Getters};
@@ -14,6 +16,7 @@ use rand::Rng;
 use crate::{
     error::Error::InvalidDate,
     schedule::{All, RANGE_RE, parse_time_chunk},
+    utils::as_two_digit,
 };
 
 const MONTHS_PER_YEAR: u8 = 12;
@@ -61,6 +64,23 @@ impl Year {
     }
 }
 
+impl Display for Year {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Year::All => write!(f, "*"),
+            Year::Range(lo, hi) => write!(f, "{lo}..{hi}"),
+            Year::Repetition { start, end, rep } => {
+                if let Some(end) = end {
+                    write!(f, "{start}/{rep}..{end}")
+                } else {
+                    write!(f, "{start}/{rep}")
+                }
+            }
+            Year::Year(year) => write!(f, "{year:04}"),
+        }
+    }
+}
+
 /// The month for a realtime schedule
 #[derive(Clone, Debug, Default, Eq, Hash, PartialEq)]
 pub enum Month {
@@ -104,6 +124,17 @@ impl From<u8> for Month {
     }
 }
 
+impl Display for Month {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Month::All => write!(f, "*"),
+            Month::Months(months) => {
+                write!(f, "{}", as_two_digit(months))
+            }
+        }
+    }
+}
+
 /// The date for a realtime schedule
 #[derive(Clone, Debug, Default, Eq, Hash, PartialEq)]
 pub enum Day {
@@ -144,6 +175,17 @@ impl From<Vec<u8>> for Day {
 impl From<u8> for Day {
     fn from(value: u8) -> Self {
         Day::Days(vec![value])
+    }
+}
+
+impl Display for Day {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Day::All => write!(f, "*"),
+            Day::Days(days) => {
+                write!(f, "{}", as_two_digit(days))
+            }
+        }
     }
 }
 
@@ -209,6 +251,12 @@ impl TryFrom<&str> for YearMonthDay {
             }
             .into())
         }
+    }
+}
+
+impl Display for YearMonthDay {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{} {} {}", self.year, self.month, self.day)
     }
 }
 

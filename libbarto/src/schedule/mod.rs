@@ -10,7 +10,11 @@ pub(crate) mod dow;
 pub(crate) mod hms;
 pub(crate) mod ymd;
 
-use std::{collections::HashSet, sync::LazyLock};
+use std::{
+    collections::HashSet,
+    fmt::{Display, Formatter},
+    sync::LazyLock,
+};
 
 use anyhow::{Error, Result};
 use bon::Builder;
@@ -150,6 +154,12 @@ impl TryFrom<&str> for Realtime {
             .ymd(ymd)
             .hms(hms)
             .build())
+    }
+}
+
+impl Display for Realtime {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{} {} {}", self.day_of_week, self.ymd, self.hms)
     }
 }
 

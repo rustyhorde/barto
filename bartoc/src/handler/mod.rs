@@ -164,11 +164,7 @@ impl Handler {
                         self.id = Some(initialize.id());
                         for schedule in schedules {
                             if let Ok(rt) = Realtime::try_from(&schedule.on_calendar()[..]) {
-                                info!(
-                                    "bartoc schedule: {} -> {}",
-                                    schedule.on_calendar(),
-                                    schedule.cmds().join(", ")
-                                );
+                                info!("bartoc schedule: {rt} -> {}", schedule.cmds().join(", "));
                                 self.rt_map
                                     .entry(rt)
                                     .or_default()
