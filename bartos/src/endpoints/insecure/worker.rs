@@ -59,30 +59,31 @@ pub(crate) async fn worker(
                         match msg {
                             AggregatedMessage::Text(_byte_string) => error!("unexpected text message"),
                             AggregatedMessage::Binary(bytes) => {
-                                if let Ok((bartoc_msg, _)) = decode_from_slice(&bytes, standard()) {
-                                    match bartoc_msg {
-                                        Bartoc::Record(data) => {
-                                            match data {
-                                                libbarto::Data::Output(output) => {
-                                                    info!("handling output data: {}", output);
-                                                    let _id = insert_output(&pool, &output).await.unwrap_or_else(|e| {
-                                                        error!("unable to insert output into database: {e}");
-                                                        0
-                                                    });
-                                                }
-                                                libbarto::Data::Status(status) => {
-                                                    info!("handling status data: {}", status);
-                                                    let _id = insert_status(&pool, &status).await.unwrap_or_else(|e| {
-                                                        error!("unable to insert status into database: {e}");
-                                                        0
-                                                    });
+                                match decode_from_slice(&bytes, standard()) {
+                                    Err(e) => error!("unable to decode binary message: {e}"),
+                                    Ok((bartoc_msg, _)) => {
+                                        match bartoc_msg {
+                                            Bartoc::Record(data) => {
+                                                match data {
+                                                    libbarto::Data::Output(output) => {
+                                                        info!("handling output data: {}", output);
+                                                        let _id = insert_output(&pool, &output).await.unwrap_or_else(|e| {
+                                                            error!("unable to insert output into database: {e}");
+                                                            0
+                                                        });
+                                                    }
+                                                    libbarto::Data::Status(status) => {
+                                                        info!("handling status data: {}", status);
+                                                        let _id = insert_status(&pool, &status).await.unwrap_or_else(|e| {
+                                                            error!("unable to insert status into database: {e}");
+                                                            0
+                                                        });
+                                                    }
                                                 }
                                             }
-                                        }
                                     }
-                                } else {
-                                    error!("unable to decode binary message");
                                 }
+                            }
                             },
                             AggregatedMessage::Ping(bytes) => {
                                 trace!("handling ping message");
