@@ -71,7 +71,7 @@ impl BartocDatabase {
 
     pub(crate) fn flush_output(&mut self) -> Result<()> {
         let write_txn = self.db.begin_write()?;
-        trace!("Flushing database to bartos");
+        trace!("Flushing output to bartos");
         {
             let mut table = write_txn.open_table(OUTPUT_TABLE)?;
             loop {
@@ -102,7 +102,7 @@ impl BartocDatabase {
 
     pub(crate) fn flush_status(&mut self) -> Result<()> {
         let write_txn = self.db.begin_write()?;
-        trace!("Flushing database to bartos");
+        trace!("Flushing status to bartos");
         {
             let mut table = write_txn.open_table(STATUS_TABLE)?;
             loop {

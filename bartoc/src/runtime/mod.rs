@@ -90,16 +90,13 @@ where
     let mut retry_count = *config.retry_count();
     let mut error_count = 0;
     let shutdown = Arc::new(AtomicBool::new(false));
-    let token = CancellationToken::new();
-    let sig_token = token.clone();
-
-    let sd_c = Arc::clone(&shutdown);
-    // Setup the signal handling
-    let sighan_handle = spawn(async move { handle_signals(sig_token, sd_c).await });
 
     while retry_count > 0 {
         let sd_r = Arc::clone(&shutdown);
+        let sd_c = Arc::clone(&shutdown);
         let res: Result<()> = async {
+            let token = CancellationToken::new();
+            let sig_token = token.clone();
             let stream_token = token.clone();
             let heartbeat_token = token.clone();
             let output_token = token.clone();
@@ -180,7 +177,8 @@ where
                 }
             });
 
-
+            // Setup the signal handling
+            let sighan_handle = spawn(async move { handle_signals(sig_token, sd_c).await });
 
             info!("{} bartoc started!", config.name());
             loop {
@@ -199,6 +197,7 @@ where
 
             sink_handle.await?;
             db_handle.await?;
+            let _res = sighan_handle.await?;
             Ok(())
         }.await;
 
@@ -228,7 +227,7 @@ where
             }
         }
     }
-    let _res = sighan_handle.await?;
+
     Ok(())
 }
 
