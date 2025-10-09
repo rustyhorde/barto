@@ -203,8 +203,13 @@ impl Handler {
         Ok(())
     }
 
-    pub(crate) fn heartbeat(&mut self) {
+    pub(crate) fn heartbeat(&mut self, client_timeout_opt: Option<u64>) {
         let mut interval = interval(HEARTBEAT_INTERVAL);
+        let client_timeout = if let Some(ct) = client_timeout_opt {
+            Duration::from_secs(ct)
+        } else {
+            CLIENT_TIMEOUT
+        };
         trace!("Starting worker session heartbeat");
         let origin_c = self.origin;
         let cloned_sender = self.tx.clone();
@@ -220,7 +225,7 @@ impl Handler {
                     b = interval.tick() => {
                         trace!("checking heartbeat");
                         // check heartbeat
-                        if Instant::now().duration_since(Instant::from(b)) > CLIENT_TIMEOUT {
+                        if Instant::now().duration_since(Instant::from(b)) > client_timeout {
                             // heartbeat timed out so we disconnect this bartoc
                             error!("heartbeat timed out, disconnecting!");
                             cloned_token.cancel();

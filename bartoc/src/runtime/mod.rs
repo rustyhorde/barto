@@ -120,7 +120,7 @@ where
                 .token(heartbeat_token)
                 .bartoc_name(config.name().clone())
                 .build();
-            handler.heartbeat();
+            handler.heartbeat(config.client_timeout());
             trace!("bartoc heartbeat started");
             let mut ws_handler = WsHandler::builder()
                 .tx(tx.clone())

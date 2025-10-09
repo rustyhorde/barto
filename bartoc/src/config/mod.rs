@@ -49,6 +49,8 @@ pub(crate) struct Config {
     bartos_port: u16,
     #[getset(get = "pub(crate)")]
     retry_count: u8,
+    #[getset(get_copy = "pub(crate)")]
+    client_timeout: Option<u64>,
 }
 
 impl TracingConfig for Config {
