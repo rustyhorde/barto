@@ -29,7 +29,7 @@ impl Name {
             .realip_remote_addr()
             .map_or(unknown.clone(), ToString::to_string);
         let name = self.name.as_deref().map_or(unknown, ToString::to_string);
-        format!("Name: {name} Ip: {ip}")
+        format!("{name} ({ip})")
     }
 }
 

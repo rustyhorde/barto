@@ -34,13 +34,14 @@ pub(crate) async fn worker(
     config: Data<Config>,
     pool: Data<MySqlPool>,
 ) -> Result<impl Responder> {
-    info!("worker connection from {}", name.describe(&request));
+    let describe = name.describe(&request);
+    info!("worker connection from '{describe}'");
     let (response, session, msg_stream) = handle(&request, body)?;
     let mut agms = msg_stream.aggregate_continuations();
     let ws_token = token.get_ref().clone();
     let mut ws_session = session.clone();
     let mut init_session = session.clone();
-    if let Err(e) = initialize(&mut init_session, name, config).await {
+    if let Err(e) = initialize(&mut init_session, request, name, config).await {
         error!("unable to initialize worker session: {e}");
         let _ = init_session.close(None).await;
         return Err(e);
@@ -50,7 +51,7 @@ pub(crate) async fn worker(
         loop {
             select! {
                 () = ws_token.cancelled() => {
-                    info!("cancellation token triggered, closing websocket");
+                    trace!("cancellation token triggered, closing websocket");
                     let _ = ws_session.close(None).await;
                     break;
                 }
@@ -59,6 +60,7 @@ pub(crate) async fn worker(
                         match msg {
                             AggregatedMessage::Text(_byte_string) => error!("unexpected text message"),
                             AggregatedMessage::Binary(bytes) => {
+                                trace!("handling binary message");
                                 match decode_from_slice(&bytes, standard()) {
                                     Err(e) => error!("unable to decode binary message: {e}"),
                                     Ok((bartoc_msg, _)) => {
@@ -66,14 +68,14 @@ pub(crate) async fn worker(
                                             Bartoc::Record(data) => {
                                                 match data {
                                                     libbarto::Data::Output(output) => {
-                                                        info!("handling output data: {}", output);
+                                                        trace!("handling output data: {}", output);
                                                         let _id = insert_output(&pool, &output).await.unwrap_or_else(|e| {
                                                             error!("unable to insert output into database: {e}");
                                                             0
                                                         });
                                                     }
                                                     libbarto::Data::Status(status) => {
-                                                        info!("handling status data: {}", status);
+                                                        trace!("handling status data: {}", status);
                                                         let _id = insert_status(&pool, &status).await.unwrap_or_else(|e| {
                                                             error!("unable to insert status into database: {e}");
                                                             0
@@ -120,19 +122,25 @@ pub(crate) async fn worker(
             }
         }
 
-        info!("websocket disconnected");
+        info!("websocket disconnected '{describe}'");
         let _ = session.close(None).await;
     });
 
     Ok(response)
 }
 
-async fn initialize(session: &mut Session, name: Query<Name>, config: Data<Config>) -> Result<()> {
+async fn initialize(
+    session: &mut Session,
+    request: HttpRequest,
+    name: Query<Name>,
+    config: Data<Config>,
+) -> Result<()> {
+    let describe = name.describe(&request);
     let name = name.name().clone().unwrap_or_else(|| "default".to_string());
     let schedules_opt = config.schedules().get(&name);
     let init_bytes = if let Some(schedules) = schedules_opt {
         let count = schedules.schedules().len();
-        info!("sending bartoc '{}' {} schedules", name, count);
+        info!("sending bartoc '{describe}' {count} schedules");
         let uuid = UuidWrapper(Uuid::new_v4());
         let init = Initialize::builder()
             .id(uuid)
