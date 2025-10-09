@@ -7,12 +7,12 @@ members = ["bartoc", "bartos", "libbarto"]
 actix-web = { version = "4.11.0" }
 anyhow = "1.0.100"
 bincode = "2.0.1"
-bon = "3.7.2"
+bon = "3.8.1"
 bytes = "1.10.1"
 clap = { version = "4.5.48", features = ["derive"] }
-config = { version = "0.15.17", features = ["toml"] }
+config = { version = "0.15.18", features = ["toml"] }
 dirs2 = "3.0.1"
-futures-util = { version = "0.3.17", default-features = false, features = [
+futures-util = { version = "0.3.31", default-features = false, features = [
   "std",
 ] }
 getset = "0.1.6"
@@ -28,7 +28,7 @@ sqlx = { version = "0.8.6", features = [
     "uuid",
 ] }
 thiserror = "2.0.17"
-time = "0.3.43"
+time = "0.3.44"
 tokio = { version = "1.47.1", features = ["macros", "rt-multi-thread"] }
 tokio-tungstenite = { version = "0.28.0", features = [
   "rustls-tls-webpki-roots",
