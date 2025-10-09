@@ -80,15 +80,61 @@ pub struct Actix {
 }
 
 /// hosts configuration
-#[derive(Clone, Debug, Default, Deserialize, Eq, Getters, PartialEq, Serialize)]
-#[getset(get = "pub")]
+#[derive(Clone, CopyGetters, Debug, Default, Deserialize, Eq, Getters, PartialEq, Serialize)]
 pub struct Mariadb {
     /// The username for the database
+    #[getset(get = "pub")]
     username: String,
     /// The password for the database
+    #[getset(get = "pub")]
     password: String,
     /// The database name
+    #[getset(get = "pub")]
     database: String,
+    /// The output table name
+    #[getset(get_copy = "pub")]
+    output_table: OutputTableName,
+    /// The status table name
+    #[getset(get_copy = "pub")]
+    status_table: StatusTableName,
+}
+
+/// The output table name
+#[derive(Clone, Copy, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
+pub enum OutputTableName {
+    /// Use the default table name `output`
+    #[default]
+    Output,
+    /// Use the test table name `output_test`
+    OutputTest,
+}
+
+impl From<OutputTableName> for &'static str {
+    fn from(value: OutputTableName) -> Self {
+        match value {
+            OutputTableName::Output => "output",
+            OutputTableName::OutputTest => "output_test",
+        }
+    }
+}
+
+/// The status table name
+#[derive(Clone, Copy, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
+pub enum StatusTableName {
+    /// Use the default table name `status`
+    #[default]
+    Status,
+    /// Use the test table name `status_test`
+    StatusTest,
+}
+
+impl From<StatusTableName> for &'static str {
+    fn from(value: StatusTableName) -> Self {
+        match value {
+            StatusTableName::Status => "status",
+            StatusTableName::StatusTest => "status_test",
+        }
+    }
 }
 
 /// The schedule to run commands on a given worker client

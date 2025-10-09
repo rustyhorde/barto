@@ -10,13 +10,14 @@ use actix_web::{
     HttpRequest, Responder, Result,
     error::ErrorInternalServerError,
     rt::spawn,
-    web::{Data, Payload, Query},
+    web::{Bytes, Data, Payload, Query},
 };
 use actix_ws::{AggregatedMessage, Session, handle};
 use bincode::{config::standard, decode_from_slice, encode_to_vec};
 use futures_util::StreamExt as _;
 use libbarto::{
-    Bartoc, BartosToBartoc, Initialize, Output, OutputKind, Status, UuidWrapper, parse_ts_ping,
+    Bartoc, BartosToBartoc, Initialize, Output, OutputKind, OutputTableName, Status,
+    StatusTableName, UuidWrapper, parse_ts_ping,
 };
 use sqlx::MySqlPool;
 use tokio::select;
@@ -41,6 +42,7 @@ pub(crate) async fn worker(
     let ws_token = token.get_ref().clone();
     let mut ws_session = session.clone();
     let mut init_session = session.clone();
+    let config_c = config.clone();
     if let Err(e) = initialize(&mut init_session, request, name, config).await {
         error!("unable to initialize worker session: {e}");
         let _ = init_session.close(None).await;
@@ -60,32 +62,9 @@ pub(crate) async fn worker(
                         match msg {
                             AggregatedMessage::Text(_byte_string) => error!("unexpected text message"),
                             AggregatedMessage::Binary(bytes) => {
-                                trace!("handling binary message");
-                                match decode_from_slice(&bytes, standard()) {
-                                    Err(e) => error!("unable to decode binary message: {e}"),
-                                    Ok((bartoc_msg, _)) => {
-                                        match bartoc_msg {
-                                            Bartoc::Record(data) => {
-                                                match data {
-                                                    libbarto::Data::Output(output) => {
-                                                        trace!("handling output data: {}", output);
-                                                        let _id = insert_output(&pool, &output).await.unwrap_or_else(|e| {
-                                                            error!("unable to insert output into database: {e}");
-                                                            0
-                                                        });
-                                                    }
-                                                    libbarto::Data::Status(status) => {
-                                                        trace!("handling status data: {}", status);
-                                                        let _id = insert_status(&pool, &status).await.unwrap_or_else(|e| {
-                                                            error!("unable to insert status into database: {e}");
-                                                            0
-                                                        });
-                                                    }
-                                                }
-                                            }
-                                    }
-                                }
-                            }
+                                handle_binary(bytes, &config_c, pool.as_ref()).await.unwrap_or_else(|e| {
+                                    error!("unable to handle binary message: {e}");
+                                });
                             },
                             AggregatedMessage::Ping(bytes) => {
                                 trace!("handling ping message");
@@ -160,6 +139,50 @@ async fn initialize(
     Ok(())
 }
 
+async fn handle_binary(bytes: Bytes, config: &Config, pool: &MySqlPool) -> Result<()> {
+    trace!("handling binary message");
+    match decode_from_slice(&bytes, standard()) {
+        Err(e) => error!("unable to decode binary message: {e}"),
+        Ok((bartoc_msg, _)) => match bartoc_msg {
+            Bartoc::Record(data) => match data {
+                libbarto::Data::Output(output) => match config.mariadb().output_table() {
+                    OutputTableName::Output => {
+                        trace!("handling output data: {}", output);
+                        let _id = insert_output(pool, &output).await.unwrap_or_else(|e| {
+                            error!("unable to insert output into database: {e}");
+                            0
+                        });
+                    }
+                    OutputTableName::OutputTest => {
+                        trace!("handling output data: {}", output);
+                        let _id = insert_output_test(pool, &output).await.unwrap_or_else(|e| {
+                            error!("unable to insert output into database: {e}");
+                            0
+                        });
+                    }
+                },
+                libbarto::Data::Status(status) => match config.mariadb().status_table() {
+                    StatusTableName::Status => {
+                        trace!("handling status data: {}", status);
+                        let _id = insert_status(pool, &status).await.unwrap_or_else(|e| {
+                            error!("unable to insert status into database: {e}");
+                            0
+                        });
+                    }
+                    StatusTableName::StatusTest => {
+                        trace!("handling status data: {}", status);
+                        let _id = insert_status_test(pool, &status).await.unwrap_or_else(|e| {
+                            error!("unable to insert status into database: {e}");
+                            0
+                        });
+                    }
+                },
+            },
+        },
+    }
+    Ok(())
+}
+
 async fn insert_output(pool: &MySqlPool, output: &Output) -> anyhow::Result<u64> {
     let id = sqlx::query!(
         r#"INSERT INTO output (bartoc_uuid, bartoc_name, cmd_uuid, timestamp, kind, data)
@@ -177,9 +200,40 @@ VALUES (?, ?, ?, ?, ?, ?)"#,
     Ok(id)
 }
 
+async fn insert_output_test(pool: &MySqlPool, output: &Output) -> anyhow::Result<u64> {
+    let id = sqlx::query!(
+        r#"INSERT INTO output_test (bartoc_uuid, bartoc_name, cmd_uuid, timestamp, kind, data)
+VALUES (?, ?, ?, ?, ?, ?)"#,
+        output.bartoc_uuid().0,
+        output.bartoc_name(),
+        output.cmd_uuid().0,
+        output.timestamp().0,
+        <OutputKind as Into<&'static str>>::into(output.kind()),
+        output.data()
+    )
+    .execute(pool)
+    .await?
+    .last_insert_id();
+    Ok(id)
+}
+
 async fn insert_status(pool: &MySqlPool, status: &Status) -> anyhow::Result<u64> {
     let id = sqlx::query!(
         r#"INSERT INTO exit_status (cmd_uuid, exit_code, success)
+VALUES (?, ?, ?)"#,
+        status.cmd_uuid().0,
+        status.exit_code(),
+        status.success()
+    )
+    .execute(pool)
+    .await?
+    .last_insert_id();
+    Ok(id)
+}
+
+async fn insert_status_test(pool: &MySqlPool, status: &Status) -> anyhow::Result<u64> {
+    let id = sqlx::query!(
+        r#"INSERT INTO exit_status_test (cmd_uuid, exit_code, success)
 VALUES (?, ?, ?)"#,
         status.cmd_uuid().0,
         status.exit_code(),
