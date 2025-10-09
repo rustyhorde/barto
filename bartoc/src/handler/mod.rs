@@ -348,6 +348,7 @@ impl Handler {
                 }
                 let status = Status::builder()
                     .cmd_uuid(UuidWrapper(id))
+                    .timestamp(OffsetDataTimeWrapper(OffsetDateTime::now_utc()))
                     .exit_code(status.code())
                     .success(status.success())
                     .build();

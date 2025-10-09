@@ -11,7 +11,7 @@ use std::fmt::{Display, Formatter};
 use bincode::{Decode, Encode};
 use bon::Builder;
 use getset::CopyGetters;
-use libbarto::{Status, UuidWrapper};
+use libbarto::{OffsetDataTimeWrapper, Status, UuidWrapper};
 
 #[derive(
     Builder, Clone, Copy, CopyGetters, Debug, Decode, Encode, Eq, Hash, Ord, PartialEq, PartialOrd,
@@ -40,6 +40,7 @@ impl From<&Status> for StatusKey {
 )]
 #[get_copy = "pub(crate)"]
 pub(crate) struct StatusValue {
+    timestamp: OffsetDataTimeWrapper,
     exit_code: Option<i32>,
     success: bool,
 }
@@ -56,6 +57,7 @@ impl Display for StatusValue {
 impl From<&Status> for StatusValue {
     fn from(status: &Status) -> Self {
         StatusValue {
+            timestamp: status.timestamp(),
             exit_code: status.exit_code(),
             success: status.success(),
         }

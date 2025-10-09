@@ -110,6 +110,7 @@ impl BartocDatabase {
                     Ok(Some((key, value))) => {
                         let status = Status::builder()
                             .cmd_uuid(key.value().cmd_uuid())
+                            .timestamp(value.value().timestamp())
                             .exit_code(value.value().exit_code())
                             .success(value.value().success())
                             .build();

@@ -116,6 +116,9 @@ pub struct Status {
     /// The command `Uuid` of the bartoc command that produced the status
     #[get_copy = "pub"]
     cmd_uuid: UuidWrapper,
+    /// The timestamp of the status
+    #[get_copy = "pub"]
+    timestamp: OffsetDataTimeWrapper,
     /// The exit code of the command
     #[get_copy = "pub"]
     #[builder(required)]

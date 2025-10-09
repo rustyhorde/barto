@@ -219,9 +219,10 @@ VALUES (?, ?, ?, ?, ?, ?)"#,
 
 async fn insert_status(pool: &MySqlPool, status: &Status) -> anyhow::Result<u64> {
     let id = sqlx::query!(
-        r#"INSERT INTO exit_status (cmd_uuid, exit_code, success)
-VALUES (?, ?, ?)"#,
+        r#"INSERT INTO exit_status (cmd_uuid, timestamp, exit_code, success)
+VALUES (?, ?, ?, ?)"#,
         status.cmd_uuid().0,
+        status.timestamp().0,
         status.exit_code(),
         status.success()
     )
@@ -233,9 +234,10 @@ VALUES (?, ?, ?)"#,
 
 async fn insert_status_test(pool: &MySqlPool, status: &Status) -> anyhow::Result<u64> {
     let id = sqlx::query!(
-        r#"INSERT INTO exit_status_test (cmd_uuid, exit_code, success)
-VALUES (?, ?, ?)"#,
+        r#"INSERT INTO exit_status_test (cmd_uuid, timestamp, exit_code, success)
+VALUES (?, ?, ?, ?)"#,
         status.cmd_uuid().0,
+        status.timestamp().0,
         status.exit_code(),
         status.success()
     )

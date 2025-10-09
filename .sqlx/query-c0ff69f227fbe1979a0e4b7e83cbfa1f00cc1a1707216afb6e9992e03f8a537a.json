@@ -1,0 +1,12 @@
+{
+  "db_name": "MySQL",
+  "query": "INSERT INTO exit_status_test (cmd_uuid, timestamp, exit_code, success)\nVALUES (?, ?, ?, ?)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 4
+    },
+    "nullable": []
+  },
+  "hash": "c0ff69f227fbe1979a0e4b7e83cbfa1f00cc1a1707216afb6e9992e03f8a537a"
+}
