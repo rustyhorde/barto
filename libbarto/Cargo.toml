@@ -1,7 +1,17 @@
 [package]
-name = "libbarto"
-version = "0.1.0"
+authors = ["Jason Ozias <jason.g.ozias@gmail.com>"]
+categories = ["web-programming::websocket", "web-programming"]
+description = "Websocket based job scheduling system"
+documentation = "https://docs.rs/barto"
 edition = "2024"
+homepage = "https://github.com/rustyhorde/barto"
+keywords = ["job", "scheduling", "websocket", "actix"]
+license = "MIT OR Apache-2.0"
+name = "libbarto"
+readme = "README.md"
+repository = "https://github.com/rustyhorde/barto"
+version = "0.1.0"
+rust-version = "1.89.0"
 
 [features]
 unstable = []
