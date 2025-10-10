@@ -4,7 +4,7 @@ resolver = "3"
 members = ["bartoc", "bartos", "libbarto"]
 
 [workspace.dependencies]
-actix-web = { version = "4.11.0" }
+actix-web = "4.11.0"
 anyhow = "1.0.100"
 bincode = "2.0.1"
 bon = "3.8.1"
