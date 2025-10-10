@@ -21,7 +21,7 @@ use std::{
 use anyhow::{Context, Result};
 use clap::Parser;
 use futures_util::StreamExt;
-use libbarto::{Data, header, init_tracing};
+use libbarto::{header, init_tracing};
 #[cfg(not(unix))]
 use tokio::signal::ctrl_c;
 #[cfg(unix)]
@@ -29,7 +29,7 @@ use tokio::signal::unix::{SignalKind, signal};
 use tokio::{
     select, spawn,
     sync::mpsc::{UnboundedSender, unbounded_channel},
-    time::{interval, sleep},
+    time::sleep,
 };
 use tokio_tungstenite::{connect_async, tungstenite::protocol::frame::coding::CloseCode};
 use tokio_util::sync::CancellationToken;
@@ -37,13 +37,7 @@ use tracing::{error, info, trace};
 
 use crate::{
     config::{Config, load_bartoc},
-    db::{
-        BartocDatabase,
-        data::{
-            output::{OutputKey, OutputValue},
-            status::{StatusKey, StatusValue},
-        },
-    },
+    db::BartocDatabase,
     error::Error,
     handler::{BartocMessage, Handler, stream::WsHandler},
 };
@@ -57,7 +51,6 @@ const HEADER_PREFIX: &str = r"██████╗  █████╗ ██�
 ██████╔╝██║  ██║██║  ██║   ██║   ╚██████╔╝╚██████╗
 ╚═════╝ ╚═╝  ╚═╝╚═╝  ╚═╝   ╚═╝    ╚═════╝  ╚═════╝";
 
-#[allow(clippy::too_many_lines)]
 pub(crate) async fn run<I, T>(args: Option<I>) -> Result<()>
 where
     I: IntoIterator<Item = T>,
@@ -101,7 +94,7 @@ where
             let heartbeat_token = token.clone();
             let output_token = token.clone();
             let (tx, mut rx) = unbounded_channel();
-            let (data_tx, mut data_rx) = unbounded_channel();
+            let (data_tx, data_rx) = unbounded_channel();
             let url = format!(
                 "{}://{}:{}/v1/ws/worker?name={}",
                 config.bartos_prefix(),
@@ -142,38 +135,8 @@ where
             let mut db = BartocDatabase::new(&config, db_tx)?;
 
             let db_handle = spawn(async move {
-                let mut interval = interval(Duration::from_secs(60));
-                loop {
-                    select! {
-                        () = output_token.cancelled() => {
-                            trace!("cancellation token triggered, shutting down output handler");
-                            break;
-                        }
-                        rx_opt = data_rx.recv() => {
-                            if let Some(data) = rx_opt {
-                                match data {
-                                    Data::Output(output) => {
-                                        if let Err(e) = db.write_output(&OutputKey::from(&output), &OutputValue::from(&output)) {
-                                            error!("unable to write output to database: {e}");
-                                        }
-                                    }
-                                    Data::Status(status) => {
-                                        if let Err(e) = db.write_status(&StatusKey::from(&status), &StatusValue::from(&status)) {
-                                            error!("unable to write status to database: {e}");
-                                        }
-                                    }
-                                }
-                            }
-                        },
-                        _val = interval.tick() => {
-                            if let Err(e) = db.flush_output() {
-                                error!("unable to flush output table: {e}");
-                            }
-                            if let Err(e) = db.flush_status() {
-                                error!("unable to flush status table: {e}");
-                            }
-                        }
-                    }
+                if let Err(e) = db.monitor(data_rx, output_token).await {
+                    error!("database handler error: {e}");
                 }
             });
 
@@ -199,32 +162,15 @@ where
             db_handle.await?;
             let _res = sighan_handle.await?;
             Ok(())
-        }.await;
+        }
+        .await;
 
         if let Err(e) = res {
             error!("{e}");
         }
 
-        let sd = shutdown.load(Ordering::SeqCst);
-        trace!("is bartoc shutting down? {sd}");
-        if sd {
+        if handle_shutdown(&shutdown, sd_r, &mut retry_count, &mut error_count).await {
             break;
-        }
-        let retry_token = CancellationToken::new();
-        let rt_c = retry_token.clone();
-        let sighan_handle = spawn(async move { handle_signals(rt_c, sd_r).await });
-        info!("retrying in {} seconds...", 2u64.pow(error_count));
-
-        select! {
-            () = retry_token.cancelled() => {
-                break;
-            }
-            () = sleep(Duration::from_secs(2u64.pow(error_count))) => {
-                trace!("retrying now");
-                retry_count -= 1;
-                error_count += 1;
-                sighan_handle.abort();
-            }
         }
     }
 
@@ -293,4 +239,36 @@ async fn handle_cancellation(tx: UnboundedSender<BartocMessage>) {
     trace!("cancellation token triggered, shutting down bartoc");
     // sleep a bit to allow the close message to be sent to bartos
     sleep(Duration::from_secs(1)).await;
+}
+
+async fn handle_shutdown(
+    shutdown: &AtomicBool,
+    sd_r: Arc<AtomicBool>,
+    retry_count: &mut u8,
+    error_count: &mut u32,
+) -> bool {
+    let mut should_break = false;
+    let sd = shutdown.load(Ordering::SeqCst);
+    trace!("is bartoc shutting down? {sd}");
+    if sd {
+        should_break = true;
+    }
+    let retry_token = CancellationToken::new();
+    let rt_c = retry_token.clone();
+    let sighan_handle = spawn(async move { handle_signals(rt_c, sd_r).await });
+    info!("retrying in {} seconds...", 2u64.pow(*error_count));
+
+    select! {
+        () = retry_token.cancelled() => {
+            should_break = true;
+        }
+        () = sleep(Duration::from_secs(2u64.pow(*error_count))) => {
+            trace!("retrying now");
+            *retry_count -= 1;
+            *error_count += 1;
+            sighan_handle.abort();
+        }
+    }
+
+    should_break
 }

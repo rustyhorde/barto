@@ -7,44 +7,25 @@ edition = "2024"
 homepage = "https://github.com/rustyhorde/barto"
 keywords = ["job", "scheduling", "websocket", "actix"]
 license = "MIT OR Apache-2.0"
-name = "bartoc"
+name = "barto-cli"
 readme = "../README.md"
 repository = "https://github.com/rustyhorde/barto"
 version = "0.1.0"
 rust-version = "1.89.0"
 
 [features]
-unstable = ["libbarto/unstable"]
+unstable = []
 
 [dependencies]
 anyhow = { workspace = true }
-bincode = { workspace = true }
-bon = { workspace = true }
 clap = { workspace = true }
 config = { workspace = true }
-dirs2 = { workspace = true }
-futures-util = { workspace = true }
 getset = { workspace = true }
 libbarto = { version = "0.1.0", path = "../libbarto" }
-redb = { workspace = true }
 serde = { workspace = true }
 thiserror = { workspace = true }
-time = { workspace = true }
 tokio = { workspace = true, features = ["macros", "process", "signal", "sync", "time"] }
-tokio-tungstenite = { workspace = true }
-tokio-util = { workspace = true }
-tracing = { workspace = true }
 tracing-subscriber-init = { workspace = true }
-uuid = { workspace = true }
 
 [build-dependencies]
 rustversion = { workspace = true }
-
-[lints.rust]
-unexpected_cfgs = { level = "warn", check-cfg = [
-    'cfg(coverage,coverage_nightly)',
-] }
-
-[package.metadata.docs.rs]
-all-features = true
-rustdoc-args = ["--cfg", "docsrs"]

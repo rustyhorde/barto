@@ -1,0 +1,111 @@
+// Copyright (c) 2025 barto developers
+//
+// Licensed under the Apache License, Version 2.0
+// <LICENSE-APACHE or https://www.apache.org/licenses/LICENSE-2.0> or the MIT
+// license <LICENSE-MIT or https://opensource.org/licenses/MIT>, at your
+// option. All files in the project carrying such notice may not be copied,
+// modified, or distributed except according to those terms.
+
+use clap::{ArgAction, Parser};
+use config::{ConfigError, Map, Source, Value, ValueKind};
+use getset::{CopyGetters, Getters};
+use libbarto::PathDefaults;
+
+#[derive(Clone, CopyGetters, Debug, Getters, Parser)]
+#[command(author, version, about, long_about = None)]
+pub(crate) struct Cli {
+    /// Set logging verbosity.  More v's, more verbose.
+    #[clap(
+        short,
+        long,
+        action = ArgAction::Count,
+        help = "Turn up logging verbosity (multiple will turn it up more)",
+        conflicts_with = "quiet",
+    )]
+    #[getset(get_copy = "pub(crate)")]
+    verbose: u8,
+    /// Set logging quietness.  More q's, more quiet.
+    #[clap(
+        short,
+        long,
+        action = ArgAction::Count,
+        help = "Turn down logging verbosity (multiple will turn it down more)",
+        conflicts_with = "verbose",
+    )]
+    #[getset(get_copy = "pub(crate)")]
+    quiet: u8,
+    /// The absolute path to a non-standard config file
+    #[clap(short, long, help = "Specify the absolute path to the config file")]
+    #[getset(get = "pub(crate)")]
+    config_absolute_path: Option<String>,
+    /// The absolute path to a non-standard tracing output file
+    #[clap(
+        short,
+        long,
+        help = "Specify the absolute path to the tracing output file"
+    )]
+    #[getset(get = "pub(crate)")]
+    tracing_absolute_path: Option<String>,
+}
+
+impl Source for Cli {
+    fn clone_into_box(&self) -> Box<dyn Source + Send + Sync> {
+        Box::new((*self).clone())
+    }
+
+    fn collect(&self) -> Result<Map<String, Value>, ConfigError> {
+        let mut map = Map::new();
+        let origin = String::from("command line");
+        let _old = map.insert(
+            "verbose".to_string(),
+            Value::new(Some(&origin), ValueKind::U64(u8::into(self.verbose))),
+        );
+        let _old = map.insert(
+            "quiet".to_string(),
+            Value::new(Some(&origin), ValueKind::U64(u8::into(self.quiet))),
+        );
+        if let Some(config_path) = &self.config_absolute_path {
+            let _old = map.insert(
+                "config_path".to_string(),
+                Value::new(Some(&origin), ValueKind::String(config_path.clone())),
+            );
+        }
+        if let Some(tracing_path) = &self.tracing_absolute_path {
+            let _old = map.insert(
+                "tracing_path".to_string(),
+                Value::new(Some(&origin), ValueKind::String(tracing_path.clone())),
+            );
+        }
+        Ok(map)
+    }
+}
+
+impl PathDefaults for Cli {
+    fn env_prefix(&self) -> String {
+        env!("CARGO_PKG_NAME").to_ascii_uppercase()
+    }
+
+    fn config_absolute_path(&self) -> Option<String> {
+        self.config_absolute_path.clone()
+    }
+
+    fn default_file_path(&self) -> String {
+        env!("CARGO_PKG_NAME").to_string()
+    }
+
+    fn default_file_name(&self) -> String {
+        env!("CARGO_PKG_NAME").to_string()
+    }
+
+    fn tracing_absolute_path(&self) -> Option<String> {
+        self.tracing_absolute_path.clone()
+    }
+
+    fn default_tracing_path(&self) -> String {
+        format!("{}/logs", env!("CARGO_PKG_NAME"))
+    }
+
+    fn default_tracing_file_name(&self) -> String {
+        env!("CARGO_PKG_NAME").to_string()
+    }
+}

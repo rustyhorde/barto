@@ -399,6 +399,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "barto-cli"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "clap",
+ "config",
+ "getset",
+ "libbarto",
+ "rustversion",
+ "serde",
+ "thiserror 2.0.17",
+ "tokio",
+ "tracing-subscriber-init",
+]
+
+[[package]]
 name = "bartoc"
 version = "0.1.0"
 dependencies = [

@@ -6,11 +6,18 @@
 // option. All files in the project carrying such notice may not be copied,
 // modified, or distributed except according to those terms.
 
+use std::time::Duration;
+
 use anyhow::Result;
 use libbarto::{Bincode, Data, Output, Status};
 use redb::{Database, TableDefinition};
-use tokio::sync::mpsc::UnboundedSender;
-use tracing::trace;
+use tokio::{
+    select,
+    sync::mpsc::{UnboundedReceiver, UnboundedSender},
+    time::interval,
+};
+use tokio_util::sync::CancellationToken;
+use tracing::{error, trace};
 
 use crate::{
     config::Config,
@@ -37,6 +44,47 @@ pub(crate) struct BartocDatabase {
 }
 
 impl BartocDatabase {
+    pub(crate) async fn monitor(
+        &mut self,
+        mut data_rx: UnboundedReceiver<Data>,
+        output_token: CancellationToken,
+    ) -> Result<()> {
+        let mut interval = interval(Duration::from_secs(60));
+        loop {
+            select! {
+                () = output_token.cancelled() => {
+                    trace!("cancellation token triggered, shutting down output handler");
+                    break;
+                }
+                rx_opt = data_rx.recv() => {
+                    if let Some(data) = rx_opt {
+                        match data {
+                            Data::Output(output) => {
+                                if let Err(e) = self.write_output(&OutputKey::from(&output), &OutputValue::from(&output)) {
+                                    error!("unable to write output to database: {e}");
+                                }
+                            }
+                            Data::Status(status) => {
+                                if let Err(e) = self.write_status(&StatusKey::from(&status), &StatusValue::from(&status)) {
+                                    error!("unable to write status to database: {e}");
+                                }
+                            }
+                        }
+                    }
+                },
+                _val = interval.tick() => {
+                    if let Err(e) = self.flush_output() {
+                        error!("unable to flush output table: {e}");
+                    }
+                    if let Err(e) = self.flush_status() {
+                        error!("unable to flush status table: {e}");
+                    }
+                }
+            }
+        }
+        Ok(())
+    }
+
     pub(crate) fn new(config: &Config, db_tx: UnboundedSender<BartocMessage>) -> Result<Self> {
         let redb_path = config.redb_path().as_ref().ok_or(Error::NoRedbPath)?;
         trace!("Using redb database path: {}", redb_path.display());
@@ -49,7 +97,7 @@ impl BartocDatabase {
         })
     }
 
-    pub(crate) fn write_output(&mut self, key: &OutputKey, value: &OutputValue) -> Result<()> {
+    fn write_output(&mut self, key: &OutputKey, value: &OutputValue) -> Result<()> {
         let write_txn = self.db.begin_write()?;
         {
             let mut table = write_txn.open_table(OUTPUT_TABLE)?;
@@ -59,7 +107,7 @@ impl BartocDatabase {
         Ok(())
     }
 
-    pub(crate) fn write_status(&mut self, key: &StatusKey, value: &StatusValue) -> Result<()> {
+    fn write_status(&mut self, key: &StatusKey, value: &StatusValue) -> Result<()> {
         let write_txn = self.db.begin_write()?;
         {
             let mut table = write_txn.open_table(STATUS_TABLE)?;
@@ -69,7 +117,7 @@ impl BartocDatabase {
         Ok(())
     }
 
-    pub(crate) fn flush_output(&mut self) -> Result<()> {
+    fn flush_output(&mut self) -> Result<()> {
         let write_txn = self.db.begin_write()?;
         trace!("Flushing output to bartos");
         {
@@ -100,7 +148,7 @@ impl BartocDatabase {
         Ok(())
     }
 
-    pub(crate) fn flush_status(&mut self) -> Result<()> {
+    fn flush_status(&mut self) -> Result<()> {
         let write_txn = self.db.begin_write()?;
         trace!("Flushing status to bartos");
         {

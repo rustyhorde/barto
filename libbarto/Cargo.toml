@@ -2,7 +2,7 @@
 authors = ["Jason Ozias <jason.g.ozias@gmail.com>"]
 categories = ["web-programming::websocket", "web-programming"]
 description = "Websocket based job scheduling system"
-documentation = "https://docs.rs/barto"
+documentation = "https://docs.rs/libbarto"
 edition = "2024"
 homepage = "https://github.com/rustyhorde/barto"
 keywords = ["job", "scheduling", "websocket", "actix"]
