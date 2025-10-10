@@ -14,7 +14,7 @@ version = "0.1.0"
 rust-version = "1.89.0"
 
 [features]
-unstable = []
+unstable = ["libbarto/unstable"]
 
 [dependencies]
 anyhow = { workspace = true }
