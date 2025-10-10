@@ -1,13 +1,18 @@
 on:
-  workflow_dispatch:
   push:
     branches:
       - master
     tags-ignore:
       - "*"
   pull_request:
+    branches:
+      - "*"
   schedule:
-    - cron: "16 4 * * *"
+    - cron: "27 4 * * *"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 env:
   GITHUB_TOKEN: ${{secrets.GITHUB_TOKEN}}
@@ -27,8 +32,6 @@ jobs:
       os: ubuntu-latest
       channel: nightly
       target: x86_64-unknown-linux-gnu
-      update: true
-      project: barto
 
   lints-macos:
     name: 🕳️ Clippy (MacOS) 🕳️
@@ -38,8 +41,6 @@ jobs:
       os: macos-latest
       channel: nightly
       target: apple-darwin
-      update: true
-      project: barto
 
   lints-windows:
     name: 🕳️ Clippy (Windows) 🕳️
@@ -49,8 +50,6 @@ jobs:
       os: windows-latest
       channel: nightly
       target: x86_64-pc-windows-gnu
-      update: true
-      project: barto
 
   test-linux:
     name: 🧪 Test (Linux) 🧪
@@ -65,8 +64,6 @@ jobs:
       os: ${{ matrix.os }}
       channel: ${{ matrix.channel }}
       target: ${{ matrix.target }}
-      update: true
-      project: barto
 
   test-macos:
     name: 🧪 Test (MacOS) 🧪
@@ -81,40 +78,20 @@ jobs:
       os: ${{ matrix.os }}
       channel: ${{ matrix.channel }}
       target: ${{ matrix.target }}
-      update: true
-      project: barto
 
-  test-windows-gnu:
-    name: 🧪 Test (Windows - GNU) 🧪
+  test-windows:
+    name: 🧪 Test (Windows) 🧪
     needs: lints-windows
     strategy:
       matrix:
         os: [windows-latest]
         channel: ["1.89.0", "stable", "beta", "nightly"]
-        target: [x86_64-pc-windows-gnu]
+        target: [x86_64-pc-windows-gnu, x86_64-pc-windows-msvc]
     uses: rustyhorde/workflows/.github/workflows/test-all-features.yml@main
     with:
       os: ${{ matrix.os }}
       channel: ${{ matrix.channel }}
       target: ${{ matrix.target }}
-      update: true
-      project: barto
-
-  test-windows-msvc:
-    name: 🧪 Test (Windows - MSVC) 🧪
-    needs: lints-windows
-    strategy:
-      matrix:
-        os: [windows-latest]
-        channel: ["1.89.0", "stable", "beta", "nightly"]
-        target: [x86_64-pc-windows-msvc]
-    uses: rustyhorde/workflows/.github/workflows/test-all-features.yml@main
-    with:
-      os: ${{ matrix.os }}
-      channel: ${{ matrix.channel }}
-      target: ${{ matrix.target }}
-      update: true
-      project: barto
 
   coverage-linux:
     name: 🧱 Coverage (Linux) 🧱
@@ -144,7 +121,7 @@ jobs:
 
   coverage-windows:
     name: 🧱 Coverage (Wndows) 🧱
-    needs: [test-windows-gnu, test-windows-msvc]
+    needs: test-windows
     strategy:
       matrix:
         target: [x86_64-pc-windows-gnu, x86_64-pc-windows-msvc]
