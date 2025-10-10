@@ -25,7 +25,7 @@ clap = { workspace = true }
 config = { workspace = true }
 futures-util = { workspace = true }
 getset = { workspace = true }
-libbarto = { path = "../libbarto" }
+libbarto = { version = "0.1.0", path = "../libbarto" }
 rustls = { workspace = true }
 serde = { workspace = true }
 sqlx = { workspace = true }

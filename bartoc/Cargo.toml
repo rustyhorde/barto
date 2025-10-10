@@ -25,7 +25,7 @@ config = { workspace = true }
 dirs2 = { workspace = true }
 futures-util = { workspace = true }
 getset = { workspace = true }
-libbarto = { path = "../libbarto" }
+libbarto = { version = "0.1.0", path = "../libbarto" }
 redb = { workspace = true }
 serde = { workspace = true }
 thiserror = { workspace = true }
