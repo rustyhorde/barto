@@ -142,7 +142,7 @@ where
             let mut db = BartocDatabase::new(&config, db_tx)?;
 
             let db_handle = spawn(async move {
-                let mut interval = interval(Duration::from_mins(1));
+                let mut interval = interval(Duration::from_secs(60));
                 loop {
                     select! {
                         () = output_token.cancelled() => {
