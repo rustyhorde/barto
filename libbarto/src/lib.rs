@@ -252,6 +252,7 @@ mod tracing;
 mod utils;
 
 pub use self::config::Actix;
+pub use self::config::Bartos;
 pub use self::config::Command;
 pub use self::config::Mariadb;
 pub use self::config::OutputTableName;
@@ -266,6 +267,7 @@ pub use self::error::Error;
 pub use self::error::clap_or_error;
 pub use self::error::success;
 pub use self::header::header;
+pub use self::message::cli::BartoCli;
 pub use self::message::client::Bartoc;
 pub use self::message::client::BartocWs;
 pub use self::message::server::BartosToBartoc;

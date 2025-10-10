@@ -97,9 +97,9 @@ where
             let (data_tx, data_rx) = unbounded_channel();
             let url = format!(
                 "{}://{}:{}/v1/ws/worker?name={}",
-                config.bartos_prefix(),
-                config.bartos_host(),
-                config.bartos_port(),
+                config.bartos().prefix(),
+                config.bartos().host(),
+                config.bartos().port(),
                 config.name()
             );
             trace!("connecting to bartos at {url}");

@@ -6,7 +6,11 @@
 // option. All files in the project carrying such notice may not be copied,
 // modified, or distributed except according to those terms.
 
-pub(crate) mod cli;
-pub(crate) mod client;
-pub(crate) mod server;
-pub(crate) mod shared;
+use bincode::{Decode, Encode};
+
+/// A message from a worker client to a worker session
+#[derive(Clone, Copy, Debug, Decode, Encode)]
+pub enum BartoCli {
+    /// An info request from barto-cli
+    Info,
+}

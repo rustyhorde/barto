@@ -18,13 +18,17 @@ unstable = []
 
 [dependencies]
 anyhow = { workspace = true }
+bincode = { workspace = true }
 clap = { workspace = true }
 config = { workspace = true }
+futures-util = { workspace = true }
 getset = { workspace = true }
 libbarto = { version = "0.1.0", path = "../libbarto" }
 serde = { workspace = true }
 thiserror = { workspace = true }
 tokio = { workspace = true, features = ["macros", "process", "signal", "sync", "time"] }
+tokio-tungstenite = { workspace = true }
+tracing = { workspace = true }
 tracing-subscriber-init = { workspace = true }
 
 [build-dependencies]

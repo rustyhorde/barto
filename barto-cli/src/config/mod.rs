@@ -7,9 +7,10 @@
 // modified, or distributed except according to those terms.
 
 use getset::{CopyGetters, Getters};
-use libbarto::Tracing;
+use libbarto::{Bartos, Tracing, TracingConfigExt};
 use serde::{Deserialize, Serialize};
-use tracing_subscriber_init::TracingConfig;
+use tracing::Level;
+use tracing_subscriber_init::{TracingConfig, get_effective_level};
 
 #[derive(Clone, CopyGetters, Debug, Default, Deserialize, Eq, Getters, PartialEq, Serialize)]
 pub(crate) struct Config {
@@ -18,13 +19,11 @@ pub(crate) struct Config {
     #[getset(get_copy = "pub(crate)")]
     quiet: u8,
     #[getset(get = "pub(crate)")]
+    name: String,
+    #[getset(get = "pub(crate)")]
     tracing: Tracing,
     #[getset(get = "pub(crate)")]
-    bartos_prefix: String,
-    #[getset(get = "pub(crate)")]
-    bartos_host: String,
-    #[getset(get = "pub(crate)")]
-    bartos_port: u16,
+    bartos: Bartos,
 }
 
 impl TracingConfig for Config {
@@ -54,5 +53,19 @@ impl TracingConfig for Config {
 
     fn with_level(&self) -> bool {
         self.tracing.with_level()
+    }
+}
+
+impl TracingConfigExt for Config {
+    fn enable_stdout(&self) -> bool {
+        true
+    }
+
+    fn directives(&self) -> Option<&String> {
+        self.tracing.directives().as_ref()
+    }
+
+    fn level(&self) -> Level {
+        get_effective_level(self.quiet, self.verbose)
     }
 }

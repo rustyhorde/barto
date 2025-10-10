@@ -11,4 +11,6 @@
 pub(crate) enum Error {
     #[error("Unable to load a valid configuration")]
     ConfigLoad,
+    #[error("Unable to initialize tracing")]
+    TracingInit,
 }

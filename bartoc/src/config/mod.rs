@@ -12,7 +12,7 @@ use anyhow::{Context, Result};
 use config::Source;
 use dirs2::data_dir;
 use getset::{CopyGetters, Getters, Setters};
-use libbarto::{PathDefaults, Tracing, TracingConfigExt, load, to_path_buf};
+use libbarto::{Bartos, PathDefaults, Tracing, TracingConfigExt, load, to_path_buf};
 use serde::{Deserialize, Serialize};
 use tracing::Level;
 use tracing_subscriber_init::{TracingConfig, get_effective_level};
@@ -42,11 +42,7 @@ pub(crate) struct Config {
     #[getset(get = "pub(crate)")]
     name: String,
     #[getset(get = "pub(crate)")]
-    bartos_prefix: String,
-    #[getset(get = "pub(crate)")]
-    bartos_host: String,
-    #[getset(get = "pub(crate)")]
-    bartos_port: u16,
+    bartos: Bartos,
     #[getset(get = "pub(crate)")]
     retry_count: u8,
     #[getset(get_copy = "pub(crate)")]

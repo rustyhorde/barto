@@ -403,14 +403,18 @@ name = "barto-cli"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "bincode",
  "clap",
  "config",
+ "futures-util",
  "getset",
  "libbarto",
  "rustversion",
  "serde",
  "thiserror 2.0.17",
  "tokio",
+ "tokio-tungstenite",
+ "tracing",
  "tracing-subscriber-init",
 ]
 

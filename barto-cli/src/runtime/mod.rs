@@ -8,15 +8,31 @@
 
 mod cli;
 
-use std::ffi::OsString;
+use std::{
+    ffi::OsString,
+    io::{Write, stdout},
+    time::Duration,
+};
 
 use anyhow::{Context as _, Result};
+use bincode::{config::standard, encode_to_vec};
 use clap::Parser as _;
-use libbarto::load;
+use futures_util::{SinkExt as _, StreamExt as _};
+use libbarto::{BartoCli, header, init_tracing, load};
+use tokio::time::sleep;
+use tokio_tungstenite::{connect_async, tungstenite::Message};
+use tracing::trace;
 
 use crate::{config::Config, error::Error};
 
 use self::cli::Cli;
+
+const HEADER_PREFIX: &str = r"██████╗  █████╗ ██████╗ ████████╗ ██████╗        ██████╗██╗     ██╗
+██╔══██╗██╔══██╗██╔══██╗╚══██╔══╝██╔═══██╗      ██╔════╝██║     ██║
+██████╔╝███████║██████╔╝   ██║   ██║   ██║█████╗██║     ██║     ██║
+██╔══██╗██╔══██║██╔══██╗   ██║   ██║   ██║╚════╝██║     ██║     ██║
+██████╔╝██║  ██║██║  ██║   ██║   ╚██████╔╝      ╚██████╗███████╗██║
+╚═════╝ ╚═╝  ╚═╝╚═╝  ╚═╝   ╚═╝    ╚═════╝        ╚═════╝╚══════╝╚═╝";
 
 pub(crate) async fn run<I, T>(args: Option<I>) -> Result<()>
 where
@@ -31,7 +47,34 @@ where
     };
 
     // Load the configuration
-    let _config = load::<Cli, Config, Cli>(&cli, &cli).with_context(|| Error::ConfigLoad)?;
+    let config = load::<Cli, Config, Cli>(&cli, &cli).with_context(|| Error::ConfigLoad)?;
 
+    // Initialize tracing
+    init_tracing(&config, &cli, None).with_context(|| Error::TracingInit)?;
+
+    trace!("configuration loaded");
+    trace!("tracing initialized");
+
+    // Display the bartoc header
+    header::<Config, dyn Write>(&config, HEADER_PREFIX, Some(&mut stdout()))?;
+
+    let url = format!(
+        "{}://{}:{}/v1/ws/cli?name={}",
+        config.bartos().prefix(),
+        config.bartos().host(),
+        config.bartos().port(),
+        config.name()
+    );
+    trace!("connecting to bartos at {url}");
+    let (ws_stream, _) = connect_async(&url).await?;
+    trace!("websocket connected");
+    let (mut sink, mut _stream) = ws_stream.split();
+
+    let info = encode_to_vec(BartoCli::Info, standard())?;
+    sink.send(Message::Binary(info.into())).await?;
+    trace!("info message sent");
+    sleep(Duration::from_secs(5)).await;
+    sink.send(Message::Close(None)).await?;
+    trace!("connection closed");
     Ok(())
 }
