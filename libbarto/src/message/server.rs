@@ -7,6 +7,7 @@
 // modified, or distributed except according to those terms.
 
 use bincode::{Decode, Encode};
+use vergen_pretty::PrettyExt;
 
 use crate::Initialize;
 
@@ -15,4 +16,11 @@ use crate::Initialize;
 pub enum BartosToBartoc {
     /// Initialize bartoc with the given schedules
     Initialize(Initialize),
+}
+
+/// An initialization message from bartos to a named bartoc client.
+#[derive(Clone, Debug, Decode, Encode)]
+pub enum BartosToBartoCli {
+    /// Information about the bartos server
+    Info(PrettyExt),
 }

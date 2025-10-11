@@ -21,6 +21,7 @@ anyhow = { workspace = true }
 bincode = { workspace = true }
 clap = { workspace = true }
 config = { workspace = true }
+console = "0.16.1"
 futures-util = { workspace = true }
 getset = { workspace = true }
 libbarto = { version = "0.1.0", path = "../libbarto" }
@@ -30,6 +31,16 @@ tokio = { workspace = true, features = ["macros", "process", "signal", "sync", "
 tokio-tungstenite = { workspace = true }
 tracing = { workspace = true }
 tracing-subscriber-init = { workspace = true }
+vergen-pretty = { workspace = true }
 
 [build-dependencies]
 rustversion = { workspace = true }
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = [
+    'cfg(coverage,coverage_nightly)',
+] }
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]

@@ -406,6 +406,7 @@ dependencies = [
  "bincode",
  "clap",
  "config",
+ "console",
  "futures-util",
  "getset",
  "libbarto",
@@ -416,6 +417,7 @@ dependencies = [
  "tokio-tungstenite",
  "tracing",
  "tracing-subscriber-init",
+ "vergen-pretty",
 ]
 
 [[package]]
@@ -467,6 +469,8 @@ dependencies = [
  "tracing",
  "tracing-subscriber-init",
  "uuid",
+ "vergen-gix",
+ "vergen-pretty",
 ]
 
 [[package]]
@@ -4483,14 +4487,16 @@ dependencies = [
 
 [[package]]
 name = "vergen-pretty"
-version = "2.0.1"
+version = "2.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "effdbbd41082784fcf7458c20bae7cc27a6d87e480bd8c62942bf820110eb1f2"
+checksum = "29bc27a1f22ebc212cb494729aa89b80536c7c2b5ebe5828dd3dd25b917cfbbb"
 dependencies = [
  "anyhow",
+ "bincode",
  "bon",
  "console",
  "convert_case 0.8.0",
+ "rand 0.9.2",
  "rustversion",
  "tracing",
 ]
