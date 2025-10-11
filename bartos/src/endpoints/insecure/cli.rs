@@ -93,6 +93,12 @@ async fn handle_binary(bytes: Bytes, session: &mut Session) -> anyhow::Result<()
                 let encoded = encode_to_vec(&info, standard())?;
                 session.binary(encoded).await?;
             }
+            BartoCli::Updates { name } => {
+                info!("received updates message for '{name}'");
+                let updates = BartosToBartoCli::Updates;
+                let encoded = encode_to_vec(&updates, standard())?;
+                session.binary(encoded).await?;
+            }
         },
     }
     Ok(())

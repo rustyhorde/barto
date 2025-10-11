@@ -9,8 +9,13 @@
 use bincode::{Decode, Encode};
 
 /// A message from a worker client to a worker session
-#[derive(Clone, Copy, Debug, Decode, Encode)]
+#[derive(Clone, Debug, Decode, Encode)]
 pub enum BartoCli {
     /// An info request from barto-cli
     Info,
+    /// A request from barto-cli to check for recent updates to a bartoc client
+    Updates {
+        /// The name of the bartoc client to check for recent updates
+        name: String,
+    },
 }

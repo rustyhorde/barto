@@ -13,4 +13,6 @@ pub(crate) enum Error {
     ConfigLoad,
     #[error("Unable to initialize tracing")]
     TracingInit,
+    #[error("Invalid message received")]
+    InvalidMessage,
 }

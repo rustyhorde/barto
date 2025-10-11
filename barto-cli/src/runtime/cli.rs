@@ -6,7 +6,7 @@
 // option. All files in the project carrying such notice may not be copied,
 // modified, or distributed except according to those terms.
 
-use clap::{ArgAction, Parser};
+use clap::{ArgAction, Parser, Subcommand};
 use config::{ConfigError, Map, Source, Value, ValueKind};
 use getset::{CopyGetters, Getters};
 use libbarto::PathDefaults;
@@ -34,6 +34,10 @@ pub(crate) struct Cli {
     )]
     #[getset(get_copy = "pub(crate)")]
     quiet: u8,
+    /// Enable logging to stdout/stderr in additions to the tracing output file
+    /// * NOTE * - This should not be used when running as a daemon/service
+    #[clap(short, long, help = "Enable logging to stdout/stderr")]
+    enable_std_output: bool,
     /// The absolute path to a non-standard config file
     #[clap(short, long, help = "Specify the absolute path to the config file")]
     #[getset(get = "pub(crate)")]
@@ -46,6 +50,9 @@ pub(crate) struct Cli {
     )]
     #[getset(get = "pub(crate)")]
     tracing_absolute_path: Option<String>,
+    #[command(subcommand)]
+    #[getset(get = "pub(crate)")]
+    command: Commands,
 }
 
 impl Source for Cli {
@@ -63,6 +70,10 @@ impl Source for Cli {
         let _old = map.insert(
             "quiet".to_string(),
             Value::new(Some(&origin), ValueKind::U64(u8::into(self.quiet))),
+        );
+        let _old = map.insert(
+            "enable_std_output".to_string(),
+            Value::new(Some(&origin), ValueKind::Boolean(self.enable_std_output)),
         );
         if let Some(config_path) = &self.config_absolute_path {
             let _old = map.insert(
@@ -108,4 +119,18 @@ impl PathDefaults for Cli {
     fn default_tracing_file_name(&self) -> String {
         env!("CARGO_PKG_NAME").to_string()
     }
+}
+
+#[derive(Clone, Debug, Subcommand)]
+pub(crate) enum Commands {
+    Info,
+    Updates {
+        /// The name of the batoc client to check for recent updates
+        #[clap(
+            short,
+            long,
+            help = "The name of the batoc client to check for recent updates"
+        )]
+        name: String,
+    },
 }

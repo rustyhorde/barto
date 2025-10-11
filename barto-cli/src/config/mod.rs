@@ -6,18 +6,23 @@
 // option. All files in the project carrying such notice may not be copied,
 // modified, or distributed except according to those terms.
 
-use getset::{CopyGetters, Getters};
+use getset::{CopyGetters, Getters, Setters};
 use libbarto::{Bartos, Tracing, TracingConfigExt};
 use serde::{Deserialize, Serialize};
 use tracing::Level;
 use tracing_subscriber_init::{TracingConfig, get_effective_level};
 
-#[derive(Clone, CopyGetters, Debug, Default, Deserialize, Eq, Getters, PartialEq, Serialize)]
+#[derive(
+    Clone, CopyGetters, Debug, Default, Deserialize, Eq, Getters, PartialEq, Serialize, Setters,
+)]
 pub(crate) struct Config {
     #[getset(get_copy = "pub(crate)")]
     verbose: u8,
     #[getset(get_copy = "pub(crate)")]
     quiet: u8,
+    #[getset(get_copy = "pub(crate)")]
+    #[getset(set = "pub(crate)")]
+    enable_std_output: bool,
     #[getset(get = "pub(crate)")]
     name: String,
     #[getset(get = "pub(crate)")]
@@ -58,7 +63,7 @@ impl TracingConfig for Config {
 
 impl TracingConfigExt for Config {
     fn enable_stdout(&self) -> bool {
-        true
+        self.enable_std_output
     }
 
     fn directives(&self) -> Option<&String> {
