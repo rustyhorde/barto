@@ -16,7 +16,7 @@ use actix_web::{
 use actix_ws::{AggregatedMessage, Session, handle};
 use bincode::{config::standard, decode_from_slice, encode_to_vec};
 use futures_util::StreamExt as _;
-use libbarto::{BartoCli, BartosToBartoCli};
+use libbarto::{BartoCli, BartosToBartoCli, OutputTableName};
 use regex::Regex;
 use sqlx::MySqlPool;
 use tokio::select;
@@ -36,7 +36,7 @@ pub(crate) async fn cli(
     body: Payload,
     name: Query<Name>,
     token: Data<CancellationToken>,
-    _config: Data<Config>,
+    config: Data<Config>,
     pool: Data<MySqlPool>,
 ) -> Result<impl Responder> {
     let describe = name.describe(&request);
@@ -58,7 +58,12 @@ pub(crate) async fn cli(
                     if let Some(Ok(msg)) = res_opt {
                         match msg {
                             AggregatedMessage::Text(_byte_string) => error!("unexpected text message"),
-                            AggregatedMessage::Binary(bytes) => if let Err(e) = handle_binary(bytes, &mut ws_session, pool.as_ref()).await {
+                            AggregatedMessage::Binary(bytes) => if let Err(e) = handle_binary(
+                                    bytes,
+                                    &mut ws_session,
+                                    config.as_ref(),
+                                    pool.as_ref()
+                                ).await {
                                 error!("{e}");
                             },
                             AggregatedMessage::Ping(_bytes) => error!("unexpected ping message"),
@@ -92,6 +97,7 @@ pub(crate) async fn cli(
 async fn handle_binary(
     bytes: Bytes,
     session: &mut Session,
+    config: &Config,
     pool: &MySqlPool,
 ) -> anyhow::Result<()> {
     match decode_from_slice(&bytes, standard()) {
@@ -106,7 +112,7 @@ async fn handle_binary(
                 session.binary(encoded).await?;
             }
             BartoCli::Updates { name } => {
-                let updates = select_data(&name, pool).await?;
+                let updates = select_data(&name, config, pool).await?;
                 info!("received updates message for '{name}'");
                 let updates = BartosToBartoCli::Updates(updates);
                 let encoded = encode_to_vec(&updates, standard())?;
@@ -117,7 +123,14 @@ async fn handle_binary(
     Ok(())
 }
 
-async fn select_data(name: &str, pool: &MySqlPool) -> anyhow::Result<Vec<String>> {
+async fn select_data(name: &str, config: &Config, pool: &MySqlPool) -> anyhow::Result<Vec<String>> {
+    match config.mariadb().output_table() {
+        OutputTableName::Output => output_data(name, pool).await,
+        OutputTableName::OutputTest => output_test_data(name, pool).await,
+    }
+}
+
+async fn output_data(name: &str, pool: &MySqlPool) -> anyhow::Result<Vec<String>> {
     let records = sqlx::query!(
         r#"SELECT output.data FROM output WHERE output.bartoc_name = ? order by timestamp"#,
         name,
@@ -125,7 +138,7 @@ async fn select_data(name: &str, pool: &MySqlPool) -> anyhow::Result<Vec<String>
     .fetch_all(pool)
     .await?;
 
-    let results = records
+    let mut results = records
         .into_iter()
         .map(|r| r.data)
         .filter_map(|s| {
@@ -135,6 +148,29 @@ async fn select_data(name: &str, pool: &MySqlPool) -> anyhow::Result<Vec<String>
                 .map(|m| m.as_str().to_string())
         })
         .collect::<Vec<String>>();
+    results.sort();
+    Ok(results)
+}
+
+async fn output_test_data(name: &str, pool: &MySqlPool) -> anyhow::Result<Vec<String>> {
+    let records = sqlx::query!(
+        r#"SELECT output_test.data FROM output_test WHERE output_test.bartoc_name = ? order by timestamp"#,
+        name,
+    )
+    .fetch_all(pool)
+    .await?;
+
+    let mut results = records
+        .into_iter()
+        .map(|r| r.data)
+        .filter_map(|s| {
+            GARUDA_UPDATE_RE
+                .captures(&s)
+                .and_then(|caps| caps.get(1))
+                .map(|m| m.as_str().to_string())
+        })
+        .collect::<Vec<String>>();
+    results.sort();
     Ok(results)
 }
 
