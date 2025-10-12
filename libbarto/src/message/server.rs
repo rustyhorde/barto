@@ -24,5 +24,5 @@ pub enum BartosToBartoCli {
     /// Information about the bartos server
     Info(PrettyExt),
     /// Updates about a named bartoc client
-    Updates,
+    Updates(Vec<String>),
 }

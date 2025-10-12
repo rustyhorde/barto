@@ -6,6 +6,8 @@
 // option. All files in the project carrying such notice may not be copied,
 // modified, or distributed except according to those terms.
 
+use std::sync::LazyLock;
+
 use actix_web::{
     HttpRequest, Responder, Result,
     rt::spawn,
@@ -15,6 +17,7 @@ use actix_ws::{AggregatedMessage, Session, handle};
 use bincode::{config::standard, decode_from_slice, encode_to_vec};
 use futures_util::StreamExt as _;
 use libbarto::{BartoCli, BartosToBartoCli};
+use regex::Regex;
 use sqlx::MySqlPool;
 use tokio::select;
 use tokio_util::sync::CancellationToken;
@@ -23,13 +26,18 @@ use vergen_pretty::{Pretty, PrettyExt, vergen_pretty_env};
 
 use crate::{config::Config, endpoints::insecure::Name};
 
+#[allow(dead_code)]
+static GARUDA_UPDATE_RE: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"\(\d+/\d+\) upgrading ([^ ]+) .*").expect("failed to create garuda update regex")
+});
+
 pub(crate) async fn cli(
     request: HttpRequest,
     body: Payload,
     name: Query<Name>,
     token: Data<CancellationToken>,
     _config: Data<Config>,
-    _pool: Data<MySqlPool>,
+    pool: Data<MySqlPool>,
 ) -> Result<impl Responder> {
     let describe = name.describe(&request);
     info!("cli connection from '{describe}'");
@@ -50,7 +58,7 @@ pub(crate) async fn cli(
                     if let Some(Ok(msg)) = res_opt {
                         match msg {
                             AggregatedMessage::Text(_byte_string) => error!("unexpected text message"),
-                            AggregatedMessage::Binary(bytes) => if let Err(e) = handle_binary(bytes, &mut ws_session).await {
+                            AggregatedMessage::Binary(bytes) => if let Err(e) = handle_binary(bytes, &mut ws_session, pool.as_ref()).await {
                                 error!("{e}");
                             },
                             AggregatedMessage::Ping(_bytes) => error!("unexpected ping message"),
@@ -81,7 +89,11 @@ pub(crate) async fn cli(
     Ok(response)
 }
 
-async fn handle_binary(bytes: Bytes, session: &mut Session) -> anyhow::Result<()> {
+async fn handle_binary(
+    bytes: Bytes,
+    session: &mut Session,
+    pool: &MySqlPool,
+) -> anyhow::Result<()> {
     match decode_from_slice(&bytes, standard()) {
         Err(e) => error!("unable to decode binary message: {e}"),
         Ok((msg, _)) => match msg {
@@ -94,12 +106,57 @@ async fn handle_binary(bytes: Bytes, session: &mut Session) -> anyhow::Result<()
                 session.binary(encoded).await?;
             }
             BartoCli::Updates { name } => {
+                let updates = select_data(&name, pool).await?;
                 info!("received updates message for '{name}'");
-                let updates = BartosToBartoCli::Updates;
+                let updates = BartosToBartoCli::Updates(updates);
                 let encoded = encode_to_vec(&updates, standard())?;
                 session.binary(encoded).await?;
             }
         },
     }
     Ok(())
+}
+
+async fn select_data(name: &str, pool: &MySqlPool) -> anyhow::Result<Vec<String>> {
+    let records = sqlx::query!(
+        r#"SELECT output.data FROM output WHERE output.bartoc_name = ? order by timestamp"#,
+        name,
+    )
+    .fetch_all(pool)
+    .await?;
+
+    let results = records
+        .into_iter()
+        .map(|r| r.data)
+        .filter_map(|s| {
+            GARUDA_UPDATE_RE
+                .captures(&s)
+                .and_then(|caps| caps.get(1))
+                .map(|m| m.as_str().to_string())
+        })
+        .collect::<Vec<String>>();
+    Ok(results)
+}
+
+#[cfg(test)]
+mod test {
+    use super::GARUDA_UPDATE_RE;
+
+    #[test]
+    fn test_garuda_update_re() {
+        let text = "(1/1) upgrading something blah de dah";
+        assert!(GARUDA_UPDATE_RE.is_match(text));
+        GARUDA_UPDATE_RE
+            .captures(text)
+            .and_then(|caps| caps.get(1))
+            .map(|m| m.as_str())
+            .map(|s| assert_eq!(s, "something"))
+            .expect("failed to capture");
+    }
+
+    #[test]
+    fn test_garuda_update_re_no_match() {
+        let text = "this is not a match";
+        assert!(!GARUDA_UPDATE_RE.is_match(text));
+    }
 }

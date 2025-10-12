@@ -460,6 +460,7 @@ dependencies = [
  "futures-util",
  "getset",
  "libbarto",
+ "regex",
  "rustls",
  "rustversion",
  "serde",
@@ -4280,9 +4281,9 @@ dependencies = [
 
 [[package]]
 name = "tracing-subscriber-init"
-version = "0.2.2"
+version = "0.2.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "dc454fdb2efecd5d69c2193518d378d5917c4b572e986bf522db03ddc5a824b7"
+checksum = "a3a10df3a39d15d2205fc95b1612add61e6a3e43dd2a809de6c0db902b1a5f04"
 dependencies = [
  "anyhow",
  "rustversion",
@@ -4446,9 +4447,9 @@ checksum = "accd4ea62f7bb7a82fe23066fb0957d48ef677f6eeb8215f372f52e48bb32426"
 
 [[package]]
 name = "vergen"
-version = "10.0.0-beta.2"
+version = "10.0.0-beta.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0279bf2003dad9b5d1b547cbe51563c1b87f7c55f1b18258d7849c1cdfb58802"
+checksum = "441060f5f6e4995fd7366712ba62d273fd06bc9a787ca0102484a1fb71bb71ff"
 dependencies = [
  "anyhow",
  "bon",
@@ -4461,9 +4462,9 @@ dependencies = [
 
 [[package]]
 name = "vergen-gix"
-version = "2.1.0-beta.6"
+version = "2.1.0-beta.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1cab844d2384c239c723349d8aafc25debea3fc68537877c9365012a1d8f9990"
+checksum = "17fb796f25a9f23399926d157071bf84d10d2f0e115fd95a36d50ee530b7b7a1"
 dependencies = [
  "anyhow",
  "bon",
@@ -4476,9 +4477,9 @@ dependencies = [
 
 [[package]]
 name = "vergen-lib"
-version = "1.0.0-beta.2"
+version = "1.0.0-beta.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "40a9f5881bedeb8515e54607d6b3f41f8ea6bc7cdc3abef986695e8c34797f8b"
+checksum = "77ba40a0dc46b02c63e88255b4a087b9421148d0241098d71a5818bac9ffd799"
 dependencies = [
  "anyhow",
  "bon",

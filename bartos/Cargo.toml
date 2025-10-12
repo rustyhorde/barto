@@ -26,6 +26,7 @@ config = { workspace = true }
 futures-util = { workspace = true }
 getset = { workspace = true }
 libbarto = { version = "0.1.0", path = "../libbarto" }
+regex = "1.12.1"
 rustls = { workspace = true }
 serde = { workspace = true }
 sqlx = { workspace = true }

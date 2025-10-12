@@ -24,10 +24,11 @@ use crate::error::Error;
 pub(crate) static BOLD_BLUE: LazyLock<Style> = LazyLock::new(|| Style::new().bold().blue());
 pub(crate) static BOLD_GREEN: LazyLock<Style> = LazyLock::new(|| Style::new().bold().green());
 type WsMessage = Option<std::result::Result<Message, tokio_tungstenite::tungstenite::Error>>;
+type Stream = SplitStream<WebSocketStream<MaybeTlsStream<TcpStream>>>;
 
 #[derive(Builder, Debug)]
 pub(crate) struct Handler {
-    stream: SplitStream<WebSocketStream<MaybeTlsStream<TcpStream>>>,
+    stream: Stream,
 }
 
 impl Handler {
@@ -64,7 +65,11 @@ impl Handler {
                         info!("{key}: {value}");
                     }
                 }
-                BartosToBartoCli::Updates => {}
+                BartosToBartoCli::Updates(updates) => {
+                    for update in updates {
+                        info!("{update}");
+                    }
+                }
             },
         }
     }
