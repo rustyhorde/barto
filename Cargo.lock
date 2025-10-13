@@ -455,6 +455,7 @@ dependencies = [
  "actix-ws",
  "anyhow",
  "bincode",
+ "bon",
  "clap",
  "config",
  "futures-util",

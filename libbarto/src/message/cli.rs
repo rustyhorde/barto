@@ -20,4 +20,6 @@ pub enum BartoCli {
     },
     /// A request from barto-cli to clean up old database entries
     Cleanup,
+    /// The currently connected clients
+    Clients,
 }

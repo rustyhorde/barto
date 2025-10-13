@@ -20,12 +20,12 @@ use libbarto::{
     StatusTableName, UuidWrapper, parse_ts_ping,
 };
 use sqlx::MySqlPool;
-use tokio::select;
+use tokio::{select, sync::Mutex};
 use tokio_util::sync::CancellationToken;
 use tracing::{error, info, trace};
 use uuid::Uuid;
 
-use crate::{config::Config, endpoints::insecure::Name};
+use crate::{common::Clients, config::Config, endpoints::insecure::Name};
 
 pub(crate) async fn worker(
     request: HttpRequest,
@@ -34,16 +34,19 @@ pub(crate) async fn worker(
     token: Data<CancellationToken>,
     config: Data<Config>,
     pool: Data<MySqlPool>,
+    clients: Data<Mutex<Clients>>,
 ) -> Result<impl Responder> {
     let describe = name.describe(&request);
     info!("worker connection from '{describe}'");
+    let id = Uuid::new_v4();
     let (response, session, msg_stream) = handle(&request, body)?;
     let mut agms = msg_stream.aggregate_continuations();
     let ws_token = token.get_ref().clone();
     let mut ws_session = session.clone();
     let mut init_session = session.clone();
     let config_c = config.clone();
-    if let Err(e) = initialize(&mut init_session, request, name, config).await {
+    let clients_c = clients.clone();
+    if let Err(e) = initialize(id, &mut init_session, request, name, config, clients).await {
         error!("unable to initialize worker session: {e}");
         let _ = init_session.close(None).await;
         return Err(e);
@@ -103,24 +106,31 @@ pub(crate) async fn worker(
 
         info!("websocket disconnected '{describe}'");
         let _ = session.close(None).await;
+        let mut clients = clients_c.lock().await;
+        let _old = clients.remove_client(&id);
+        trace!("removed client '{describe}' from active clients");
     });
 
     Ok(response)
 }
 
 async fn initialize(
+    id: Uuid,
     session: &mut Session,
     request: HttpRequest,
     name: Query<Name>,
     config: Data<Config>,
+    clients: Data<Mutex<Clients>>,
 ) -> Result<()> {
     let describe = name.describe(&request);
+    let mut clients = clients.lock().await;
+    let _old = clients.add_client(id, describe.clone());
     let name = name.name().clone().unwrap_or_else(|| "default".to_string());
     let schedules_opt = config.schedules().get(&name);
     let init_bytes = if let Some(schedules) = schedules_opt {
         let count = schedules.schedules().len();
         info!("sending bartoc '{describe}' {count} schedules");
-        let uuid = UuidWrapper(Uuid::new_v4());
+        let uuid = UuidWrapper(id);
         let init = Initialize::builder()
             .id(uuid)
             .schedules(schedules.clone())

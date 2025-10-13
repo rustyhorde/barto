@@ -36,10 +36,6 @@ impl Name {
 
 pub(crate) fn insecure_config(cfg: &mut ServiceConfig) {
     _ = cfg
-        // .route("/health", get().to(health::health))
-        // .route("/info", get().to(info::info))
         .route("/ws/cli", get().to(cli::cli))
-        .route("/ws/worker", get().to(worker::worker))
-        // .route("/ws/manager", get().to(manager::manager))
-        ;
+        .route("/ws/worker", get().to(worker::worker));
 }

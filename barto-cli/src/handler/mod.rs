@@ -74,6 +74,15 @@ impl Handler {
                     info!("deleted {} output rows", deleted.0);
                     info!("deleted {} exit status rows", deleted.1);
                 }
+                BartosToBartoCli::Clients(clients) => {
+                    for (id, description) in clients {
+                        info!(
+                            "client {}: {}",
+                            BOLD_GREEN.apply_to(id),
+                            BOLD_BLUE.apply_to(description)
+                        );
+                    }
+                }
             },
         }
     }

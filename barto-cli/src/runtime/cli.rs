@@ -137,4 +137,6 @@ pub(crate) enum Commands {
     },
     #[clap(about = "Perform cleanup of old database entries")]
     Cleanup,
+    #[clap(about = "List the currently connected clients")]
+    Clients,
 }

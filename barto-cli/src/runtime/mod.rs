@@ -90,6 +90,10 @@ where
             let cleanup = encode_to_vec(BartoCli::Cleanup, standard())?;
             Message::Binary(cleanup.into())
         }
+        Commands::Clients => {
+            let clients = encode_to_vec(BartoCli::Clients, standard())?;
+            Message::Binary(clients.into())
+        }
     };
     sink.send(message).await?;
     trace!("message sent");

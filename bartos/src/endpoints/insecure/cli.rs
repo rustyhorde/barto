@@ -6,7 +6,7 @@
 // option. All files in the project carrying such notice may not be copied,
 // modified, or distributed except according to those terms.
 
-use std::sync::LazyLock;
+use std::{collections::HashMap, sync::LazyLock};
 
 use actix_web::{
     HttpRequest, Responder, Result,
@@ -16,15 +16,15 @@ use actix_web::{
 use actix_ws::{AggregatedMessage, Session, handle};
 use bincode::{config::standard, decode_from_slice, encode_to_vec};
 use futures_util::StreamExt as _;
-use libbarto::{BartoCli, BartosToBartoCli, OutputTableName};
+use libbarto::{BartoCli, BartosToBartoCli, OutputTableName, UuidWrapper};
 use regex::Regex;
 use sqlx::MySqlPool;
-use tokio::select;
+use tokio::{select, sync::Mutex};
 use tokio_util::sync::CancellationToken;
 use tracing::{error, info, trace};
 use vergen_pretty::{Pretty, PrettyExt, vergen_pretty_env};
 
-use crate::{config::Config, endpoints::insecure::Name};
+use crate::{common::Clients, config::Config, endpoints::insecure::Name};
 
 #[allow(dead_code)]
 static GARUDA_UPDATE_RE: LazyLock<Regex> = LazyLock::new(|| {
@@ -38,6 +38,7 @@ pub(crate) async fn cli(
     token: Data<CancellationToken>,
     config: Data<Config>,
     pool: Data<MySqlPool>,
+    clients_mutex: Data<Mutex<Clients>>,
 ) -> Result<impl Responder> {
     let describe = name.describe(&request);
     info!("cli connection from '{describe}'");
@@ -62,7 +63,8 @@ pub(crate) async fn cli(
                                     bytes,
                                     &mut ws_session,
                                     config.as_ref(),
-                                    pool.as_ref()
+                                    pool.as_ref(),
+                                    clients_mutex.clone(),
                                 ).await {
                                 error!("{e}");
                             },
@@ -99,6 +101,7 @@ async fn handle_binary(
     session: &mut Session,
     config: &Config,
     pool: &MySqlPool,
+    clients_mutex: Data<Mutex<Clients>>,
 ) -> anyhow::Result<()> {
     match decode_from_slice(&bytes, standard()) {
         Err(e) => error!("unable to decode binary message: {e}"),
@@ -125,6 +128,18 @@ async fn handle_binary(
                 info!("deleted {} exit status rows", counts.1);
                 let cleanup = BartosToBartoCli::Cleanup(counts);
                 let encoded = encode_to_vec(&cleanup, standard())?;
+                session.binary(encoded).await?;
+            }
+            BartoCli::Clients => {
+                info!("received clients message");
+                let clients = clients_mutex.lock().await;
+                let mapped_clients = clients
+                    .clients()
+                    .iter()
+                    .map(|c| (UuidWrapper(*c.0), c.1.clone()))
+                    .collect::<HashMap<UuidWrapper, String>>();
+                let clients = BartosToBartoCli::Clients(mapped_clients);
+                let encoded = encode_to_vec(&clients, standard())?;
                 session.binary(encoded).await?;
             }
         },
@@ -191,12 +206,13 @@ async fn delete_data(config: &Config, pool: &MySqlPool) -> anyhow::Result<(u64, 
 }
 
 async fn delete_output_data(pool: &MySqlPool) -> anyhow::Result<(u64, u64)> {
-    let output_count = sqlx::query!("DELETE FROM output WHERE timestamp < timestamp(current_date)")
-        .execute(pool)
-        .await?
-        .rows_affected();
+    let output_count =
+        sqlx::query!("DELETE FROM output WHERE timestamp < timestamp(subdate(utc_date(), 1))")
+            .execute(pool)
+            .await?
+            .rows_affected();
     let exit_status_count =
-        sqlx::query!("DELETE FROM exit_status WHERE timestamp < timestamp(current_date)")
+        sqlx::query!("DELETE FROM exit_status WHERE timestamp < timestamp(subdate(utc_date(), 1))")
             .execute(pool)
             .await?
             .rows_affected();
@@ -204,16 +220,25 @@ async fn delete_output_data(pool: &MySqlPool) -> anyhow::Result<(u64, u64)> {
 }
 
 async fn delete_output_test_data(pool: &MySqlPool) -> anyhow::Result<(u64, u64)> {
+    let midnight = sqlx::query!("SELECT timestamp(subdate(utc_date(), 1)) as ts")
+        .fetch_one(pool)
+        .await?;
+    if let Some(ts) = midnight.ts {
+        info!("deleting entries older than {}", ts);
+    } else {
+        info!("deleting entries older than unknown time");
+    }
     let output_count =
-        sqlx::query!("DELETE FROM output_test WHERE timestamp < timestamp(current_date)")
+        sqlx::query!("DELETE FROM output_test WHERE timestamp < timestamp(subdate(utc_date(), 1))")
             .execute(pool)
             .await?
             .rows_affected();
-    let exit_status_count =
-        sqlx::query!("DELETE FROM exit_status_test WHERE timestamp < timestamp(current_date)")
-            .execute(pool)
-            .await?
-            .rows_affected();
+    let exit_status_count = sqlx::query!(
+        "DELETE FROM exit_status_test WHERE timestamp < timestamp(subdate(utc_date(), 1))"
+    )
+    .execute(pool)
+    .await?
+    .rows_affected();
     Ok((output_count, exit_status_count))
 }
 
