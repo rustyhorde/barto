@@ -399,8 +399,31 @@ dependencies = [
 ]
 
 [[package]]
+name = "barto-cli"
+version = "0.2.0"
+dependencies = [
+ "anyhow",
+ "bincode",
+ "bon",
+ "clap",
+ "config",
+ "console",
+ "futures-util",
+ "getset",
+ "libbarto",
+ "rustversion",
+ "serde",
+ "thiserror 2.0.17",
+ "tokio",
+ "tokio-tungstenite",
+ "tracing",
+ "tracing-subscriber-init",
+ "vergen-pretty",
+]
+
+[[package]]
 name = "bartoc"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "bincode",
@@ -426,7 +449,7 @@ dependencies = [
 
 [[package]]
 name = "bartos"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "actix-web",
  "actix-ws",
@@ -437,6 +460,7 @@ dependencies = [
  "futures-util",
  "getset",
  "libbarto",
+ "regex",
  "rustls",
  "rustversion",
  "serde",
@@ -447,6 +471,8 @@ dependencies = [
  "tracing",
  "tracing-subscriber-init",
  "uuid",
+ "vergen-gix",
+ "vergen-pretty",
 ]
 
 [[package]]
@@ -578,7 +604,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "234113d19d0d7d613b40e86fb654acf958910802bcceab913a4f9e7cda03b1a4"
 dependencies = [
  "memchr",
- "regex-automata 0.4.11",
+ "regex-automata 0.4.12",
  "serde",
 ]
 
@@ -2580,7 +2606,7 @@ dependencies = [
 
 [[package]]
 name = "libbarto"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "bincode",
@@ -3255,14 +3281,14 @@ dependencies = [
 
 [[package]]
 name = "regex"
-version = "1.11.3"
+version = "1.12.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8b5288124840bee7b386bc413c487869b360b2b4ec421ea56425128692f2a82c"
+checksum = "4a52d8d02cacdb176ef4678de6c052efb4b3da14b78e4db683a4252762be5433"
 dependencies = [
  "aho-corasick",
  "memchr",
- "regex-automata 0.4.11",
- "regex-syntax 0.8.6",
+ "regex-automata 0.4.12",
+ "regex-syntax 0.8.7",
 ]
 
 [[package]]
@@ -3276,20 +3302,20 @@ dependencies = [
 
 [[package]]
 name = "regex-automata"
-version = "0.4.11"
+version = "0.4.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "833eb9ce86d40ef33cb1306d8accf7bc8ec2bfea4355cbdebb3df68b40925cad"
+checksum = "722166aa0d7438abbaa4d5cc2c649dac844e8c56d82fb3d33e9c34b5cd268fc6"
 dependencies = [
  "aho-corasick",
  "memchr",
- "regex-syntax 0.8.6",
+ "regex-syntax 0.8.7",
 ]
 
 [[package]]
 name = "regex-lite"
-version = "0.1.7"
+version = "0.1.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "943f41321c63ef1c92fd763bfe054d2668f7f225a5c29f0105903dc2fc04ba30"
+checksum = "8d942b98df5e658f56f20d592c7f868833fe38115e65c33003d8cd224b0155da"
 
 [[package]]
 name = "regex-syntax"
@@ -3299,9 +3325,9 @@ checksum = "f162c6dd7b008981e4d40210aca20b4bd0f9b60ca9271061b07f78537722f2e1"
 
 [[package]]
 name = "regex-syntax"
-version = "0.8.6"
+version = "0.8.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "caf4aa5b0f434c91fe5c7f1ecb6a5ece2130b02ad2a590589dda5146df959001"
+checksum = "c3160422bbd54dd5ecfdca71e5fd59b7b8fe2b1697ab2baf64f6d05dcc66d298"
 
 [[package]]
 name = "ring"
@@ -4255,9 +4281,9 @@ dependencies = [
 
 [[package]]
 name = "tracing-subscriber-init"
-version = "0.2.2"
+version = "0.2.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "dc454fdb2efecd5d69c2193518d378d5917c4b572e986bf522db03ddc5a824b7"
+checksum = "a3a10df3a39d15d2205fc95b1612add61e6a3e43dd2a809de6c0db902b1a5f04"
 dependencies = [
  "anyhow",
  "rustversion",
@@ -4421,9 +4447,9 @@ checksum = "accd4ea62f7bb7a82fe23066fb0957d48ef677f6eeb8215f372f52e48bb32426"
 
 [[package]]
 name = "vergen"
-version = "10.0.0-beta.2"
+version = "10.0.0-beta.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0279bf2003dad9b5d1b547cbe51563c1b87f7c55f1b18258d7849c1cdfb58802"
+checksum = "441060f5f6e4995fd7366712ba62d273fd06bc9a787ca0102484a1fb71bb71ff"
 dependencies = [
  "anyhow",
  "bon",
@@ -4436,9 +4462,9 @@ dependencies = [
 
 [[package]]
 name = "vergen-gix"
-version = "2.1.0-beta.6"
+version = "2.1.0-beta.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1cab844d2384c239c723349d8aafc25debea3fc68537877c9365012a1d8f9990"
+checksum = "17fb796f25a9f23399926d157071bf84d10d2f0e115fd95a36d50ee530b7b7a1"
 dependencies = [
  "anyhow",
  "bon",
@@ -4451,9 +4477,9 @@ dependencies = [
 
 [[package]]
 name = "vergen-lib"
-version = "1.0.0-beta.2"
+version = "1.0.0-beta.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "40a9f5881bedeb8515e54607d6b3f41f8ea6bc7cdc3abef986695e8c34797f8b"
+checksum = "77ba40a0dc46b02c63e88255b4a087b9421148d0241098d71a5818bac9ffd799"
 dependencies = [
  "anyhow",
  "bon",
@@ -4463,14 +4489,16 @@ dependencies = [
 
 [[package]]
 name = "vergen-pretty"
-version = "2.0.1"
+version = "2.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "effdbbd41082784fcf7458c20bae7cc27a6d87e480bd8c62942bf820110eb1f2"
+checksum = "29bc27a1f22ebc212cb494729aa89b80536c7c2b5ebe5828dd3dd25b917cfbbb"
 dependencies = [
  "anyhow",
+ "bincode",
  "bon",
  "console",
  "convert_case 0.8.0",
+ "rand 0.9.2",
  "rustversion",
  "tracing",
 ]

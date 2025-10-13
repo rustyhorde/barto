@@ -7,24 +7,17 @@
 // modified, or distributed except according to those terms.
 
 use bincode::{Decode, Encode};
-use vergen_pretty::PrettyExt;
-
-use crate::Initialize;
 
 /// A message from a worker client to a worker session
 #[derive(Clone, Debug, Decode, Encode)]
-pub enum BartosToBartoc {
-    /// Initialize bartoc with the given schedules
-    Initialize(Initialize),
-}
-
-/// An initialization message from bartos to a named bartoc client.
-#[derive(Clone, Debug, Decode, Encode)]
-pub enum BartosToBartoCli {
-    /// Information about the bartos server
-    Info(PrettyExt),
-    /// Updates about a named bartoc client
-    Updates(Vec<String>),
-    /// Result of a cleanup operation
-    Cleanup((u64, u64)),
+pub enum BartoCli {
+    /// An info request from barto-cli
+    Info,
+    /// A request from barto-cli to check for recent updates to a bartoc client
+    Updates {
+        /// The name of the bartoc client to check for recent updates
+        name: String,
+    },
+    /// A request from barto-cli to clean up old database entries
+    Cleanup,
 }

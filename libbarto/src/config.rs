@@ -79,6 +79,20 @@ pub struct Actix {
     port: u16,
 }
 
+/// bartos configuration for clients
+#[derive(Clone, CopyGetters, Debug, Default, Deserialize, Eq, Getters, PartialEq, Serialize)]
+pub struct Bartos {
+    /// The number of workers to start
+    #[getset(get = "pub")]
+    prefix: String,
+    /// The IP address to listen on
+    #[getset(get = "pub")]
+    host: String,
+    /// The port to listen on
+    #[getset(get_copy = "pub")]
+    port: u16,
+}
+
 /// hosts configuration
 #[derive(Clone, CopyGetters, Debug, Default, Deserialize, Eq, Getters, PartialEq, Serialize)]
 pub struct Mariadb {

@@ -6,7 +6,7 @@
 // option. All files in the project carrying such notice may not be copied,
 // modified, or distributed except according to those terms.
 
-//! bartoc - barto client
+//! barto-cli - barto command line interface
 
 // rustc lints
 #![cfg_attr(
@@ -242,7 +242,6 @@
 #![cfg_attr(coverage_nightly, feature(coverage_attribute))]
 
 mod config;
-mod db;
 mod error;
 mod handler;
 mod runtime;

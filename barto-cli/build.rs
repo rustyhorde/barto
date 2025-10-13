@@ -6,7 +6,18 @@
 // option. All files in the project carrying such notice may not be copied,
 // modified, or distributed except according to those terms.
 
-pub(crate) mod cli;
-pub(crate) mod client;
-pub(crate) mod server;
-pub(crate) mod shared;
+pub fn main() {
+    println!("cargo:rustc-check-cfg=cfg(coverage_nightly)");
+    nightly();
+}
+
+#[rustversion::nightly]
+fn nightly() {
+    println!("cargo:rustc-check-cfg=cfg(nightly)");
+    println!("cargo:rustc-cfg=nightly");
+}
+
+#[rustversion::not(nightly)]
+fn nightly() {
+    println!("cargo:rustc-check-cfg=cfg(nightly)");
+}

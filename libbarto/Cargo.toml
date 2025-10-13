@@ -2,7 +2,7 @@
 authors = ["Jason Ozias <jason.g.ozias@gmail.com>"]
 categories = ["web-programming::websocket", "web-programming"]
 description = "Websocket based job scheduling system"
-documentation = "https://docs.rs/barto"
+documentation = "https://docs.rs/libbarto"
 edition = "2024"
 homepage = "https://github.com/rustyhorde/barto"
 keywords = ["job", "scheduling", "websocket", "actix"]
@@ -10,7 +10,7 @@ license = "MIT OR Apache-2.0"
 name = "libbarto"
 readme = "../README.md"
 repository = "https://github.com/rustyhorde/barto"
-version = "0.1.0"
+version = "0.2.0"
 rust-version = "1.89.0"
 
 [features]
@@ -41,7 +41,7 @@ tracing = { workspace = true }
 tracing-subscriber = { version = "=0.3.19", features = ["env-filter", "fmt", "time"] }
 tracing-subscriber-init = { workspace = true }
 uuid = { workspace = true }
-vergen-pretty = { version = "2.0.1", features = ["color", "trace"] }
+vergen-pretty = { workspace = true, features = [ "color", "header", "trace" ]}
 
 [build-dependencies]
 anyhow = { workspace = true }

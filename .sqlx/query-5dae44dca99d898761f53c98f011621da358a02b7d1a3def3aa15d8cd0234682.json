@@ -1,0 +1,12 @@
+{
+  "db_name": "MySQL",
+  "query": "DELETE FROM output WHERE timestamp < timestamp(current_date)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 0
+    },
+    "nullable": []
+  },
+  "hash": "5dae44dca99d898761f53c98f011621da358a02b7d1a3def3aa15d8cd0234682"
+}

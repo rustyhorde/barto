@@ -6,7 +6,13 @@
 // option. All files in the project carrying such notice may not be copied,
 // modified, or distributed except according to those terms.
 
-pub(crate) mod cli;
-pub(crate) mod client;
-pub(crate) mod server;
-pub(crate) mod shared;
+/// Error types for bartos
+#[derive(Clone, Copy, Debug, thiserror::Error)]
+pub(crate) enum Error {
+    #[error("Unable to load a valid configuration")]
+    ConfigLoad,
+    #[error("Unable to initialize tracing")]
+    TracingInit,
+    #[error("Invalid message received")]
+    InvalidMessage,
+}

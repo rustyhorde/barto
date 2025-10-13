@@ -1,7 +1,7 @@
 [workspace]
 resolver = "3"
 
-members = ["bartoc", "bartos", "libbarto"]
+members = ["barto-cli","bartoc", "bartos", "libbarto"]
 
 [workspace.dependencies]
 actix-web = "4.11.0"
@@ -46,3 +46,4 @@ vergen-gix = { version = "2.1.0-beta.6", features = [
   "rustc",
   "si",
 ] }
+vergen-pretty = { version = "2.1.1", features = [ "bincode" ] }

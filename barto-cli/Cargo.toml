@@ -7,41 +7,35 @@ edition = "2024"
 homepage = "https://github.com/rustyhorde/barto"
 keywords = ["job", "scheduling", "websocket", "actix"]
 license = "MIT OR Apache-2.0"
-name = "bartos"
+name = "barto-cli"
 readme = "../README.md"
 repository = "https://github.com/rustyhorde/barto"
 version = "0.2.0"
 rust-version = "1.89.0"
 
 [features]
-unstable = ["libbarto/unstable"]
+unstable = []
 
 [dependencies]
-actix-web = { workspace = true, features = ["rustls-0_23"] }
-actix-ws = "0.3.0"
 anyhow = { workspace = true }
 bincode = { workspace = true }
+bon = { workspace = true }
 clap = { workspace = true }
 config = { workspace = true }
+console = "0.16.1"
 futures-util = { workspace = true }
 getset = { workspace = true }
 libbarto = { version = "0.2.0", path = "../libbarto" }
-regex = "1.12.1"
-rustls = { workspace = true }
 serde = { workspace = true }
-sqlx = { workspace = true }
 thiserror = { workspace = true }
-tokio = { workspace = true }
-tokio-util = { workspace = true }
+tokio = { workspace = true, features = ["macros", "process", "signal", "sync", "time"] }
+tokio-tungstenite = { workspace = true }
 tracing = { workspace = true }
 tracing-subscriber-init = { workspace = true }
-uuid = { workspace = true }
 vergen-pretty = { workspace = true }
 
 [build-dependencies]
-anyhow = { workspace = true }
 rustversion = { workspace = true }
-vergen-gix = { workspace = true }
 
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = [
