@@ -278,6 +278,8 @@ pub use self::message::shared::output::Data;
 pub use self::message::shared::output::Output;
 pub use self::message::shared::output::OutputKind;
 pub use self::message::shared::output::Status;
+pub use self::message::shared::sys::BartocInfo;
+pub use self::message::shared::sys::ClientData;
 pub use self::message::shared::uuid::UuidWrapper;
 pub use self::schedule::Realtime;
 pub use self::schedule::dow::DayOfWeek;

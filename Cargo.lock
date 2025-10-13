@@ -2625,6 +2625,7 @@ dependencies = [
  "rustls",
  "rustversion",
  "serde",
+ "sysinfo",
  "thiserror 2.0.17",
  "time",
  "tracing",
@@ -3974,6 +3975,7 @@ dependencies = [
  "ntapi",
  "objc2-core-foundation",
  "objc2-io-kit",
+ "serde",
  "windows",
 ]
 

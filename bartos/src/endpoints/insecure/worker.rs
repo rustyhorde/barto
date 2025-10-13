@@ -65,7 +65,7 @@ pub(crate) async fn worker(
                         match msg {
                             AggregatedMessage::Text(_byte_string) => error!("unexpected text message"),
                             AggregatedMessage::Binary(bytes) => {
-                                handle_binary(bytes, &config_c, pool.as_ref()).await.unwrap_or_else(|e| {
+                                handle_binary(id, bytes, &config_c, pool.as_ref(), clients_c.clone()).await.unwrap_or_else(|e| {
                                     error!("unable to handle binary message: {e}");
                                 });
                             },
@@ -124,7 +124,7 @@ async fn initialize(
 ) -> Result<()> {
     let describe = name.describe(&request);
     let mut clients = clients.lock().await;
-    let _old = clients.add_client(id, describe.clone());
+    let _old = clients.add_client(id, &describe);
     let name = name.name().clone().unwrap_or_else(|| "default".to_string());
     let schedules_opt = config.schedules().get(&name);
     let init_bytes = if let Some(schedules) = schedules_opt {
@@ -149,7 +149,13 @@ async fn initialize(
     Ok(())
 }
 
-async fn handle_binary(bytes: Bytes, config: &Config, pool: &MySqlPool) -> Result<()> {
+async fn handle_binary(
+    id: Uuid,
+    bytes: Bytes,
+    config: &Config,
+    pool: &MySqlPool,
+    clients_mutex: Data<Mutex<Clients>>,
+) -> Result<()> {
     trace!("handling binary message");
     match decode_from_slice(&bytes, standard()) {
         Err(e) => error!("unable to decode binary message: {e}"),
@@ -188,6 +194,11 @@ async fn handle_binary(bytes: Bytes, config: &Config, pool: &MySqlPool) -> Resul
                     }
                 },
             },
+            Bartoc::ClientInfo(bi) => {
+                info!("received client info: {bi}");
+                let mut clients = clients_mutex.lock().await;
+                clients.add_client_data(&id, bi);
+            }
         },
     }
     Ok(())

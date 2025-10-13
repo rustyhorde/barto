@@ -8,7 +8,7 @@
 
 use bincode::{Decode, Encode};
 
-use crate::Data;
+use crate::{BartocInfo, Data};
 
 /// A message from a worker client to a worker session
 #[derive(Clone, Debug, Decode, Encode)]
@@ -26,4 +26,6 @@ pub enum BartocWs {
 pub enum Bartoc {
     /// A close message from bartoc
     Record(Data),
+    /// barto client info
+    ClientInfo(BartocInfo),
 }

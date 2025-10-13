@@ -51,6 +51,7 @@ const HEADER_PREFIX: &str = r"██████╗  █████╗ ██�
 ██████╔╝██║  ██║██║  ██║   ██║   ╚██████╔╝╚██████╗
 ╚═════╝ ╚═╝  ╚═╝╚═╝  ╚═╝   ╚═╝    ╚═════╝  ╚═════╝";
 
+#[allow(clippy::too_many_lines)]
 pub(crate) async fn run<I, T>(args: Option<I>) -> Result<()>
 where
     I: IntoIterator<Item = T>,
@@ -114,6 +115,7 @@ where
                 .bartoc_name(config.name().clone())
                 .build();
             handler.heartbeat(config.client_timeout());
+            handler.bartoc_info().await?;
             trace!("bartoc heartbeat started");
             let mut ws_handler = WsHandler::builder()
                 .tx(tx.clone())

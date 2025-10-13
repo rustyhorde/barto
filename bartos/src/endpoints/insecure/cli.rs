@@ -16,7 +16,7 @@ use actix_web::{
 use actix_ws::{AggregatedMessage, Session, handle};
 use bincode::{config::standard, decode_from_slice, encode_to_vec};
 use futures_util::StreamExt as _;
-use libbarto::{BartoCli, BartosToBartoCli, OutputTableName, UuidWrapper};
+use libbarto::{BartoCli, BartosToBartoCli, ClientData, OutputTableName, UuidWrapper};
 use regex::Regex;
 use sqlx::MySqlPool;
 use tokio::{select, sync::Mutex};
@@ -143,7 +143,7 @@ async fn handle_binary(
                     .clients()
                     .iter()
                     .map(|c| (UuidWrapper(*c.0), c.1.clone()))
-                    .collect::<HashMap<UuidWrapper, String>>();
+                    .collect::<HashMap<UuidWrapper, ClientData>>();
                 let clients = BartosToBartoCli::Clients(mapped_clients);
                 let encoded = encode_to_vec(&clients, standard())?;
                 session.binary(encoded).await?;

@@ -11,7 +11,7 @@ use std::collections::HashMap;
 use bincode::{Decode, Encode};
 use vergen_pretty::PrettyExt;
 
-use crate::{Initialize, UuidWrapper};
+use crate::{Initialize, UuidWrapper, message::shared::sys::ClientData};
 
 /// A message from a worker client to a worker session
 #[derive(Clone, Debug, Decode, Encode)]
@@ -32,5 +32,5 @@ pub enum BartosToBartoCli {
     /// Result of a cleanup operation
     Cleanup((u64, u64)),
     /// Current connected clients
-    Clients(HashMap<UuidWrapper, String>),
+    Clients(HashMap<UuidWrapper, ClientData>),
 }

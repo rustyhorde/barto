@@ -21,8 +21,8 @@ use bincode::{Decode, Encode, config::standard, encode_to_vec};
 use bon::Builder;
 use futures_util::{SinkExt as _, stream::SplitSink};
 use libbarto::{
-    Bartoc, BartocWs, BartosToBartoc, Data, OffsetDataTimeWrapper, Output, OutputKind, Realtime,
-    Status, UuidWrapper, parse_ts_ping, send_ts_ping,
+    Bartoc, BartocInfo, BartocWs, BartosToBartoc, Data, OffsetDataTimeWrapper, Output, OutputKind,
+    Realtime, Status, UuidWrapper, parse_ts_ping, send_ts_ping,
 };
 use time::OffsetDateTime;
 use tokio::{
@@ -59,6 +59,7 @@ pub(crate) enum BartocMessage {
     BartosToBartoc(BartosToBartoc),
     Data(Data),
     RecordData(Data),
+    ClientInfo(BartocInfo),
 }
 
 impl BartocMessage {
@@ -195,11 +196,31 @@ impl Handler {
                 }
                 Ok(())
             }
+            BartocMessage::ClientInfo(ci) => {
+                let bartoc_msg = Bartoc::ClientInfo(ci.clone());
+                let msg_bytes = encode_to_vec(&bartoc_msg, standard())?;
+                let msg = Message::Binary(msg_bytes.into());
+                if let Err(e) = self.send_message(msg).await {
+                    error!("unable to send message to websocket: {e}");
+                }
+                Ok(())
+            }
         }
     }
 
     async fn send_message(&mut self, msg: Message) -> Result<()> {
         self.sink.send(msg).await?;
+        Ok(())
+    }
+
+    pub(crate) async fn bartoc_info(&mut self) -> Result<()> {
+        let info = BartocInfo::builder().build();
+        let bartoc_msg = Bartoc::ClientInfo(info);
+        let msg_bytes = encode_to_vec(&bartoc_msg, standard())?;
+        let msg = Message::Binary(msg_bytes.into());
+        if let Err(e) = self.send_message(msg).await {
+            error!("unable to send message to websocket: {e}");
+        }
         Ok(())
     }
 

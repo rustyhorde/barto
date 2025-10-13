@@ -78,11 +78,11 @@ impl Handler {
                     info!("deleted {} exit status rows", deleted.1);
                 }
                 BartosToBartoCli::Clients(clients) => {
-                    for (id, description) in clients {
+                    for (_id, cd) in clients {
                         info!(
                             "client {}: {}",
-                            BOLD_GREEN.apply_to(id),
-                            BOLD_BLUE.apply_to(description)
+                            BOLD_GREEN.apply_to(cd.description().clone()),
+                            BOLD_BLUE.apply_to(cd)
                         );
                     }
                 }

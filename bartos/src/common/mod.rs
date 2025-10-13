@@ -10,21 +10,31 @@ use std::collections::HashMap;
 
 use bon::Builder;
 use getset::Getters;
+use libbarto::{BartocInfo, ClientData};
 use uuid::Uuid;
 
 #[derive(Builder, Clone, Debug, Eq, Getters, PartialEq)]
 pub(crate) struct Clients {
     #[getset(get = "pub(crate)")]
     #[builder(default)]
-    clients: HashMap<Uuid, String>,
+    clients: HashMap<Uuid, ClientData>,
 }
 
 impl Clients {
-    pub(crate) fn add_client(&mut self, id: Uuid, description: String) -> Option<String> {
-        self.clients.insert(id, description)
+    pub(crate) fn add_client(&mut self, id: Uuid, description: &str) -> Option<ClientData> {
+        let cd = ClientData::builder()
+            .description(description.to_string())
+            .build();
+        self.clients.insert(id, cd)
     }
 
-    pub(crate) fn remove_client(&mut self, id: &Uuid) -> Option<String> {
+    pub(crate) fn remove_client(&mut self, id: &Uuid) -> Option<ClientData> {
         self.clients.remove(id)
+    }
+
+    pub(crate) fn add_client_data(&mut self, id: &Uuid, bartoc_info: BartocInfo) {
+        if let Some(cd) = self.clients.get_mut(id) {
+            let _ = cd.set_bartoc_info(Some(bartoc_info));
+        }
     }
 }
