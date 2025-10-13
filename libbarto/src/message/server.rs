@@ -25,4 +25,6 @@ pub enum BartosToBartoCli {
     Info(PrettyExt),
     /// Updates about a named bartoc client
     Updates(Vec<String>),
+    /// Result of a cleanup operation
+    Cleanup((u64, u64)),
 }

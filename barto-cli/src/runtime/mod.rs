@@ -86,6 +86,10 @@ where
             let update = encode_to_vec(BartoCli::Updates { name: name.clone() }, standard())?;
             Message::Binary(update.into())
         }
+        Commands::Cleanup => {
+            let cleanup = encode_to_vec(BartoCli::Cleanup, standard())?;
+            Message::Binary(cleanup.into())
+        }
     };
     sink.send(message).await?;
     trace!("message sent");

@@ -118,6 +118,15 @@ async fn handle_binary(
                 let encoded = encode_to_vec(&updates, standard())?;
                 session.binary(encoded).await?;
             }
+            BartoCli::Cleanup => {
+                info!("received cleanup message");
+                let counts = delete_data(config, pool).await?;
+                info!("deleted {} output rows", counts.0);
+                info!("deleted {} exit status rows", counts.1);
+                let cleanup = BartosToBartoCli::Cleanup(counts);
+                let encoded = encode_to_vec(&cleanup, standard())?;
+                session.binary(encoded).await?;
+            }
         },
     }
     Ok(())
@@ -172,6 +181,40 @@ async fn output_test_data(name: &str, pool: &MySqlPool) -> anyhow::Result<Vec<St
         .collect::<Vec<String>>();
     results.sort();
     Ok(results)
+}
+
+async fn delete_data(config: &Config, pool: &MySqlPool) -> anyhow::Result<(u64, u64)> {
+    match config.mariadb().output_table() {
+        OutputTableName::Output => delete_output_data(pool).await,
+        OutputTableName::OutputTest => delete_output_test_data(pool).await,
+    }
+}
+
+async fn delete_output_data(pool: &MySqlPool) -> anyhow::Result<(u64, u64)> {
+    let output_count = sqlx::query!("DELETE FROM output WHERE timestamp < timestamp(current_date)")
+        .execute(pool)
+        .await?
+        .rows_affected();
+    let exit_status_count =
+        sqlx::query!("DELETE FROM exit_status WHERE timestamp < timestamp(current_date)")
+            .execute(pool)
+            .await?
+            .rows_affected();
+    Ok((output_count, exit_status_count))
+}
+
+async fn delete_output_test_data(pool: &MySqlPool) -> anyhow::Result<(u64, u64)> {
+    let output_count =
+        sqlx::query!("DELETE FROM output_test WHERE timestamp < timestamp(current_date)")
+            .execute(pool)
+            .await?
+            .rows_affected();
+    let exit_status_count =
+        sqlx::query!("DELETE FROM exit_status_test WHERE timestamp < timestamp(current_date)")
+            .execute(pool)
+            .await?
+            .rows_affected();
+    Ok((output_count, exit_status_count))
 }
 
 #[cfg(test)]

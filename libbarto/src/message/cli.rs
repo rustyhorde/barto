@@ -18,4 +18,6 @@ pub enum BartoCli {
         /// The name of the bartoc client to check for recent updates
         name: String,
     },
+    /// A request from barto-cli to clean up old database entries
+    Cleanup,
 }

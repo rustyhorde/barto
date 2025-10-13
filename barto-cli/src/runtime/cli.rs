@@ -123,7 +123,9 @@ impl PathDefaults for Cli {
 
 #[derive(Clone, Debug, Subcommand)]
 pub(crate) enum Commands {
+    #[clap(about = "Display the bartos version information")]
     Info,
+    #[clap(about = "Check for recent updates on a batoc client")]
     Updates {
         /// The name of the batoc client to check for recent updates
         #[clap(
@@ -133,4 +135,6 @@ pub(crate) enum Commands {
         )]
         name: String,
     },
+    #[clap(about = "Perform cleanup of old database entries")]
+    Cleanup,
 }

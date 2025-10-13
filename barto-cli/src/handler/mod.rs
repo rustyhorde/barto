@@ -70,6 +70,10 @@ impl Handler {
                         info!("{update}");
                     }
                 }
+                BartosToBartoCli::Cleanup(deleted) => {
+                    info!("deleted {} output rows", deleted.0);
+                    info!("deleted {} exit status rows", deleted.1);
+                }
             },
         }
     }
