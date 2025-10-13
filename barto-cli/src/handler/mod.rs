@@ -70,7 +70,7 @@ impl Handler {
                 }
                 BartosToBartoCli::Updates(updates) => {
                     for update in updates {
-                        info!("{update}");
+                        println!("{update}");
                     }
                 }
                 BartosToBartoCli::Cleanup(deleted) => {
@@ -82,8 +82,8 @@ impl Handler {
                     client_datas.sort_by(|a, b| a.name().cmp(b.name()));
                     let (max_name_label, max_ip_label) = Self::maxes_client_data(&client_datas);
                     for cd in client_datas {
-                        info!(
-                            "client {:>max_name_label$} ({:>max_ip_label$}): {}",
+                        println!(
+                            "{:>max_name_label$} ({:>max_ip_label$}): {}",
                             BOLD_GREEN.apply_to(cd.name().clone()),
                             BOLD_GREEN.apply_to(cd.ip().clone()),
                             BOLD_BLUE.apply_to(cd)
