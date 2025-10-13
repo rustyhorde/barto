@@ -206,6 +206,7 @@ async fn delete_data(config: &Config, pool: &MySqlPool) -> anyhow::Result<(u64, 
 }
 
 async fn delete_output_data(pool: &MySqlPool) -> anyhow::Result<(u64, u64)> {
+    midnight(pool).await?;
     let output_count =
         sqlx::query!("DELETE FROM output WHERE timestamp < timestamp(subdate(utc_date(), 1))")
             .execute(pool)
@@ -220,14 +221,7 @@ async fn delete_output_data(pool: &MySqlPool) -> anyhow::Result<(u64, u64)> {
 }
 
 async fn delete_output_test_data(pool: &MySqlPool) -> anyhow::Result<(u64, u64)> {
-    let midnight = sqlx::query!("SELECT timestamp(subdate(utc_date(), 1)) as ts")
-        .fetch_one(pool)
-        .await?;
-    if let Some(ts) = midnight.ts {
-        info!("deleting entries older than {}", ts);
-    } else {
-        info!("deleting entries older than unknown time");
-    }
+    midnight(pool).await?;
     let output_count =
         sqlx::query!("DELETE FROM output_test WHERE timestamp < timestamp(subdate(utc_date(), 1))")
             .execute(pool)
@@ -240,6 +234,16 @@ async fn delete_output_test_data(pool: &MySqlPool) -> anyhow::Result<(u64, u64)>
     .await?
     .rows_affected();
     Ok((output_count, exit_status_count))
+}
+
+async fn midnight(pool: &MySqlPool) -> anyhow::Result<()> {
+    let midnight = sqlx::query!("SELECT timestamp(subdate(utc_date(), 1)) as ts")
+        .fetch_one(pool)
+        .await?;
+    if let Some(ts) = midnight.ts {
+        info!("deleting entries older than {}", ts);
+    }
+    Ok(())
 }
 
 #[cfg(test)]
