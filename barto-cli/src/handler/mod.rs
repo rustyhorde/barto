@@ -80,10 +80,10 @@ impl Handler {
                 BartosToBartoCli::Clients(clients) => {
                     let mut client_datas = clients.values().cloned().collect::<Vec<ClientData>>();
                     client_datas.sort_by(|a, b| a.name().cmp(b.name()));
-                    let max_name = Self::max_name(&client_datas);
+                    let (max_name_label, max_ip_label) = Self::maxes_client_data(&client_datas);
                     for cd in client_datas {
                         info!(
-                            "client {:>max_name$} ({}): {}",
+                            "client {:>max_name_label$} ({:>max_ip_label$}): {}",
                             BOLD_GREEN.apply_to(cd.name().clone()),
                             BOLD_GREEN.apply_to(cd.ip().clone()),
                             BOLD_BLUE.apply_to(cd)
@@ -94,12 +94,18 @@ impl Handler {
         }
     }
 
-    fn max_name(client_data: &[ClientData]) -> usize {
-        client_data
-            .iter()
-            .map(|cd| cd.name().len())
-            .max()
-            .unwrap_or(0)
+    fn maxes_client_data(client_data: &[ClientData]) -> (usize, usize) {
+        let mut max_name_label = 0;
+        let mut max_ip_label = 0;
+        for cd in client_data {
+            if cd.name().len() > max_name_label {
+                max_name_label = cd.name().len();
+            }
+            if cd.ip().len() > max_ip_label {
+                max_ip_label = cd.ip().len();
+            }
+        }
+        (max_name_label, max_ip_label)
     }
 
     fn maxes(pretty_ext: &PrettyExt) -> (usize, usize) {
