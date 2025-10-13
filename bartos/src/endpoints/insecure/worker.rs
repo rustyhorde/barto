@@ -124,8 +124,8 @@ async fn initialize(
 ) -> Result<()> {
     let describe = name.describe(&request);
     let mut clients = clients.lock().await;
-    let _old = clients.add_client(id, &describe);
-    let name = name.name().clone().unwrap_or_else(|| "default".to_string());
+    let _old = clients.add_client(id, &name.name(), &Name::ip(&request));
+    let name = name.name();
     let schedules_opt = config.schedules().get(&name);
     let init_bytes = if let Some(schedules) = schedules_opt {
         let count = schedules.schedules().len();

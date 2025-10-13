@@ -47,10 +47,14 @@ impl Display for BartocInfo {
 /// bartoc client data
 #[derive(Builder, Clone, Debug, Decode, Encode, Eq, Getters, PartialEq, Setters)]
 pub struct ClientData {
-    /// bartoc client description
+    /// bartoc client name
     #[getset(get = "pub")]
     #[builder(default)]
-    description: String,
+    name: String,
+    /// bartoc client ip
+    #[getset(get = "pub")]
+    #[builder(default)]
+    ip: String,
     /// bartoc client system information
     #[getset(get = "pub", set = "pub")]
     bartoc_info: Option<BartocInfo>,
@@ -61,7 +65,7 @@ impl Display for ClientData {
         if let Some(bartoc_info) = &self.bartoc_info {
             write!(f, "{bartoc_info}")
         } else {
-            write!(f, "{}", self.description)
+            write!(f, "{}", self.name)
         }
     }
 }

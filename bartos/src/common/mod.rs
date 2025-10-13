@@ -21,9 +21,10 @@ pub(crate) struct Clients {
 }
 
 impl Clients {
-    pub(crate) fn add_client(&mut self, id: Uuid, description: &str) -> Option<ClientData> {
+    pub(crate) fn add_client(&mut self, id: Uuid, name: &str, ip: &str) -> Option<ClientData> {
         let cd = ClientData::builder()
-            .description(description.to_string())
+            .name(name.to_string())
+            .ip(ip.to_string())
             .build();
         self.clients.insert(id, cd)
     }
