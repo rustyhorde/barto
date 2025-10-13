@@ -1,0 +1,24 @@
+{
+  "db_name": "MySQL",
+  "query": "SELECT timestamp(subdate(utc_date(), 1)) as ts",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "ts",
+        "type_info": {
+          "type": "Datetime",
+          "flags": "BINARY",
+          "max_size": 19
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 0
+    },
+    "nullable": [
+      true
+    ]
+  },
+  "hash": "20ac28592b1c9053f303d7ad530fb9360f18241c0210cd66e3beb56bb9476bf1"
+}
