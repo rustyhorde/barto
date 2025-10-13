@@ -25,6 +25,8 @@ pub enum BartosToBartoc {
 pub enum BartosToBartoCli {
     /// Information about the bartos server
     Info(PrettyExt),
+    /// Information about the bartos server in JSON format
+    InfoJson(String),
     /// Updates about a named bartoc client
     Updates(Vec<String>),
     /// Result of a cleanup operation

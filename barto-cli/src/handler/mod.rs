@@ -65,6 +65,9 @@ impl Handler {
                         info!("{key}: {value}");
                     }
                 }
+                BartosToBartoCli::InfoJson(json) => {
+                    print!("{json}");
+                }
                 BartosToBartoCli::Updates(updates) => {
                     for update in updates {
                         info!("{update}");

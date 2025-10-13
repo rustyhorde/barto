@@ -106,12 +106,18 @@ async fn handle_binary(
     match decode_from_slice(&bytes, standard()) {
         Err(e) => error!("unable to decode binary message: {e}"),
         Ok((msg, _)) => match msg {
-            BartoCli::Info => {
+            BartoCli::Info { json } => {
                 info!("received info message");
-                let pretty = Pretty::builder().env(vergen_pretty_env!()).build();
-                let pretty_ext = PrettyExt::from(pretty);
-                let info = BartosToBartoCli::Info(pretty_ext);
-                let encoded = encode_to_vec(&info, standard())?;
+                let pretty = Pretty::builder().env(vergen_pretty_env!());
+
+                let btbc: BartosToBartoCli = if json {
+                    let new_pretty = pretty.flatten(true);
+                    BartosToBartoCli::InfoJson(serde_json::to_string(&new_pretty.build())?)
+                } else {
+                    let pretty_ext = PrettyExt::from(pretty.build());
+                    BartosToBartoCli::Info(pretty_ext)
+                };
+                let encoded = encode_to_vec(&btbc, standard())?;
                 session.binary(encoded).await?;
             }
             BartoCli::Updates { name } => {

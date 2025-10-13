@@ -12,7 +12,10 @@ use bincode::{Decode, Encode};
 #[derive(Clone, Debug, Decode, Encode)]
 pub enum BartoCli {
     /// An info request from barto-cli
-    Info,
+    Info {
+        /// Output the information in JSON format
+        json: bool,
+    },
     /// A request from barto-cli to check for recent updates to a bartoc client
     Updates {
         /// The name of the bartoc client to check for recent updates

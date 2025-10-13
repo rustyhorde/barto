@@ -78,8 +78,8 @@ where
     let mut handler = Handler::builder().stream(stream).build();
 
     let message = match cli.command() {
-        Commands::Info => {
-            let info = encode_to_vec(BartoCli::Info, standard())?;
+        Commands::Info { json } => {
+            let info = encode_to_vec(BartoCli::Info { json: *json }, standard())?;
             Message::Binary(info.into())
         }
         Commands::Updates { name } => {

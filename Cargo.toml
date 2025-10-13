@@ -46,4 +46,4 @@ vergen-gix = { version = "2.1.0-beta.6", features = [
   "rustc",
   "si",
 ] }
-vergen-pretty = { version = "2.1.1", features = [ "bincode" ] }
+vergen-pretty = { version = "2.1.1", features = [ "bincode", "serde" ] }

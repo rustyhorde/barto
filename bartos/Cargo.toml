@@ -30,6 +30,7 @@ libbarto = { version = "0.2.0", path = "../libbarto" }
 regex = "1.12.1"
 rustls = { workspace = true }
 serde = { workspace = true }
+serde_json = "1.0.145"
 sqlx = { workspace = true }
 thiserror = { workspace = true }
 tokio = { workspace = true }
