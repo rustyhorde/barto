@@ -13,7 +13,7 @@ use bincode::{config::standard, decode_from_slice};
 use bon::Builder;
 use console::Style;
 use futures_util::{StreamExt as _, stream::SplitStream};
-use libbarto::BartosToBartoCli;
+use libbarto::{BartosToBartoCli, ClientData};
 use tokio::{net::TcpStream, select, time::sleep};
 use tokio_tungstenite::{MaybeTlsStream, WebSocketStream, tungstenite::Message};
 use tracing::{info, trace};
@@ -78,7 +78,9 @@ impl Handler {
                     info!("deleted {} exit status rows", deleted.1);
                 }
                 BartosToBartoCli::Clients(clients) => {
-                    for (_id, cd) in clients {
+                    let mut client_datas = clients.values().cloned().collect::<Vec<ClientData>>();
+                    client_datas.sort_by(|a, b| a.description().cmp(b.description()));
+                    for cd in client_datas {
                         info!(
                             "client {}: {}",
                             BOLD_GREEN.apply_to(cd.description().clone()),
