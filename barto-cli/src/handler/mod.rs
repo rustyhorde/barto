@@ -6,7 +6,7 @@
 // option. All files in the project carrying such notice may not be copied,
 // modified, or distributed except according to those terms.
 
-use std::{sync::LazyLock, time::Duration};
+use std::{collections::BTreeMap, sync::LazyLock, time::Duration};
 
 use anyhow::Result;
 use bincode::{config::standard, decode_from_slice};
@@ -23,6 +23,7 @@ use crate::error::Error;
 
 pub(crate) static BOLD_BLUE: LazyLock<Style> = LazyLock::new(|| Style::new().bold().blue());
 pub(crate) static BOLD_GREEN: LazyLock<Style> = LazyLock::new(|| Style::new().bold().green());
+pub(crate) static BOLD_YELLOW: LazyLock<Style> = LazyLock::new(|| Style::new().bold().yellow());
 type WsMessage = Option<std::result::Result<Message, tokio_tungstenite::tungstenite::Error>>;
 type Stream = SplitStream<WebSocketStream<MaybeTlsStream<TcpStream>>>;
 
@@ -91,11 +92,17 @@ impl Handler {
                     }
                 }
                 BartosToBartoCli::Query(map) => {
+                    let (max_col_label, _max_val_label) = Self::maxes_query(&map);
                     for (i, row) in map {
-                        println!("Row {i}:");
+                        let row_num = i + 1;
+                        println!(
+                            "{} {}",
+                            BOLD_YELLOW.apply_to("Row"),
+                            BOLD_YELLOW.apply_to(row_num)
+                        );
                         for (col, val) in row {
                             println!(
-                                "  {}: {}",
+                                "{:>max_col_label$}: {}",
                                 BOLD_GREEN.apply_to(col),
                                 BOLD_BLUE.apply_to(val)
                             );
@@ -104,6 +111,22 @@ impl Handler {
                 }
             },
         }
+    }
+
+    fn maxes_query(map: &BTreeMap<usize, BTreeMap<String, String>>) -> (usize, usize) {
+        let mut max_col_label = 0;
+        let mut max_val_label = 0;
+        for row in map.values() {
+            for (col, val) in row {
+                if col.len() > max_col_label {
+                    max_col_label = col.len();
+                }
+                if val.len() > max_val_label {
+                    max_val_label = val.len();
+                }
+            }
+        }
+        (max_col_label, max_val_label)
     }
 
     fn maxes_client_data(client_data: &[ClientData]) -> (usize, usize) {

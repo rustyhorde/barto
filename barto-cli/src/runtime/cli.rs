@@ -153,9 +153,5 @@ pub(crate) enum Commands {
         /// The query to run on bartos
         #[clap(short, long, help = "The query to run on bartos")]
         query: String,
-        /// The typemap for the results
-        #[clap(short, long, help = "The typemap for the results")]
-        #[arg(value_delimiter = ',')]
-        typemap: Vec<String>,
     },
 }

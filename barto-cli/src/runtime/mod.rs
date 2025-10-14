@@ -18,7 +18,7 @@ use anyhow::{Context as _, Result};
 use bincode::{config::standard, encode_to_vec};
 use clap::Parser as _;
 use futures_util::{SinkExt as _, StreamExt as _};
-use libbarto::{BartoCli, QueryTypes, header, init_tracing, load};
+use libbarto::{BartoCli, header, init_tracing, load};
 use tokio::time::sleep;
 use tokio_tungstenite::{connect_async, tungstenite::Message};
 use tracing::trace;
@@ -94,16 +94,10 @@ where
             let clients = encode_to_vec(BartoCli::Clients, standard())?;
             Message::Binary(clients.into())
         }
-        Commands::Query { query, typemap } => {
-            let types = typemap
-                .iter()
-                .cloned()
-                .filter_map(|s| QueryTypes::try_from(s).ok())
-                .collect::<Vec<QueryTypes>>();
+        Commands::Query { query } => {
             let query = encode_to_vec(
                 BartoCli::Query {
                     query: query.clone(),
-                    types,
                 },
                 standard(),
             )?;

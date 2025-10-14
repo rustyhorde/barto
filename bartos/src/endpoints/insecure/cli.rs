@@ -156,7 +156,7 @@ async fn handle_binary(
                 let encoded = encode_to_vec(&clients, standard())?;
                 session.binary(encoded).await?;
             }
-            BartoCli::Query { query, types: _ } => {
+            BartoCli::Query { query } => {
                 info!("received query message");
                 let results = sqlx::query(&query).fetch_all(pool).await?;
                 let mut map = BTreeMap::new();

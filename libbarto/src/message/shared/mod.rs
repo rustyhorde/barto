@@ -9,6 +9,5 @@
 pub(crate) mod init;
 pub(crate) mod odt;
 pub(crate) mod output;
-pub(crate) mod query;
 pub(crate) mod sys;
 pub(crate) mod uuid;
