@@ -154,7 +154,6 @@ async fn handle_binary(
             }
             BartoCli::Query { query } => {
                 info!("received query message");
-                mid_night()?;
                 let results = sqlx::query(&query).fetch_all(pool).await?;
                 let mut map = BTreeMap::new();
                 for (i, row) in results.iter().enumerate() {
@@ -239,51 +238,37 @@ async fn delete_data(config: &Config, pool: &MySqlPool) -> anyhow::Result<(u64, 
 }
 
 async fn delete_output_data(pool: &MySqlPool) -> anyhow::Result<(u64, u64)> {
-    midnight(pool).await?;
-    let output_count =
-        sqlx::query!("DELETE FROM output WHERE timestamp < timestamp(subdate(utc_date(), 1))")
-            .execute(pool)
-            .await?
-            .rows_affected();
-    let exit_status_count =
-        sqlx::query!("DELETE FROM exit_status WHERE timestamp < timestamp(subdate(utc_date(), 1))")
-            .execute(pool)
-            .await?
-            .rows_affected();
+    let midnight = midnight()?;
+    let output_count = sqlx::query!("DELETE FROM output_test WHERE timestamp < ?", midnight)
+        .execute(pool)
+        .await?
+        .rows_affected();
+    let exit_status_count = sqlx::query!("DELETE FROM exit_status WHERE timestamp < ?", midnight)
+        .execute(pool)
+        .await?
+        .rows_affected();
     Ok((output_count, exit_status_count))
 }
 
 async fn delete_output_test_data(pool: &MySqlPool) -> anyhow::Result<(u64, u64)> {
-    midnight(pool).await?;
-    let output_count =
-        sqlx::query!("DELETE FROM output_test WHERE timestamp < timestamp(subdate(utc_date(), 1))")
+    let midnight = midnight()?;
+    let output_count = sqlx::query!("DELETE FROM output_test WHERE timestamp < ?", midnight)
+        .execute(pool)
+        .await?
+        .rows_affected();
+    let exit_status_count =
+        sqlx::query!("DELETE FROM exit_status_test WHERE timestamp < ?", midnight)
             .execute(pool)
             .await?
             .rows_affected();
-    let exit_status_count = sqlx::query!(
-        "DELETE FROM exit_status_test WHERE timestamp < timestamp(subdate(utc_date(), 1))"
-    )
-    .execute(pool)
-    .await?
-    .rows_affected();
     Ok((output_count, exit_status_count))
 }
 
-async fn midnight(pool: &MySqlPool) -> anyhow::Result<()> {
-    let midnight = sqlx::query!("SELECT timestamp(subdate(utc_date(), 1)) as ts")
-        .fetch_one(pool)
-        .await?;
-    if let Some(ts) = midnight.ts {
-        info!("deleting entries older than {}", ts);
-    }
-    Ok(())
-}
-
-fn mid_night() -> anyhow::Result<()> {
+fn midnight() -> anyhow::Result<OffsetDateTime> {
     let now = OffsetDateTime::now_local()?;
     let midnight = now.replace_time(time!(0:0:0));
-    println!("now: {now}, midnight: {midnight}");
-    Ok(())
+    info!("deleting records older than: {midnight}");
+    Ok(midnight)
 }
 
 #[cfg(test)]

@@ -1,0 +1,12 @@
+{
+  "db_name": "MySQL",
+  "query": "DELETE FROM exit_status_test WHERE timestamp < ?",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": []
+  },
+  "hash": "e19e4d7485c283962f646745d8aa5392fc11c8612019545aad8e82935f92fe2e"
+}
