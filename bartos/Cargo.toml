@@ -31,7 +31,7 @@ regex = "1.12.1"
 rustls = { workspace = true }
 serde = { workspace = true }
 serde_json = "1.0.145"
-sqlx = { workspace = true }
+sqlx = { workspace = true, features = [ "uuid" ] }
 thiserror = { workspace = true }
 time = { workspace = true, features = ["local-offset", "macros"] }
 tokio = { workspace = true }

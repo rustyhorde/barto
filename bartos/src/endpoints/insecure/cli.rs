@@ -22,10 +22,14 @@ use futures_util::StreamExt as _;
 use libbarto::{BartoCli, BartosToBartoCli, ClientData, OutputTableName, UuidWrapper};
 use regex::Regex;
 use sqlx::{Column, MySqlPool, Row};
-use time::{OffsetDateTime, macros::time};
+use time::{
+    OffsetDateTime,
+    macros::{offset, time},
+};
 use tokio::{select, sync::Mutex};
 use tokio_util::sync::CancellationToken;
 use tracing::{error, info, trace};
+use uuid::Uuid;
 use vergen_pretty::{Pretty, PrettyExt, vergen_pretty_env};
 
 use crate::{common::Clients, config::Config, endpoints::insecure::Name};
@@ -152,18 +156,21 @@ async fn handle_binary(
                 let encoded = encode_to_vec(&clients, standard())?;
                 session.binary(encoded).await?;
             }
-            BartoCli::Query { query } => {
+            BartoCli::Query { query, types: _ } => {
                 info!("received query message");
                 let results = sqlx::query(&query).fetch_all(pool).await?;
                 let mut map = BTreeMap::new();
                 for (i, row) in results.iter().enumerate() {
-                    let mut row_map = HashMap::new();
+                    let mut row_map = BTreeMap::new();
                     for (j, column) in row.columns().iter().enumerate() {
                         if let Ok(value) = row.try_get::<u64, usize>(j) {
                             let _old = row_map.insert(column.name().to_string(), value.to_string());
-                        }
-                        if let Ok(value) = row.try_get::<OffsetDateTime, usize>(j) {
-                            // let value = value.to_offset(offset!(-4));
+                        } else if let Ok(value) = row.try_get::<OffsetDateTime, usize>(j) {
+                            let value = value.to_offset(offset!(-4));
+                            let _old = row_map.insert(column.name().to_string(), value.to_string());
+                        } else if let Ok(value) = row.try_get::<String, usize>(j) {
+                            let _old = row_map.insert(column.name().to_string(), value);
+                        } else if let Ok(value) = row.try_get::<Uuid, usize>(j) {
                             let _old = row_map.insert(column.name().to_string(), value.to_string());
                         }
                     }

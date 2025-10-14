@@ -34,5 +34,5 @@ pub enum BartosToBartoCli {
     /// Current connected clients
     Clients(HashMap<UuidWrapper, ClientData>),
     /// Result of a query operation
-    Query(BTreeMap<usize, HashMap<String, String>>),
+    Query(BTreeMap<usize, BTreeMap<String, String>>),
 }

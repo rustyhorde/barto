@@ -8,6 +8,8 @@
 
 use bincode::{Decode, Encode};
 
+use crate::QueryTypes;
+
 /// A message from a worker client to a worker session
 #[derive(Clone, Debug, Decode, Encode)]
 pub enum BartoCli {
@@ -29,5 +31,7 @@ pub enum BartoCli {
     Query {
         /// The query to run on bartos
         query: String,
+        /// The types of the query results
+        types: Vec<QueryTypes>,
     },
 }

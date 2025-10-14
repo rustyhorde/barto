@@ -65,6 +65,9 @@ pub enum Error {
         /// The invalid calendar string
         calendar: String,
     },
+    /// An invalid query type was specified
+    #[error("invalid query type")]
+    InvalidQueryType,
 }
 
 /// Converts an `anyhow::Error` into a suitable exit code or clap message for a CLI application.
