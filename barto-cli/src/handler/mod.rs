@@ -16,7 +16,7 @@ use futures_util::{StreamExt as _, stream::SplitStream};
 use libbarto::{BartosToBartoCli, ClientData};
 use tokio::{net::TcpStream, select, time::sleep};
 use tokio_tungstenite::{MaybeTlsStream, WebSocketStream, tungstenite::Message};
-use tracing::{info, trace};
+use tracing::trace;
 use vergen_pretty::PrettyExt;
 
 use crate::error::Error;
@@ -62,7 +62,7 @@ impl Handler {
                         let blah = format!("{label:>max_label$} ({category:>max_category$})");
                         let key = BOLD_BLUE.apply_to(&blah);
                         let value = BOLD_GREEN.apply_to(value);
-                        info!("{key}: {value}");
+                        println!("{key}: {value}");
                     }
                 }
                 BartosToBartoCli::InfoJson(json) => {
@@ -74,8 +74,8 @@ impl Handler {
                     }
                 }
                 BartosToBartoCli::Cleanup(deleted) => {
-                    info!("deleted {} output rows", deleted.0);
-                    info!("deleted {} exit status rows", deleted.1);
+                    println!("deleted {} output rows", deleted.0);
+                    println!("deleted {} exit status rows", deleted.1);
                 }
                 BartosToBartoCli::Clients(clients) => {
                     let mut client_datas = clients.values().cloned().collect::<Vec<ClientData>>();
