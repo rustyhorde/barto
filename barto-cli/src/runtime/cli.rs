@@ -148,4 +148,14 @@ pub(crate) enum Commands {
     Cleanup,
     #[clap(about = "List the currently connected clients")]
     Clients,
+    #[clap(about = "Run a query on bartos")]
+    Query {
+        /// The query to run on bartos
+        #[clap(short, long, help = "The query to run on bartos")]
+        query: String,
+        /// The typemap for the results
+        #[clap(short, long, help = "The typemap for the results")]
+        #[arg(value_delimiter = ',')]
+        typemap: Vec<String>,
+    },
 }

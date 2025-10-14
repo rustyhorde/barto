@@ -6,7 +6,10 @@
 // option. All files in the project carrying such notice may not be copied,
 // modified, or distributed except according to those terms.
 
-use std::{collections::HashMap, sync::LazyLock};
+use std::{
+    collections::{BTreeMap, HashMap},
+    sync::LazyLock,
+};
 
 use actix_web::{
     HttpRequest, Responder, Result,
@@ -18,7 +21,8 @@ use bincode::{config::standard, decode_from_slice, encode_to_vec};
 use futures_util::StreamExt as _;
 use libbarto::{BartoCli, BartosToBartoCli, ClientData, OutputTableName, UuidWrapper};
 use regex::Regex;
-use sqlx::MySqlPool;
+use sqlx::{Column, MySqlPool, Row};
+use time::{OffsetDateTime, macros::time};
 use tokio::{select, sync::Mutex};
 use tokio_util::sync::CancellationToken;
 use tracing::{error, info, trace};
@@ -148,6 +152,29 @@ async fn handle_binary(
                 let encoded = encode_to_vec(&clients, standard())?;
                 session.binary(encoded).await?;
             }
+            BartoCli::Query { query } => {
+                info!("received query message");
+                mid_night()?;
+                let results = sqlx::query(&query).fetch_all(pool).await?;
+                let mut map = BTreeMap::new();
+                for (i, row) in results.iter().enumerate() {
+                    let mut row_map = HashMap::new();
+                    for (j, column) in row.columns().iter().enumerate() {
+                        if let Ok(value) = row.try_get::<u64, usize>(j) {
+                            let _old = row_map.insert(column.name().to_string(), value.to_string());
+                        }
+                        if let Ok(value) = row.try_get::<OffsetDateTime, usize>(j) {
+                            // let value = value.to_offset(offset!(-4));
+                            let _old = row_map.insert(column.name().to_string(), value.to_string());
+                        }
+                    }
+                    let _old = map.insert(i, row_map);
+                }
+                info!("query returned {} rows", map.len());
+                let query_result = BartosToBartoCli::Query(map);
+                let encoded = encode_to_vec(&query_result, standard())?;
+                session.binary(encoded).await?;
+            }
         },
     }
     Ok(())
@@ -249,6 +276,13 @@ async fn midnight(pool: &MySqlPool) -> anyhow::Result<()> {
     if let Some(ts) = midnight.ts {
         info!("deleting entries older than {}", ts);
     }
+    Ok(())
+}
+
+fn mid_night() -> anyhow::Result<()> {
+    let now = OffsetDateTime::now_local()?;
+    let midnight = now.replace_time(time!(0:0:0));
+    println!("now: {now}, midnight: {midnight}");
     Ok(())
 }
 

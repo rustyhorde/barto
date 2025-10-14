@@ -21,7 +21,7 @@ use futures_util::{SinkExt as _, StreamExt as _};
 use libbarto::{BartoCli, header, init_tracing, load};
 use tokio::time::sleep;
 use tokio_tungstenite::{connect_async, tungstenite::Message};
-use tracing::trace;
+use tracing::{info, trace};
 
 use crate::{config::Config, error::Error, handler::Handler, runtime::cli::Commands};
 
@@ -93,6 +93,16 @@ where
         Commands::Clients => {
             let clients = encode_to_vec(BartoCli::Clients, standard())?;
             Message::Binary(clients.into())
+        }
+        Commands::Query { query, typemap } => {
+            info!("typemap: {typemap:?}");
+            let query = encode_to_vec(
+                BartoCli::Query {
+                    query: query.clone(),
+                },
+                standard(),
+            )?;
+            Message::Binary(query.into())
         }
     };
     sink.send(message).await?;

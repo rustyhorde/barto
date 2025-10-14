@@ -32,7 +32,7 @@ use tokio::{
     select, spawn,
     sync::mpsc::UnboundedSender,
     task::JoinHandle,
-    time::interval,
+    time::{MissedTickBehavior, interval},
     try_join,
 };
 use tokio_tungstenite::{
@@ -264,6 +264,7 @@ impl Handler {
 
     pub(crate) fn rt_monitor(&mut self) {
         let mut interval = interval(Duration::from_secs(1));
+        interval.set_missed_tick_behavior(MissedTickBehavior::Skip);
         trace!("Starting bartoc realtime monitor");
         let _cloned_sender = self.tx.clone();
         let cloned_token = self.token.clone();

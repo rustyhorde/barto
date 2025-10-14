@@ -90,6 +90,18 @@ impl Handler {
                         );
                     }
                 }
+                BartosToBartoCli::Query(map) => {
+                    for (i, row) in map {
+                        println!("Row {i}:");
+                        for (col, val) in row {
+                            println!(
+                                "  {}: {}",
+                                BOLD_GREEN.apply_to(col),
+                                BOLD_BLUE.apply_to(val)
+                            );
+                        }
+                    }
+                }
             },
         }
     }

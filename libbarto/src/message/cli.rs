@@ -25,4 +25,9 @@ pub enum BartoCli {
     Cleanup,
     /// The currently connected clients
     Clients,
+    /// A query to run on bartos
+    Query {
+        /// The query to run on bartos
+        query: String,
+    },
 }
