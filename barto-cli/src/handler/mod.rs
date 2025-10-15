@@ -82,6 +82,7 @@ impl Handler {
                     let mut client_datas = clients.values().cloned().collect::<Vec<ClientData>>();
                     client_datas.sort_by(|a, b| a.name().cmp(b.name()));
                     let (max_name_label, max_ip_label) = Self::maxes_client_data(&client_datas);
+                    let client_count = client_datas.len();
                     for cd in client_datas {
                         println!(
                             "{:>max_name_label$} ({:>max_ip_label$}): {}",
@@ -90,6 +91,8 @@ impl Handler {
                             BOLD_BLUE.apply_to(cd)
                         );
                     }
+                    println!();
+                    println!("Total clients: {}", BOLD_YELLOW.apply_to(client_count));
                 }
                 BartosToBartoCli::Query(map) => {
                     let (max_col_label, _max_val_label) = Self::maxes_query(&map);
