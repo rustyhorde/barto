@@ -81,7 +81,7 @@ pub fn clap_or_error(err: anyhow::Error) -> i32 {
     match err.downcast_ref::<clap::Error>() {
         Some(e) => match e.kind() {
             ErrorKind::DisplayHelp | ErrorKind::DisplayVersion => {
-                eprintln!("{e}");
+                println!("{e}");
                 0
             }
             ErrorKind::InvalidValue

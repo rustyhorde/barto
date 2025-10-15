@@ -23,7 +23,6 @@ bon = { workspace = true }
 clap = { workspace = true }
 config = { workspace = true }
 console = "0.16.1"
-const_format = "0.2.35"
 futures-util = { workspace = true }
 getset = { workspace = true }
 libbarto = { version = "0.2.0", path = "../libbarto" }
