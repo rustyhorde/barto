@@ -20,12 +20,12 @@ use libbarto::{
     StatusTableName, UuidWrapper, parse_ts_ping,
 };
 use sqlx::MySqlPool;
-use tokio::select;
+use tokio::{select, sync::Mutex};
 use tokio_util::sync::CancellationToken;
 use tracing::{error, info, trace};
 use uuid::Uuid;
 
-use crate::{config::Config, endpoints::insecure::Name};
+use crate::{common::Clients, config::Config, endpoints::insecure::Name};
 
 pub(crate) async fn worker(
     request: HttpRequest,
@@ -34,16 +34,19 @@ pub(crate) async fn worker(
     token: Data<CancellationToken>,
     config: Data<Config>,
     pool: Data<MySqlPool>,
+    clients: Data<Mutex<Clients>>,
 ) -> Result<impl Responder> {
     let describe = name.describe(&request);
     info!("worker connection from '{describe}'");
+    let id = Uuid::new_v4();
     let (response, session, msg_stream) = handle(&request, body)?;
     let mut agms = msg_stream.aggregate_continuations();
     let ws_token = token.get_ref().clone();
     let mut ws_session = session.clone();
     let mut init_session = session.clone();
     let config_c = config.clone();
-    if let Err(e) = initialize(&mut init_session, request, name, config).await {
+    let clients_c = clients.clone();
+    if let Err(e) = initialize(id, &mut init_session, request, name, config, clients).await {
         error!("unable to initialize worker session: {e}");
         let _ = init_session.close(None).await;
         return Err(e);
@@ -62,7 +65,7 @@ pub(crate) async fn worker(
                         match msg {
                             AggregatedMessage::Text(_byte_string) => error!("unexpected text message"),
                             AggregatedMessage::Binary(bytes) => {
-                                handle_binary(bytes, &config_c, pool.as_ref()).await.unwrap_or_else(|e| {
+                                handle_binary(id, bytes, &config_c, pool.as_ref(), clients_c.clone()).await.unwrap_or_else(|e| {
                                     error!("unable to handle binary message: {e}");
                                 });
                             },
@@ -103,24 +106,31 @@ pub(crate) async fn worker(
 
         info!("websocket disconnected '{describe}'");
         let _ = session.close(None).await;
+        let mut clients = clients_c.lock().await;
+        let _old = clients.remove_client(&id);
+        trace!("removed client '{describe}' from active clients");
     });
 
     Ok(response)
 }
 
 async fn initialize(
+    id: Uuid,
     session: &mut Session,
     request: HttpRequest,
     name: Query<Name>,
     config: Data<Config>,
+    clients: Data<Mutex<Clients>>,
 ) -> Result<()> {
     let describe = name.describe(&request);
-    let name = name.name().clone().unwrap_or_else(|| "default".to_string());
+    let mut clients = clients.lock().await;
+    let _old = clients.add_client(id, &name.name(), &Name::ip(&request));
+    let name = name.name();
     let schedules_opt = config.schedules().get(&name);
     let init_bytes = if let Some(schedules) = schedules_opt {
         let count = schedules.schedules().len();
         info!("sending bartoc '{describe}' {count} schedules");
-        let uuid = UuidWrapper(Uuid::new_v4());
+        let uuid = UuidWrapper(id);
         let init = Initialize::builder()
             .id(uuid)
             .schedules(schedules.clone())
@@ -139,7 +149,13 @@ async fn initialize(
     Ok(())
 }
 
-async fn handle_binary(bytes: Bytes, config: &Config, pool: &MySqlPool) -> Result<()> {
+async fn handle_binary(
+    id: Uuid,
+    bytes: Bytes,
+    config: &Config,
+    pool: &MySqlPool,
+    clients_mutex: Data<Mutex<Clients>>,
+) -> Result<()> {
     trace!("handling binary message");
     match decode_from_slice(&bytes, standard()) {
         Err(e) => error!("unable to decode binary message: {e}"),
@@ -178,6 +194,11 @@ async fn handle_binary(bytes: Bytes, config: &Config, pool: &MySqlPool) -> Resul
                     }
                 },
             },
+            Bartoc::ClientInfo(bi) => {
+                info!("received client info: {bi}");
+                let mut clients = clients_mutex.lock().await;
+                clients.add_client_data(&id, bi);
+            }
         },
     }
     Ok(())
@@ -185,11 +206,12 @@ async fn handle_binary(bytes: Bytes, config: &Config, pool: &MySqlPool) -> Resul
 
 async fn insert_output(pool: &MySqlPool, output: &Output) -> anyhow::Result<u64> {
     let id = sqlx::query!(
-        r#"INSERT INTO output (bartoc_uuid, bartoc_name, cmd_uuid, timestamp, kind, data)
-VALUES (?, ?, ?, ?, ?, ?)"#,
+        r#"INSERT INTO output (bartoc_uuid, bartoc_name, cmd_uuid, cmd_name, timestamp, kind, data)
+VALUES (?, ?, ?, ?, ?, ?, ?)"#,
         output.bartoc_uuid().0,
         output.bartoc_name(),
         output.cmd_uuid().0,
+        output.cmd_name(),
         output.timestamp().0,
         <OutputKind as Into<&'static str>>::into(output.kind()),
         output.data()
@@ -202,11 +224,12 @@ VALUES (?, ?, ?, ?, ?, ?)"#,
 
 async fn insert_output_test(pool: &MySqlPool, output: &Output) -> anyhow::Result<u64> {
     let id = sqlx::query!(
-        r#"INSERT INTO output_test (bartoc_uuid, bartoc_name, cmd_uuid, timestamp, kind, data)
-VALUES (?, ?, ?, ?, ?, ?)"#,
+        r#"INSERT INTO output_test (bartoc_uuid, bartoc_name, cmd_uuid, cmd_name, timestamp, kind, data)
+VALUES (?, ?, ?, ?, ?, ?, ?)"#,
         output.bartoc_uuid().0,
         output.bartoc_name(),
         output.cmd_uuid().0,
+        output.cmd_name(),
         output.timestamp().0,
         <OutputKind as Into<&'static str>>::into(output.kind()),
         output.data()

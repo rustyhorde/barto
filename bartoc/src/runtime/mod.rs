@@ -51,6 +51,7 @@ const HEADER_PREFIX: &str = r"██████╗  █████╗ ██�
 ██████╔╝██║  ██║██║  ██║   ██║   ╚██████╔╝╚██████╗
 ╚═════╝ ╚═╝  ╚═╝╚═╝  ╚═╝   ╚═╝    ╚═════╝  ╚═════╝";
 
+#[allow(clippy::too_many_lines)]
 pub(crate) async fn run<I, T>(args: Option<I>) -> Result<()>
 where
     I: IntoIterator<Item = T>,
@@ -112,8 +113,10 @@ where
                 .data_tx(data_tx.clone())
                 .token(heartbeat_token)
                 .bartoc_name(config.name().clone())
+                .maybe_missed_tick(config.missed_tick())
                 .build();
             handler.heartbeat(config.client_timeout());
+            handler.bartoc_info().await?;
             trace!("bartoc heartbeat started");
             let mut ws_handler = WsHandler::builder()
                 .tx(tx.clone())

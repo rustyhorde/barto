@@ -31,6 +31,7 @@ redb = { workspace = true }
 regex = "1.11.3"
 rustls = { workspace = true }
 serde = { workspace = true }
+sysinfo = { workspace = true }
 thiserror = { workspace = true }
 time = { workspace = true, features = [
     "formatting",

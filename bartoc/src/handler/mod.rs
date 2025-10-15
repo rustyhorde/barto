@@ -21,8 +21,8 @@ use bincode::{Decode, Encode, config::standard, encode_to_vec};
 use bon::Builder;
 use futures_util::{SinkExt as _, stream::SplitSink};
 use libbarto::{
-    Bartoc, BartocWs, BartosToBartoc, Data, OffsetDataTimeWrapper, Output, OutputKind, Realtime,
-    Status, UuidWrapper, parse_ts_ping, send_ts_ping,
+    Bartoc, BartocInfo, BartocWs, BartosToBartoc, Data, MissedTick, OffsetDataTimeWrapper, Output,
+    OutputKind, Realtime, Status, UuidWrapper, parse_ts_ping, send_ts_ping,
 };
 use time::OffsetDateTime;
 use tokio::{
@@ -32,7 +32,7 @@ use tokio::{
     select, spawn,
     sync::mpsc::UnboundedSender,
     task::JoinHandle,
-    time::interval,
+    time::{MissedTickBehavior, interval},
     try_join,
 };
 use tokio_tungstenite::{
@@ -59,6 +59,7 @@ pub(crate) enum BartocMessage {
     BartosToBartoc(BartosToBartoc),
     Data(Data),
     RecordData(Data),
+    ClientInfo(BartocInfo),
 }
 
 impl BartocMessage {
@@ -98,12 +99,13 @@ pub(crate) struct Handler {
     tx: UnboundedSender<BartocMessage>,
     sink: SplitSink<WebSocketStream<MaybeTlsStream<TcpStream>>, Message>,
     #[builder(default = HashMap::new())]
-    rt_map: HashMap<Realtime, Vec<String>>,
+    rt_map: HashMap<Realtime, (String, Vec<String>)>,
     rt_monitor_handle: Option<JoinHandle<()>>,
     // the stdout queue
     data_tx: UnboundedSender<Data>,
     id: Option<UuidWrapper>,
     bartoc_name: String,
+    missed_tick: Option<MissedTick>,
 }
 
 impl Handler {
@@ -166,10 +168,8 @@ impl Handler {
                         for schedule in schedules {
                             if let Ok(rt) = Realtime::try_from(&schedule.on_calendar()[..]) {
                                 info!("bartoc schedule: {rt} -> {}", schedule.cmds().join(", "));
-                                self.rt_map
-                                    .entry(rt)
-                                    .or_default()
-                                    .clone_from(schedule.cmds());
+                                *self.rt_map.entry(rt).or_default() =
+                                    (schedule.name().clone(), schedule.cmds().clone());
                             } else {
                                 error!(
                                     "unable to parse bartoc schedule: {}",
@@ -195,11 +195,31 @@ impl Handler {
                 }
                 Ok(())
             }
+            BartocMessage::ClientInfo(ci) => {
+                let bartoc_msg = Bartoc::ClientInfo(ci.clone());
+                let msg_bytes = encode_to_vec(&bartoc_msg, standard())?;
+                let msg = Message::Binary(msg_bytes.into());
+                if let Err(e) = self.send_message(msg).await {
+                    error!("unable to send message to websocket: {e}");
+                }
+                Ok(())
+            }
         }
     }
 
     async fn send_message(&mut self, msg: Message) -> Result<()> {
         self.sink.send(msg).await?;
+        Ok(())
+    }
+
+    pub(crate) async fn bartoc_info(&mut self) -> Result<()> {
+        let info = BartocInfo::builder().build();
+        let bartoc_msg = Bartoc::ClientInfo(info);
+        let msg_bytes = encode_to_vec(&bartoc_msg, standard())?;
+        let msg = Message::Binary(msg_bytes.into());
+        if let Err(e) = self.send_message(msg).await {
+            error!("unable to send message to websocket: {e}");
+        }
         Ok(())
     }
 
@@ -242,18 +262,35 @@ impl Handler {
     }
 
     pub(crate) fn rt_monitor(&mut self) {
-        let mut interval = interval(Duration::from_secs(1));
         trace!("Starting bartoc realtime monitor");
-        let _cloned_sender = self.tx.clone();
         let cloned_token = self.token.clone();
         let cloned_rt_map = self.rt_map.clone();
         let cloned_tx = self.tx.clone();
         let cloned_bartoc_name = self.bartoc_name.clone();
+        let cloned_missed_tick = self.missed_tick;
         if let Some(bartoc_id) = self.id {
             if let Some(handle) = &self.rt_monitor_handle {
                 handle.abort();
             }
             let rt_mon_handle = spawn(async move {
+                let mut interval = interval(Duration::from_secs(1));
+                if let Some(missed_tick) = &cloned_missed_tick {
+                    match missed_tick {
+                        MissedTick::Skip => {
+                            info!("setting missed tick behavior to Skip");
+                            interval.set_missed_tick_behavior(MissedTickBehavior::Skip);
+                        }
+                        MissedTick::Delay => {
+                            info!("setting missed tick behavior to Delay");
+                            interval.set_missed_tick_behavior(MissedTickBehavior::Delay);
+                        }
+                        MissedTick::Burst => {
+                            info!("setting missed tick behavior to Burst");
+                            interval.set_missed_tick_behavior(MissedTickBehavior::Burst);
+                        }
+                    }
+                }
+
                 loop {
                     select! {
                         () = cloned_token.cancelled() => {
@@ -261,22 +298,34 @@ impl Handler {
                             break;
                         }
                         _ = interval.tick() => {
+                            let start = Instant::now();
                             let now = OffsetDateTime::now_utc();
-                            for (rt, cmds) in &cloned_rt_map {
-                                if rt.should_run(now) {
-                                    trace!("running commands: {}", cmds.join(", "));
+                            let run_nows: Vec<Realtime> = cloned_rt_map.keys().filter(|&rt| rt.should_run(now)).cloned().collect();
+                            let cmds: HashMap<String, Vec<String>> = run_nows.into_iter().filter_map(|rt| {
+                                cloned_rt_map.get(&rt).map(|(name, cmds)| (name.clone(), cmds.clone()))
+                            }).collect();
+                            let tx_c = cloned_tx.clone();
+                            let bartoc_name_c = cloned_bartoc_name.clone();
+                            if !cmds.is_empty() {
+                                info!("spawning {} commands after {}ns", cmds.len(),start.elapsed().as_nanos());
+                            }
+                            let _handle = spawn(async move {
+                                for (name, cmds) in cmds {
+                                    let name_c = name.clone();
                                     for cmd in cmds {
                                         let id = Uuid::new_v4();
-                                        let cctx = cloned_tx.clone();
-                                        let cc = cmd.clone();
-                                        let bnc = cloned_bartoc_name.clone();
-                                        info!("running command: {id}");
-                                        let _handle = spawn(async move {
-                                            Self::run_cmd(id, bartoc_id, bnc, &cc, cctx).await.unwrap_or_else(|e| error!("unable to run command: {e}"));
-                                        });
+                                        info!("running command: {name_c} ({id})");
+                                        Self::run_cmd(
+                                            id,
+                                            bartoc_id,
+                                            &bartoc_name_c,
+                                            &name,
+                                            &cmd,
+                                            tx_c.clone()
+                                        ).await.unwrap_or_else(|e| error!("unable to run command: {e}"));
                                     }
                                 }
-                            }
+                            });
                         }
                     }
                 }
@@ -290,7 +339,8 @@ impl Handler {
     pub(crate) async fn run_cmd(
         id: Uuid,
         bartoc_id: UuidWrapper,
-        bartoc_name: String,
+        bartoc_name: &str,
+        cmd_name: &str,
         cmd_str: &str,
         tx: UnboundedSender<BartocMessage>,
     ) -> Result<()> {
@@ -301,15 +351,19 @@ impl Handler {
         let cmd_handle = spawn(async move { child.wait().await.map_err(Into::into) });
 
         let stdout_tx = tx.clone();
-        let cloned_bartoc_name = bartoc_name.clone();
+        let bartoc_name = bartoc_name.to_string();
+        let cmd_name = cmd_name.to_string();
+        let bartoc_name_c = bartoc_name.clone();
+        let cmd_name_c = cmd_name.clone();
         let stdout_handle = spawn(async move {
             let mut reader = BufReader::new(stdout).lines();
             while let Some(line) = reader.next_line().await.unwrap_or(None) {
                 let output = Output::builder()
                     .timestamp(OffsetDataTimeWrapper(OffsetDateTime::now_utc()))
                     .bartoc_uuid(bartoc_id)
-                    .bartoc_name(cloned_bartoc_name.clone())
+                    .bartoc_name(bartoc_name_c.clone())
                     .cmd_uuid(UuidWrapper(id))
+                    .cmd_name(cmd_name_c.clone())
                     .kind(OutputKind::Stdout)
                     .data(line)
                     .build();
@@ -326,6 +380,7 @@ impl Handler {
                     .bartoc_uuid(bartoc_id)
                     .bartoc_name(bartoc_name.clone())
                     .cmd_uuid(UuidWrapper(id))
+                    .cmd_name(cmd_name.clone())
                     .kind(OutputKind::Stderr)
                     .data(line)
                     .build();

@@ -28,13 +28,13 @@ use rustls::crypto::aws_lc_rs::default_provider;
 use sqlx::MySqlPool;
 #[cfg(unix)]
 use tokio::signal::unix::{SignalKind, signal};
-use tokio::{select, spawn, time::sleep};
+use tokio::{select, spawn, sync::Mutex, time::sleep};
 use tokio_util::sync::CancellationToken;
 use tracing::{info, trace, warn};
 #[cfg(not(unix))]
 use {tokio::signal::ctrl_c, tracing::error};
 
-use crate::{config::Config, endpoints::insecure::insecure_config, error::Error};
+use crate::{common::Clients, config::Config, endpoints::insecure::insecure_config, error::Error};
 
 use self::cli::Cli;
 
@@ -111,6 +111,10 @@ where
     let pool = MySqlPool::connect(&url).await?;
     let pool_data = Data::new(pool);
 
+    // Setup the client data
+    let clients = Clients::builder().build();
+    let clients_data = Data::new(Mutex::new(clients));
+
     // Startup the server
     trace!("Starting {} on {socket_addr:?}", env!("CARGO_PKG_NAME"));
     info!("{} configured!", env!("CARGO_PKG_NAME"));
@@ -127,6 +131,7 @@ where
                     .app_data(app_token_data.clone())
                     .app_data(config_data.clone())
                     .app_data(pool_data.clone())
+                    .app_data(clients_data.clone())
                     .wrap(Compress::default())
                     .service(scope("/v1").configure(insecure_config))
                 })

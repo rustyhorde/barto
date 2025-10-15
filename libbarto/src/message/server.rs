@@ -6,10 +6,12 @@
 // option. All files in the project carrying such notice may not be copied,
 // modified, or distributed except according to those terms.
 
+use std::collections::{BTreeMap, HashMap};
+
 use bincode::{Decode, Encode};
 use vergen_pretty::PrettyExt;
 
-use crate::Initialize;
+use crate::{Initialize, UuidWrapper, message::shared::sys::ClientData};
 
 /// A message from a worker client to a worker session
 #[derive(Clone, Debug, Decode, Encode)]
@@ -23,8 +25,14 @@ pub enum BartosToBartoc {
 pub enum BartosToBartoCli {
     /// Information about the bartos server
     Info(PrettyExt),
+    /// Information about the bartos server in JSON format
+    InfoJson(String),
     /// Updates about a named bartoc client
     Updates(Vec<String>),
     /// Result of a cleanup operation
     Cleanup((u64, u64)),
+    /// Current connected clients
+    Clients(HashMap<UuidWrapper, ClientData>),
+    /// Result of a query operation
+    Query(BTreeMap<usize, BTreeMap<String, String>>),
 }

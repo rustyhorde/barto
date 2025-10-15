@@ -78,8 +78,8 @@ where
     let mut handler = Handler::builder().stream(stream).build();
 
     let message = match cli.command() {
-        Commands::Info => {
-            let info = encode_to_vec(BartoCli::Info, standard())?;
+        Commands::Info { json } => {
+            let info = encode_to_vec(BartoCli::Info { json: *json }, standard())?;
             Message::Binary(info.into())
         }
         Commands::Updates { name } => {
@@ -90,6 +90,19 @@ where
             let cleanup = encode_to_vec(BartoCli::Cleanup, standard())?;
             Message::Binary(cleanup.into())
         }
+        Commands::Clients => {
+            let clients = encode_to_vec(BartoCli::Clients, standard())?;
+            Message::Binary(clients.into())
+        }
+        Commands::Query { query } => {
+            let query = encode_to_vec(
+                BartoCli::Query {
+                    query: query.clone(),
+                },
+                standard(),
+            )?;
+            Message::Binary(query.into())
+        }
     };
     sink.send(message).await?;
     trace!("message sent");
@@ -99,5 +112,6 @@ where
     sleep(Duration::from_secs(1)).await;
     sink.send(Message::Close(None)).await?;
     trace!("connection closed");
+    sleep(Duration::from_secs(1)).await;
     Ok(())
 }

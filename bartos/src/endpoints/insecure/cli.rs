@@ -6,7 +6,10 @@
 // option. All files in the project carrying such notice may not be copied,
 // modified, or distributed except according to those terms.
 
-use std::sync::LazyLock;
+use std::{
+    collections::{BTreeMap, HashMap},
+    sync::LazyLock,
+};
 
 use actix_web::{
     HttpRequest, Responder, Result,
@@ -16,15 +19,20 @@ use actix_web::{
 use actix_ws::{AggregatedMessage, Session, handle};
 use bincode::{config::standard, decode_from_slice, encode_to_vec};
 use futures_util::StreamExt as _;
-use libbarto::{BartoCli, BartosToBartoCli, OutputTableName};
+use libbarto::{BartoCli, BartosToBartoCli, ClientData, OutputTableName, UuidWrapper};
 use regex::Regex;
-use sqlx::MySqlPool;
-use tokio::select;
+use sqlx::{Column, MySqlPool, Row};
+use time::{
+    OffsetDateTime,
+    macros::{offset, time},
+};
+use tokio::{select, sync::Mutex};
 use tokio_util::sync::CancellationToken;
 use tracing::{error, info, trace};
+use uuid::Uuid;
 use vergen_pretty::{Pretty, PrettyExt, vergen_pretty_env};
 
-use crate::{config::Config, endpoints::insecure::Name};
+use crate::{common::Clients, config::Config, endpoints::insecure::Name};
 
 #[allow(dead_code)]
 static GARUDA_UPDATE_RE: LazyLock<Regex> = LazyLock::new(|| {
@@ -38,6 +46,7 @@ pub(crate) async fn cli(
     token: Data<CancellationToken>,
     config: Data<Config>,
     pool: Data<MySqlPool>,
+    clients_mutex: Data<Mutex<Clients>>,
 ) -> Result<impl Responder> {
     let describe = name.describe(&request);
     info!("cli connection from '{describe}'");
@@ -62,7 +71,8 @@ pub(crate) async fn cli(
                                     bytes,
                                     &mut ws_session,
                                     config.as_ref(),
-                                    pool.as_ref()
+                                    pool.as_ref(),
+                                    clients_mutex.clone(),
                                 ).await {
                                 error!("{e}");
                             },
@@ -99,16 +109,23 @@ async fn handle_binary(
     session: &mut Session,
     config: &Config,
     pool: &MySqlPool,
+    clients_mutex: Data<Mutex<Clients>>,
 ) -> anyhow::Result<()> {
     match decode_from_slice(&bytes, standard()) {
         Err(e) => error!("unable to decode binary message: {e}"),
         Ok((msg, _)) => match msg {
-            BartoCli::Info => {
+            BartoCli::Info { json } => {
                 info!("received info message");
-                let pretty = Pretty::builder().env(vergen_pretty_env!()).build();
-                let pretty_ext = PrettyExt::from(pretty);
-                let info = BartosToBartoCli::Info(pretty_ext);
-                let encoded = encode_to_vec(&info, standard())?;
+                let pretty = Pretty::builder().env(vergen_pretty_env!());
+
+                let btbc: BartosToBartoCli = if json {
+                    let new_pretty = pretty.flatten(true);
+                    BartosToBartoCli::InfoJson(serde_json::to_string(&new_pretty.build())?)
+                } else {
+                    let pretty_ext = PrettyExt::from(pretty.build());
+                    BartosToBartoCli::Info(pretty_ext)
+                };
+                let encoded = encode_to_vec(&btbc, standard())?;
                 session.binary(encoded).await?;
             }
             BartoCli::Updates { name } => {
@@ -125,6 +142,43 @@ async fn handle_binary(
                 info!("deleted {} exit status rows", counts.1);
                 let cleanup = BartosToBartoCli::Cleanup(counts);
                 let encoded = encode_to_vec(&cleanup, standard())?;
+                session.binary(encoded).await?;
+            }
+            BartoCli::Clients => {
+                info!("received clients message");
+                let clients = clients_mutex.lock().await;
+                let mapped_clients = clients
+                    .clients()
+                    .iter()
+                    .map(|c| (UuidWrapper(*c.0), c.1.clone()))
+                    .collect::<HashMap<UuidWrapper, ClientData>>();
+                let clients = BartosToBartoCli::Clients(mapped_clients);
+                let encoded = encode_to_vec(&clients, standard())?;
+                session.binary(encoded).await?;
+            }
+            BartoCli::Query { query } => {
+                info!("received query message");
+                let results = sqlx::query(&query).fetch_all(pool).await?;
+                let mut map = BTreeMap::new();
+                for (i, row) in results.iter().enumerate() {
+                    let mut row_map = BTreeMap::new();
+                    for (j, column) in row.columns().iter().enumerate() {
+                        if let Ok(value) = row.try_get::<u64, usize>(j) {
+                            let _old = row_map.insert(column.name().to_string(), value.to_string());
+                        } else if let Ok(value) = row.try_get::<OffsetDateTime, usize>(j) {
+                            let value = value.to_offset(offset!(-4));
+                            let _old = row_map.insert(column.name().to_string(), value.to_string());
+                        } else if let Ok(value) = row.try_get::<String, usize>(j) {
+                            let _old = row_map.insert(column.name().to_string(), value);
+                        } else if let Ok(value) = row.try_get::<Uuid, usize>(j) {
+                            let _old = row_map.insert(column.name().to_string(), value.to_string());
+                        }
+                    }
+                    let _old = map.insert(i, row_map);
+                }
+                info!("query returned {} rows", map.len());
+                let query_result = BartosToBartoCli::Query(map);
+                let encoded = encode_to_vec(&query_result, standard())?;
                 session.binary(encoded).await?;
             }
         },
@@ -191,30 +245,37 @@ async fn delete_data(config: &Config, pool: &MySqlPool) -> anyhow::Result<(u64, 
 }
 
 async fn delete_output_data(pool: &MySqlPool) -> anyhow::Result<(u64, u64)> {
-    let output_count = sqlx::query!("DELETE FROM output WHERE timestamp < timestamp(current_date)")
+    let midnight = midnight()?;
+    let output_count = sqlx::query!("DELETE FROM output WHERE timestamp < ?", midnight)
+        .execute(pool)
+        .await?
+        .rows_affected();
+    let exit_status_count = sqlx::query!("DELETE FROM exit_status WHERE timestamp < ?", midnight)
+        .execute(pool)
+        .await?
+        .rows_affected();
+    Ok((output_count, exit_status_count))
+}
+
+async fn delete_output_test_data(pool: &MySqlPool) -> anyhow::Result<(u64, u64)> {
+    let midnight = midnight()?;
+    let output_count = sqlx::query!("DELETE FROM output_test WHERE timestamp < ?", midnight)
         .execute(pool)
         .await?
         .rows_affected();
     let exit_status_count =
-        sqlx::query!("DELETE FROM exit_status WHERE timestamp < timestamp(current_date)")
+        sqlx::query!("DELETE FROM exit_status_test WHERE timestamp < ?", midnight)
             .execute(pool)
             .await?
             .rows_affected();
     Ok((output_count, exit_status_count))
 }
 
-async fn delete_output_test_data(pool: &MySqlPool) -> anyhow::Result<(u64, u64)> {
-    let output_count =
-        sqlx::query!("DELETE FROM output_test WHERE timestamp < timestamp(current_date)")
-            .execute(pool)
-            .await?
-            .rows_affected();
-    let exit_status_count =
-        sqlx::query!("DELETE FROM exit_status_test WHERE timestamp < timestamp(current_date)")
-            .execute(pool)
-            .await?
-            .rows_affected();
-    Ok((output_count, exit_status_count))
+fn midnight() -> anyhow::Result<OffsetDateTime> {
+    let now = OffsetDateTime::now_local()?;
+    let midnight = now.replace_time(time!(0:0:0));
+    info!("deleting records older than: {midnight}");
+    Ok(midnight)
 }
 
 #[cfg(test)]

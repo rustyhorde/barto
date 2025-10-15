@@ -130,6 +130,7 @@ impl BartocDatabase {
                             .bartoc_name(self.bartoc_name.clone())
                             .cmd_uuid(key.value().cmd_uuid())
                             .timestamp(key.value().timestamp())
+                            .cmd_name(value.value().name().clone())
                             .kind(value.value().kind())
                             .data(value.value().data().clone())
                             .build();

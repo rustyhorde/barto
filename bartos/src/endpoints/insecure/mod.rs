@@ -13,33 +13,44 @@ use actix_web::{
     HttpRequest,
     web::{ServiceConfig, get},
 };
-use getset::Getters;
 use serde::Deserialize;
 
-#[derive(Deserialize, Getters)]
-#[getset(get = "pub(crate)")]
+#[derive(Deserialize)]
 pub(crate) struct Name {
     name: Option<String>,
 }
 
 impl Name {
     pub(crate) fn describe(&self, request: &HttpRequest) -> String {
-        let unknown = String::from("Unknown");
         let conn_info = request.connection_info();
         let ip = conn_info
             .realip_remote_addr()
-            .map_or(unknown.clone(), ToString::to_string);
-        let name = self.name.as_deref().map_or(unknown, ToString::to_string);
+            .map_or_else(Self::unknown, ToString::to_string);
+        let name = self
+            .name
+            .as_deref()
+            .map_or_else(Self::unknown, ToString::to_string);
         format!("{name} ({ip})")
+    }
+
+    pub(crate) fn name(&self) -> String {
+        self.name.clone().unwrap_or_else(Self::unknown)
+    }
+
+    pub(crate) fn ip(request: &HttpRequest) -> String {
+        let conn_info = request.connection_info();
+        conn_info
+            .realip_remote_addr()
+            .map_or_else(Self::unknown, ToString::to_string)
+    }
+
+    fn unknown() -> String {
+        String::from("Unknown")
     }
 }
 
 pub(crate) fn insecure_config(cfg: &mut ServiceConfig) {
     _ = cfg
-        // .route("/health", get().to(health::health))
-        // .route("/info", get().to(info::info))
         .route("/ws/cli", get().to(cli::cli))
-        .route("/ws/worker", get().to(worker::worker))
-        // .route("/ws/manager", get().to(manager::manager))
-        ;
+        .route("/ws/worker", get().to(worker::worker));
 }

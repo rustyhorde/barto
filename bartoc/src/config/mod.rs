@@ -12,7 +12,7 @@ use anyhow::{Context, Result};
 use config::Source;
 use dirs2::data_dir;
 use getset::{CopyGetters, Getters, Setters};
-use libbarto::{Bartos, PathDefaults, Tracing, TracingConfigExt, load, to_path_buf};
+use libbarto::{Bartos, MissedTick, PathDefaults, Tracing, TracingConfigExt, load, to_path_buf};
 use serde::{Deserialize, Serialize};
 use tracing::Level;
 use tracing_subscriber_init::{TracingConfig, get_effective_level};
@@ -47,6 +47,8 @@ pub(crate) struct Config {
     retry_count: u8,
     #[getset(get_copy = "pub(crate)")]
     client_timeout: Option<u64>,
+    #[getset(get_copy = "pub(crate)")]
+    missed_tick: Option<MissedTick>,
 }
 
 impl TracingConfig for Config {

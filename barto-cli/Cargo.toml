@@ -28,14 +28,22 @@ getset = { workspace = true }
 libbarto = { version = "0.2.0", path = "../libbarto" }
 serde = { workspace = true }
 thiserror = { workspace = true }
-tokio = { workspace = true, features = ["macros", "process", "signal", "sync", "time"] }
+tokio = { workspace = true, features = [
+    "macros",
+    "process",
+    "signal",
+    "sync",
+    "time",
+] }
 tokio-tungstenite = { workspace = true }
 tracing = { workspace = true }
 tracing-subscriber-init = { workspace = true }
 vergen-pretty = { workspace = true }
 
 [build-dependencies]
+anyhow = { workspace = true }
 rustversion = { workspace = true }
+vergen-gix = { workspace = true }
 
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = [

@@ -151,6 +151,18 @@ impl From<StatusTableName> for &'static str {
     }
 }
 
+/// The output table name
+#[derive(Clone, Copy, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
+pub enum MissedTick {
+    /// `MissedTickBehavior::Burst`
+    #[default]
+    Burst,
+    /// `MissedTickBehavior::Delay`
+    Delay,
+    /// `MissedTickBehavior::Skip`
+    Skip,
+}
+
 /// The schedule to run commands on a given worker client
 #[derive(Clone, Debug, Decode, Deserialize, Encode, Eq, Getters, PartialEq, Serialize)]
 #[getset(get = "pub")]
@@ -163,6 +175,8 @@ pub struct Schedules {
 #[derive(Clone, Debug, Decode, Default, Deserialize, Encode, Eq, Getters, PartialEq, Serialize)]
 #[getset(get = "pub")]
 pub struct Schedule {
+    /// The name of the schedule
+    name: String,
     /// A calendar string similar to cron format
     on_calendar: String,
     /// The commands to run

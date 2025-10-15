@@ -65,6 +65,9 @@ pub enum Error {
         /// The invalid calendar string
         calendar: String,
     },
+    /// An invalid query type was specified
+    #[error("invalid query type")]
+    InvalidQueryType,
 }
 
 /// Converts an `anyhow::Error` into a suitable exit code or clap message for a CLI application.
@@ -77,11 +80,10 @@ pub fn clap_or_error(err: anyhow::Error) -> i32 {
     };
     match err.downcast_ref::<clap::Error>() {
         Some(e) => match e.kind() {
-            ErrorKind::DisplayHelp => {
-                eprintln!("{e}");
+            ErrorKind::DisplayHelp | ErrorKind::DisplayVersion => {
+                println!("{e}");
                 0
             }
-            ErrorKind::DisplayVersion => 0,
             ErrorKind::InvalidValue
             | ErrorKind::UnknownArgument
             | ErrorKind::InvalidSubcommand

@@ -6,13 +6,26 @@
 // option. All files in the project carrying such notice may not be copied,
 // modified, or distributed except according to those terms.
 
+use std::{io::Cursor, sync::LazyLock};
+
 use clap::{ArgAction, Parser, Subcommand};
 use config::{ConfigError, Map, Source, Value, ValueKind};
 use getset::{CopyGetters, Getters};
 use libbarto::PathDefaults;
+use vergen_pretty::{Pretty, vergen_pretty_env};
+
+static LONG_VERSION: LazyLock<String> = LazyLock::new(|| {
+    let pretty = Pretty::builder().env(vergen_pretty_env!()).build();
+    let mut cursor = Cursor::new(vec![]);
+    let mut output = env!("CARGO_PKG_VERSION").to_string();
+    output.push_str("\n\n");
+    pretty.display(&mut cursor).unwrap();
+    output += &String::from_utf8_lossy(cursor.get_ref());
+    output
+});
 
 #[derive(Clone, CopyGetters, Debug, Getters, Parser)]
-#[command(author, version, about, long_about = None)]
+#[command(author, version, about, long_version = LONG_VERSION.as_str(), long_about = None)]
 pub(crate) struct Cli {
     /// Set logging verbosity.  More v's, more verbose.
     #[clap(
@@ -124,7 +137,16 @@ impl PathDefaults for Cli {
 #[derive(Clone, Debug, Subcommand)]
 pub(crate) enum Commands {
     #[clap(about = "Display the bartos version information")]
-    Info,
+    Info {
+        /// Output the information in JSON format
+        #[clap(
+            short,
+            long,
+            help = "Output the information in JSON format",
+            default_value_t = false
+        )]
+        json: bool,
+    },
     #[clap(about = "Check for recent updates on a batoc client")]
     Updates {
         /// The name of the batoc client to check for recent updates
@@ -137,4 +159,12 @@ pub(crate) enum Commands {
     },
     #[clap(about = "Perform cleanup of old database entries")]
     Cleanup,
+    #[clap(about = "List the currently connected clients")]
+    Clients,
+    #[clap(about = "Run a query on bartos")]
+    Query {
+        /// The query to run on bartos
+        #[clap(short, long, help = "The query to run on bartos")]
+        query: String,
+    },
 }

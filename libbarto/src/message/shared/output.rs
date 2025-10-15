@@ -78,6 +78,9 @@ pub struct Output {
     /// The UUID of the bartoc command that produced the output
     #[get_copy = "pub"]
     cmd_uuid: UuidWrapper,
+    /// The name of the command that produced the output
+    #[get = "pub"]
+    cmd_name: String,
     /// The kind of output (stdout or stderr)
     #[get_copy = "pub"]
     kind: OutputKind,

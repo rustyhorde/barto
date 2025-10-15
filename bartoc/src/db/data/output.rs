@@ -60,6 +60,8 @@ impl From<&Output> for OutputKey {
     PartialOrd,
 )]
 pub(crate) struct OutputValue {
+    #[get = "pub(crate)"]
+    name: String,
     #[get_copy = "pub(crate)"]
     kind: OutputKind,
     #[get = "pub(crate)"]
@@ -75,6 +77,7 @@ impl Display for OutputValue {
 impl From<&Output> for OutputValue {
     fn from(output: &Output) -> Self {
         OutputValue {
+            name: output.cmd_name().clone(),
             kind: output.kind(),
             data: output.data().clone(),
         }
