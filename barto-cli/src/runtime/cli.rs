@@ -8,11 +8,22 @@
 
 use clap::{ArgAction, Parser, Subcommand};
 use config::{ConfigError, Map, Source, Value, ValueKind};
+use const_format::formatcp;
 use getset::{CopyGetters, Getters};
 use libbarto::PathDefaults;
 
+static LONG_VERSION: &str = formatcp!(
+    "{}\
+    \ncommit: {} ({})\
+    \n build: {}",
+    env!("CARGO_PKG_VERSION"),
+    env!("VERGEN_GIT_SHA"),
+    env!("VERGEN_GIT_COMMIT_DATE"),
+    env!("VERGEN_BUILD_TIMESTAMP"),
+);
+
 #[derive(Clone, CopyGetters, Debug, Getters, Parser)]
-#[command(author, version, about, long_about = None)]
+#[command(author, version, about, long_version = LONG_VERSION, long_about = None)]
 pub(crate) struct Cli {
     /// Set logging verbosity.  More v's, more verbose.
     #[clap(

@@ -23,6 +23,7 @@ bon = { workspace = true }
 clap = { workspace = true }
 config = { workspace = true }
 console = "0.16.1"
+const_format = "0.2.35"
 futures-util = { workspace = true }
 getset = { workspace = true }
 libbarto = { version = "0.2.0", path = "../libbarto" }
@@ -41,7 +42,9 @@ tracing-subscriber-init = { workspace = true }
 vergen-pretty = { workspace = true }
 
 [build-dependencies]
+anyhow = { workspace = true }
 rustversion = { workspace = true }
+vergen-gix = { workspace = true }
 
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = [

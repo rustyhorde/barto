@@ -112,5 +112,6 @@ where
     sleep(Duration::from_secs(1)).await;
     sink.send(Message::Close(None)).await?;
     trace!("connection closed");
+    sleep(Duration::from_secs(1)).await;
     Ok(())
 }

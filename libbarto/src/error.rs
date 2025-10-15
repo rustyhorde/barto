@@ -80,11 +80,10 @@ pub fn clap_or_error(err: anyhow::Error) -> i32 {
     };
     match err.downcast_ref::<clap::Error>() {
         Some(e) => match e.kind() {
-            ErrorKind::DisplayHelp => {
+            ErrorKind::DisplayHelp | ErrorKind::DisplayVersion => {
                 eprintln!("{e}");
                 0
             }
-            ErrorKind::DisplayVersion => 0,
             ErrorKind::InvalidValue
             | ErrorKind::UnknownArgument
             | ErrorKind::InvalidSubcommand
