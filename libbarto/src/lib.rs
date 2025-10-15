@@ -255,6 +255,7 @@ pub use self::config::Actix;
 pub use self::config::Bartos;
 pub use self::config::Command;
 pub use self::config::Mariadb;
+pub use self::config::MissedTick;
 pub use self::config::OutputTableName;
 pub use self::config::PathDefaults;
 pub use self::config::Schedule;

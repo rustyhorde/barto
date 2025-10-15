@@ -113,6 +113,7 @@ where
                 .data_tx(data_tx.clone())
                 .token(heartbeat_token)
                 .bartoc_name(config.name().clone())
+                .maybe_missed_tick(config.missed_tick())
                 .build();
             handler.heartbeat(config.client_timeout());
             handler.bartoc_info().await?;
