@@ -92,7 +92,11 @@ impl Handler {
                         );
                     }
                     println!();
-                    println!("Total clients: {}", BOLD_YELLOW.apply_to(client_count));
+                    println!(
+                        "{} {}",
+                        BOLD_GREEN.apply_to("Total clients:"),
+                        BOLD_YELLOW.apply_to(client_count)
+                    );
                 }
                 BartosToBartoCli::Query(map) => {
                     let (max_col_label, _max_val_label) = Self::maxes_query(&map);
