@@ -246,7 +246,7 @@ async fn delete_data(config: &Config, pool: &MySqlPool) -> anyhow::Result<(u64, 
 
 async fn delete_output_data(pool: &MySqlPool) -> anyhow::Result<(u64, u64)> {
     let midnight = midnight()?;
-    let output_count = sqlx::query!("DELETE FROM output_test WHERE timestamp < ?", midnight)
+    let output_count = sqlx::query!("DELETE FROM output WHERE timestamp < ?", midnight)
         .execute(pool)
         .await?
         .rows_affected();
