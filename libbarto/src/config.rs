@@ -163,6 +163,8 @@ pub struct Schedules {
 #[derive(Clone, Debug, Decode, Default, Deserialize, Encode, Eq, Getters, PartialEq, Serialize)]
 #[getset(get = "pub")]
 pub struct Schedule {
+    /// The name of the schedule
+    name: String,
     /// A calendar string similar to cron format
     on_calendar: String,
     /// The commands to run

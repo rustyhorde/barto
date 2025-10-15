@@ -99,7 +99,7 @@ pub(crate) struct Handler {
     tx: UnboundedSender<BartocMessage>,
     sink: SplitSink<WebSocketStream<MaybeTlsStream<TcpStream>>, Message>,
     #[builder(default = HashMap::new())]
-    rt_map: HashMap<Realtime, Vec<String>>,
+    rt_map: HashMap<Realtime, (String, Vec<String>)>,
     rt_monitor_handle: Option<JoinHandle<()>>,
     // the stdout queue
     data_tx: UnboundedSender<Data>,
@@ -167,10 +167,8 @@ impl Handler {
                         for schedule in schedules {
                             if let Ok(rt) = Realtime::try_from(&schedule.on_calendar()[..]) {
                                 info!("bartoc schedule: {rt} -> {}", schedule.cmds().join(", "));
-                                self.rt_map
-                                    .entry(rt)
-                                    .or_default()
-                                    .clone_from(schedule.cmds());
+                                *self.rt_map.entry(rt).or_default() =
+                                    (schedule.name().clone(), schedule.cmds().clone());
                             } else {
                                 error!(
                                     "unable to parse bartoc schedule: {}",
@@ -284,7 +282,7 @@ impl Handler {
                         }
                         _ = interval.tick() => {
                             let now = OffsetDateTime::now_utc();
-                            for (rt, cmds) in &cloned_rt_map {
+                            for (rt, (name, cmds)) in &cloned_rt_map {
                                 if rt.should_run(now) {
                                     trace!("running commands: {}", cmds.join(", "));
                                     for cmd in cmds {
@@ -292,9 +290,10 @@ impl Handler {
                                         let cctx = cloned_tx.clone();
                                         let cc = cmd.clone();
                                         let bnc = cloned_bartoc_name.clone();
-                                        info!("running command: {id}");
+                                        let name_c = name.clone();
+                                        info!("running command: {name} ({id})");
                                         let _handle = spawn(async move {
-                                            Self::run_cmd(id, bartoc_id, bnc, &cc, cctx).await.unwrap_or_else(|e| error!("unable to run command: {e}"));
+                                            Self::run_cmd(id, bartoc_id, bnc, name_c, &cc, cctx).await.unwrap_or_else(|e| error!("unable to run command: {e}"));
                                         });
                                     }
                                 }
@@ -313,6 +312,7 @@ impl Handler {
         id: Uuid,
         bartoc_id: UuidWrapper,
         bartoc_name: String,
+        cmd_name: String,
         cmd_str: &str,
         tx: UnboundedSender<BartocMessage>,
     ) -> Result<()> {
@@ -324,6 +324,7 @@ impl Handler {
 
         let stdout_tx = tx.clone();
         let cloned_bartoc_name = bartoc_name.clone();
+        let cloned_cmd_name = cmd_name.clone();
         let stdout_handle = spawn(async move {
             let mut reader = BufReader::new(stdout).lines();
             while let Some(line) = reader.next_line().await.unwrap_or(None) {
@@ -332,6 +333,7 @@ impl Handler {
                     .bartoc_uuid(bartoc_id)
                     .bartoc_name(cloned_bartoc_name.clone())
                     .cmd_uuid(UuidWrapper(id))
+                    .cmd_name(cloned_cmd_name.clone())
                     .kind(OutputKind::Stdout)
                     .data(line)
                     .build();
@@ -348,6 +350,7 @@ impl Handler {
                     .bartoc_uuid(bartoc_id)
                     .bartoc_name(bartoc_name.clone())
                     .cmd_uuid(UuidWrapper(id))
+                    .cmd_name(cmd_name.clone())
                     .kind(OutputKind::Stderr)
                     .data(line)
                     .build();

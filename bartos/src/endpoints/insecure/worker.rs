@@ -206,11 +206,12 @@ async fn handle_binary(
 
 async fn insert_output(pool: &MySqlPool, output: &Output) -> anyhow::Result<u64> {
     let id = sqlx::query!(
-        r#"INSERT INTO output (bartoc_uuid, bartoc_name, cmd_uuid, timestamp, kind, data)
-VALUES (?, ?, ?, ?, ?, ?)"#,
+        r#"INSERT INTO output (bartoc_uuid, bartoc_name, cmd_uuid, cmd_name, timestamp, kind, data)
+VALUES (?, ?, ?, ?, ?, ?, ?)"#,
         output.bartoc_uuid().0,
         output.bartoc_name(),
         output.cmd_uuid().0,
+        output.cmd_name(),
         output.timestamp().0,
         <OutputKind as Into<&'static str>>::into(output.kind()),
         output.data()
@@ -223,11 +224,12 @@ VALUES (?, ?, ?, ?, ?, ?)"#,
 
 async fn insert_output_test(pool: &MySqlPool, output: &Output) -> anyhow::Result<u64> {
     let id = sqlx::query!(
-        r#"INSERT INTO output_test (bartoc_uuid, bartoc_name, cmd_uuid, timestamp, kind, data)
-VALUES (?, ?, ?, ?, ?, ?)"#,
+        r#"INSERT INTO output_test (bartoc_uuid, bartoc_name, cmd_uuid, cmd_name, timestamp, kind, data)
+VALUES (?, ?, ?, ?, ?, ?, ?)"#,
         output.bartoc_uuid().0,
         output.bartoc_name(),
         output.cmd_uuid().0,
+        output.cmd_name(),
         output.timestamp().0,
         <OutputKind as Into<&'static str>>::into(output.kind()),
         output.data()
