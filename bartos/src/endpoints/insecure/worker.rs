@@ -124,6 +124,10 @@ async fn initialize(
 ) -> Result<()> {
     let describe = name.describe(&request);
     let mut clients = clients.lock().await;
+    let old_opt = clients.remove_client_by_name(&name.name());
+    if let Some(_old) = old_opt {
+        info!("removed old client with same name '{}'", name.name());
+    }
     let _old = clients.add_client(id, &name.name(), &Name::ip(&request));
     let name = name.name();
     let schedules_opt = config.schedules().get(&name);
