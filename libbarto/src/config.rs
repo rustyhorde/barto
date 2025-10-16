@@ -12,10 +12,12 @@ use anyhow::{Context, Result};
 use bincode::{Decode, Encode};
 use config::{Config, Environment, File, FileFormat, Source};
 use dirs2::config_dir;
-use getset::{CopyGetters, Getters};
+use getset::{CopyGetters, Getters, Setters};
 use serde::{Deserialize, Serialize};
+use tracing::Level;
+use tracing_subscriber_init::{TracingConfig, get_effective_level};
 
-use crate::{error::Error, utils::to_path_buf};
+use crate::{TlsConfig, TracingConfigExt, error::Error, utils::to_path_buf};
 
 /// Trait to allow default paths to be supplied to [`load`]
 pub trait PathDefaults {
@@ -36,9 +38,80 @@ pub trait PathDefaults {
 }
 
 /// Tracing configuration
+#[derive(Clone, Debug, Default, Deserialize, Eq, Getters, PartialEq, Serialize)]
+pub struct Tracing {
+    /// stdout layer configuration
+    #[getset(get = "pub")]
+    stdout: Layer,
+    /// file layer configuration
+    #[getset(get = "pub")]
+    file: FileLayer,
+}
+
+/// Tracing configuration
+#[allow(clippy::struct_excessive_bools)]
+#[derive(Clone, CopyGetters, Debug, Default, Deserialize, Eq, PartialEq, Serialize, Setters)]
+pub struct FileLayer {
+    /// quiet level
+    quiet: u8,
+    /// verbose level
+    verbose: u8,
+    /// layer configuration
+    layer: Layer,
+}
+
+impl TracingConfig for FileLayer {
+    fn quiet(&self) -> u8 {
+        self.quiet
+    }
+
+    fn verbose(&self) -> u8 {
+        self.verbose
+    }
+
+    fn with_ansi(&self) -> bool {
+        false
+    }
+
+    fn with_target(&self) -> bool {
+        self.layer.with_target
+    }
+
+    fn with_thread_ids(&self) -> bool {
+        self.layer.with_thread_ids
+    }
+
+    fn with_thread_names(&self) -> bool {
+        self.layer.with_thread_names
+    }
+
+    fn with_line_number(&self) -> bool {
+        self.layer.with_line_number
+    }
+
+    fn with_level(&self) -> bool {
+        self.layer.with_level
+    }
+}
+
+impl TracingConfigExt for FileLayer {
+    fn enable_stdout(&self) -> bool {
+        false
+    }
+
+    fn directives(&self) -> Option<&String> {
+        self.layer.directives.as_ref()
+    }
+
+    fn level(&self) -> Level {
+        get_effective_level(self.quiet(), self.verbose())
+    }
+}
+
+/// Tracing configuration
 #[allow(clippy::struct_excessive_bools)]
 #[derive(Clone, CopyGetters, Debug, Default, Deserialize, Eq, Getters, PartialEq, Serialize)]
-pub struct Tracing {
+pub struct Layer {
     /// Should we trace the event target
     #[getset(get_copy = "pub")]
     with_target: bool,
@@ -77,6 +150,35 @@ pub struct Actix {
     ip: String,
     /// The port to listen on
     port: u16,
+    /// The optional TLS configuration
+    tls: Option<Tls>,
+}
+
+/// tls configuration
+#[derive(Clone, CopyGetters, Debug, Default, Deserialize, Eq, Getters, PartialEq, Serialize)]
+pub struct Tls {
+    /// The IP address to listen on
+    #[getset(get = "pub")]
+    ip: String,
+    /// The port to listen on
+    #[getset(get_copy = "pub")]
+    port: u16,
+    /// The path to the certificate file
+    #[getset(get = "pub")]
+    cert_file_path: String,
+    /// The path to the key file
+    #[getset(get = "pub")]
+    key_file_path: String,
+}
+
+impl TlsConfig for Tls {
+    fn cert_file_path(&self) -> &str {
+        &self.cert_file_path
+    }
+
+    fn key_file_path(&self) -> &str {
+        &self.key_file_path
+    }
 }
 
 /// bartos configuration for clients
@@ -96,15 +198,18 @@ pub struct Bartos {
 /// hosts configuration
 #[derive(Clone, CopyGetters, Debug, Default, Deserialize, Eq, Getters, PartialEq, Serialize)]
 pub struct Mariadb {
+    /// The host for the database
+    host: String,
+    /// The port for the database
+    port: Option<u16>,
     /// The username for the database
-    #[getset(get = "pub")]
     username: String,
     /// The password for the database
-    #[getset(get = "pub")]
     password: String,
     /// The database name
-    #[getset(get = "pub")]
     database: String,
+    /// The options string
+    options: Option<String>,
     /// The output table name
     #[getset(get_copy = "pub")]
     output_table: OutputTableName,
@@ -113,6 +218,42 @@ pub struct Mariadb {
     status_table: StatusTableName,
 }
 
+impl Mariadb {
+    /// Generate the `MariaDB` connection string
+    #[must_use]
+    pub fn connection_string(&self) -> String {
+        let mut url = format!(
+            "mariadb://{}:{}@{}:{}/{}",
+            self.username,
+            self.password,
+            self.host,
+            self.port.unwrap_or(3306),
+            self.database
+        );
+        if let Some(options) = self.options.as_ref() {
+            url.push('?');
+            url.push_str(options);
+        }
+        url
+    }
+
+    /// Generate a displayable `MariaDB` connection string
+    #[must_use]
+    pub fn disp_connection_string(&self) -> String {
+        let mut url = format!(
+            "mariadb://{}:****@{}:{}/{}",
+            self.username,
+            self.host,
+            self.port.unwrap_or(3306),
+            self.database
+        );
+        if let Some(options) = self.options.as_ref() {
+            url.push('?');
+            url.push_str(options);
+        }
+        url
+    }
+}
 /// The output table name
 #[derive(Clone, Copy, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
 pub enum OutputTableName {

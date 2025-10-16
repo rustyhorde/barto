@@ -68,7 +68,8 @@ where
     let config = load_bartoc::<Cli, Cli>(&cli, &cli).with_context(|| Error::ConfigLoad)?;
 
     // Initialize tracing
-    init_tracing(&config, &cli, None).with_context(|| Error::TracingInit)?;
+    init_tracing(&config, config.tracing().file(), &cli, None)
+        .with_context(|| Error::TracingInit)?;
 
     trace!("configuration loaded");
     trace!("tracing initialized");

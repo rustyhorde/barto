@@ -59,7 +59,8 @@ where
 
     // Initialize tracing
     let _ = config.set_enable_std_output(true);
-    init_tracing(&config, &cli, None).with_context(|| Error::TracingInit)?;
+    init_tracing(&config, config.tracing().file(), &cli, None)
+        .with_context(|| Error::TracingInit)?;
 
     trace!("configuration loaded");
     trace!("tracing initialized");

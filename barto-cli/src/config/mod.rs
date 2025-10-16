@@ -41,23 +41,23 @@ impl TracingConfig for Config {
     }
 
     fn with_target(&self) -> bool {
-        self.tracing.with_target()
+        self.tracing().stdout().with_target()
     }
 
     fn with_thread_ids(&self) -> bool {
-        self.tracing.with_thread_ids()
+        self.tracing().stdout().with_thread_ids()
     }
 
     fn with_thread_names(&self) -> bool {
-        self.tracing.with_thread_names()
+        self.tracing().stdout().with_thread_names()
     }
 
     fn with_line_number(&self) -> bool {
-        self.tracing.with_line_number()
+        self.tracing().stdout().with_line_number()
     }
 
     fn with_level(&self) -> bool {
-        self.tracing.with_level()
+        self.tracing().stdout().with_level()
     }
 }
 
@@ -67,10 +67,10 @@ impl TracingConfigExt for Config {
     }
 
     fn directives(&self) -> Option<&String> {
-        self.tracing.directives().as_ref()
+        self.tracing().stdout().directives().as_ref()
     }
 
     fn level(&self) -> Level {
-        get_effective_level(self.quiet, self.verbose)
+        get_effective_level(self.quiet(), self.verbose())
     }
 }

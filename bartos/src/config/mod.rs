@@ -8,13 +8,15 @@
 
 use std::collections::BTreeMap;
 
-use getset::{CopyGetters, Getters};
-use libbarto::{Actix, Mariadb, Schedules, TlsConfig, Tracing, TracingConfigExt};
+use getset::{CopyGetters, Getters, Setters};
+use libbarto::{Actix, Mariadb, Schedules, Tracing, TracingConfigExt};
 use serde::{Deserialize, Serialize};
 use tracing::Level;
 use tracing_subscriber_init::{TracingConfig, get_effective_level};
 
-#[derive(Clone, CopyGetters, Debug, Default, Deserialize, Eq, Getters, PartialEq, Serialize)]
+#[derive(
+    Clone, CopyGetters, Debug, Default, Deserialize, Eq, Getters, PartialEq, Serialize, Setters,
+)]
 pub(crate) struct Config {
     #[getset(get_copy = "pub(crate)")]
     verbose: u8,
@@ -22,20 +24,14 @@ pub(crate) struct Config {
     quiet: u8,
     #[getset(get_copy = "pub(crate)")]
     enable_std_output: bool,
-    #[getset(get = "pub(crate)")]
+    #[getset(get = "pub(crate)", set = "pub(crate)")]
     tracing: Tracing,
     #[getset(get = "pub(crate)")]
     actix: Actix,
     #[getset(get = "pub(crate)")]
-    cert_file_path: String,
-    #[getset(get = "pub(crate)")]
-    key_file_path: String,
-    #[getset(get = "pub(crate)")]
     schedules: BTreeMap<String, Schedules>,
     #[getset(get = "pub(crate)")]
     mariadb: Mariadb,
-    #[getset(get = "pub(crate)")]
-    bartos_host: String,
 }
 
 impl TracingConfig for Config {
@@ -48,23 +44,23 @@ impl TracingConfig for Config {
     }
 
     fn with_target(&self) -> bool {
-        self.tracing.with_target()
+        self.tracing().stdout().with_target()
     }
 
     fn with_thread_ids(&self) -> bool {
-        self.tracing.with_thread_ids()
+        self.tracing().stdout().with_thread_ids()
     }
 
     fn with_thread_names(&self) -> bool {
-        self.tracing.with_thread_names()
+        self.tracing().stdout().with_thread_names()
     }
 
     fn with_line_number(&self) -> bool {
-        self.tracing.with_line_number()
+        self.tracing().stdout().with_line_number()
     }
 
     fn with_level(&self) -> bool {
-        self.tracing.with_level()
+        self.tracing().stdout().with_level()
     }
 }
 
@@ -74,20 +70,10 @@ impl TracingConfigExt for Config {
     }
 
     fn directives(&self) -> Option<&String> {
-        self.tracing.directives().as_ref()
+        self.tracing().stdout().directives().as_ref()
     }
 
     fn level(&self) -> Level {
         get_effective_level(self.quiet(), self.verbose())
-    }
-}
-
-impl TlsConfig for Config {
-    fn cert_file_path(&self) -> &str {
-        &self.cert_file_path
-    }
-
-    fn key_file_path(&self) -> &str {
-        &self.key_file_path
     }
 }

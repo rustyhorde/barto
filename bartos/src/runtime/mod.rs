@@ -59,9 +59,9 @@ where
 
     // Load the configuration
     let config = load::<Cli, Config, Cli>(&cli, &cli).with_context(|| Error::ConfigLoad)?;
-
     // Initialize tracing
-    init_tracing(&config, &cli, None).with_context(|| Error::TracingInit)?;
+    init_tracing(&config, config.tracing().file(), &cli, None)
+        .with_context(|| Error::TracingInit)?;
 
     trace!("configuration loaded");
     trace!("tracing initialized");
@@ -73,6 +73,7 @@ where
         None
     };
     header::<Config, dyn Write>(&config, HEADER_PREFIX, writer)?;
+    info!("{} configured!", env!("CARGO_PKG_NAME"));
 
     // Setup the default crypto provider
     match default_provider().install_default() {
@@ -80,19 +81,25 @@ where
         Err(_e) => warn!("crypto provider already initialized"),
     }
 
-    // Load the TLS server configuration
-    let server_config = load_tls_config(&config)?;
-
     // Add config to app data
     let config_c = config.clone();
     let config_data = Data::new(config_c);
 
     let workers = usize::from(*config.actix().workers());
-    let ip = config.actix().ip();
-    let port = config.actix().port();
-    let ip_addr: IpAddr = ip.parse().with_context(|| Error::InvalidIp)?;
-    let socket_addr = SocketAddr::from((ip_addr, *port));
-    let bartos_host = config.bartos_host();
+    let tls_opt = if let Some(actix_tls) = config.actix().tls() {
+        // Load the TLS server configuration
+        let server_config = load_tls_config(actix_tls)?;
+        // Setup the socket address
+        let port = actix_tls.port();
+        let ip = actix_tls.ip();
+        let ip_addr: IpAddr = ip.parse().with_context(|| Error::InvalidIp)?;
+        Some((SocketAddr::from((ip_addr, port)), server_config))
+    } else {
+        None
+    };
+
+    let bartos_port = *config.actix().port();
+    let bartos_host = config.actix().ip();
 
     // Setup the signal handling
     let token = CancellationToken::new();
@@ -102,11 +109,10 @@ where
     let sighan_handle = spawn(async move { handle_signals(token).await });
 
     // Setup the database pool
-    let url = format!(
-        "mariadb://{}:{}@localhost/{}",
-        config.mariadb().username(),
-        config.mariadb().password(),
-        config.mariadb().database()
+    let url = config.mariadb().connection_string();
+    info!(
+        "connecting to database at: {}",
+        config.mariadb().disp_connection_string()
     );
     let pool = MySqlPool::connect(&url).await?;
     let pool_data = Data::new(pool);
@@ -116,9 +122,36 @@ where
     let clients_data = Data::new(Mutex::new(clients));
 
     // Startup the server
-    trace!("Starting {} on {socket_addr:?}", env!("CARGO_PKG_NAME"));
-    info!("{} configured!", env!("CARGO_PKG_NAME"));
-    info!("{} starting!", env!("CARGO_PKG_NAME"));
+    info!(
+        "Starting {} on {bartos_host}:{bartos_port}",
+        env!("CARGO_PKG_NAME")
+    );
+    if let Some(actix_tls) = config.actix().tls() {
+        info!(
+            "Starting {} TLS on {}:{}",
+            env!("CARGO_PKG_NAME"),
+            actix_tls.ip(),
+            actix_tls.port()
+        );
+    }
+
+    let server = HttpServer::new(move || {
+        App::new()
+            .app_data(app_token_data.clone())
+            .app_data(config_data.clone())
+            .app_data(pool_data.clone())
+            .app_data(clients_data.clone())
+            .wrap(Compress::default())
+            .service(scope("/v1").configure(insecure_config))
+    })
+    .workers(workers)
+    .bind((bartos_host.as_str(), bartos_port))?;
+
+    let server = if let Some((addr, server_config)) = tls_opt {
+        server.bind_rustls_0_23(addr, server_config)?
+    } else {
+        server
+    };
 
     select! {
         () = server_token.cancelled() => {
@@ -126,19 +159,7 @@ where
             // sleep to allow existing connections to send close messages
             sleep(Duration::from_secs(1)).await;
         }
-        _ = HttpServer::new(move || {
-                App::new()
-                    .app_data(app_token_data.clone())
-                    .app_data(config_data.clone())
-                    .app_data(pool_data.clone())
-                    .app_data(clients_data.clone())
-                    .wrap(Compress::default())
-                    .service(scope("/v1").configure(insecure_config))
-                })
-            .workers(workers)
-            .bind_rustls_0_23(socket_addr, server_config)?
-            .bind((bartos_host.as_str(), *port))?
-            .run() => {
+        _ = server.run() => {
         }
     }
 

@@ -6,11 +6,12 @@
 // option. All files in the project carrying such notice may not be copied,
 // modified, or distributed except according to those terms.
 
-use std::{fs::OpenOptions, path::PathBuf};
+use std::path::PathBuf;
 
 use anyhow::Result;
 use dirs2::data_dir;
 use tracing::{Level, level_filters::LevelFilter};
+use tracing_appender::rolling::{RollingFileAppender, Rotation};
 use tracing_subscriber::{EnvFilter, Layer, Registry, fmt::time::UtcTime};
 use tracing_subscriber_init::{Iso8601, TracingConfig, compact, try_init};
 
@@ -31,21 +32,23 @@ pub trait TracingConfigExt: TracingConfig {
 /// # Errors
 /// * If the path to the tracing file cannot be created or found
 ///
-pub fn init_tracing<T, U>(
-    config: &T,
+pub fn init_tracing<T, U, V>(
+    stdout: &T,
+    file: &V,
     defaults: &U,
     layers_opt: Option<Vec<Box<dyn Layer<Registry> + Send + Sync>>>,
 ) -> Result<()>
 where
     T: TracingConfigExt,
     U: PathDefaults,
+    V: TracingConfigExt,
 {
     let mut layers = layers_opt.unwrap_or_default();
 
     // Setup the stdout tracing layer if enabled
-    if config.enable_stdout() {
-        let (layer, level_filter) = compact(config);
-        let mut directives = directives(config, level_filter);
+    if stdout.enable_stdout() {
+        let (layer, level_filter) = compact(stdout);
+        let mut directives = directives(stdout, level_filter);
         directives.push_str(",vergen_pretty=error");
         let filter = EnvFilter::builder()
             .with_default_directive(level_filter.into())
@@ -57,14 +60,11 @@ where
     }
 
     // Setup the tracing file layer
-    let tracing_absolute_path = tracing_absolute_path(defaults)?;
-    let tracing_file = OpenOptions::new()
-        .create(true)
-        .truncate(false)
-        .append(true)
-        .open(&tracing_absolute_path)?;
-    let (layer, level_filter) = compact(config);
-    let directives = directives(config, level_filter);
+    let (directory, logfile) = tracing_absolute_path(defaults)?;
+    let tracing_file = RollingFileAppender::new(Rotation::DAILY, directory, logfile);
+    let (layer, _level_filter) = compact(file);
+    let level_filter = LevelFilter::from(file.level());
+    let directives = directives(file, level_filter);
     let filter = EnvFilter::builder()
         .with_default_directive(level_filter.into())
         .parse_lossy(directives);
@@ -100,15 +100,19 @@ where
     }
 }
 
-fn tracing_absolute_path<D>(defaults: &D) -> Result<PathBuf>
+fn tracing_absolute_path<D>(defaults: &D) -> Result<(PathBuf, PathBuf)>
 where
     D: PathDefaults,
 {
     let default_fn = || -> Result<PathBuf> { default_tracing_absolute_path(defaults) };
-    defaults
+    let mut full_path = defaults
         .tracing_absolute_path()
         .as_ref()
-        .map_or_else(default_fn, to_path_buf)
+        .map_or_else(default_fn, to_path_buf)?;
+
+    let file_path = PathBuf::from(full_path.file_name().ok_or(Error::DataDir)?);
+    let _ = full_path.pop();
+    Ok((full_path, file_path))
 }
 
 #[allow(clippy::unnecessary_wraps)]
