@@ -38,6 +38,10 @@ use crate::{common::Clients, config::Config, endpoints::insecure::Name};
 static GARUDA_UPDATE_RE: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(r"\(\d+/\d+\) upgrading ([^ ]+) .*").expect("failed to create garuda update regex")
 });
+static GARUDA_RE: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"(chaotic-aur|extra)\/([^ ]+)\s+([^ ]+)\s+([^ ]+)\s+(.+ MiB)\s+(.+ MiB)")
+        .expect("failed to create chaotic aur regex")
+});
 
 pub(crate) async fn cli(
     request: HttpRequest,
@@ -205,10 +209,17 @@ async fn output_data(name: &str, pool: &MySqlPool) -> anyhow::Result<Vec<String>
         .into_iter()
         .map(|r| r.data)
         .filter_map(|s| {
-            GARUDA_UPDATE_RE
-                .captures(&s)
-                .and_then(|caps| caps.get(1))
-                .map(|m| m.as_str().to_string())
+            GARUDA_RE.captures(&s).map(|caps| {
+                format!(
+                    "{} {} {} {} {} {}",
+                    caps.get(1).map_or("", |m| m.as_str()),
+                    caps.get(2).map_or("", |m| m.as_str()),
+                    caps.get(3).map_or("", |m| m.as_str()),
+                    caps.get(4).map_or("", |m| m.as_str()),
+                    caps.get(5).map_or("", |m| m.as_str()),
+                    caps.get(6).map_or("", |m| m.as_str()),
+                )
+            })
         })
         .collect::<Vec<String>>();
     results.sort();
@@ -227,10 +238,17 @@ async fn output_test_data(name: &str, pool: &MySqlPool) -> anyhow::Result<Vec<St
         .into_iter()
         .map(|r| r.data)
         .filter_map(|s| {
-            GARUDA_UPDATE_RE
-                .captures(&s)
-                .and_then(|caps| caps.get(1))
-                .map(|m| m.as_str().to_string())
+            GARUDA_RE.captures(&s).map(|caps| {
+                format!(
+                    "{} {} {} {} {} {}",
+                    caps.get(1).map_or("", |m| m.as_str()),
+                    caps.get(2).map_or("", |m| m.as_str()),
+                    caps.get(3).map_or("", |m| m.as_str()),
+                    caps.get(4).map_or("", |m| m.as_str()),
+                    caps.get(5).map_or("", |m| m.as_str()),
+                    caps.get(6).map_or("", |m| m.as_str()),
+                )
+            })
         })
         .collect::<Vec<String>>();
     results.sort();
@@ -280,7 +298,13 @@ fn midnight() -> anyhow::Result<OffsetDateTime> {
 
 #[cfg(test)]
 mod test {
+    use crate::endpoints::insecure::cli::GARUDA_RE;
+
     use super::GARUDA_UPDATE_RE;
+
+    use anyhow::Result;
+
+    const NO_MATCH: &str = "this is not a match";
 
     #[test]
     fn test_garuda_update_re() {
@@ -296,7 +320,22 @@ mod test {
 
     #[test]
     fn test_garuda_update_re_no_match() {
-        let text = "this is not a match";
-        assert!(!GARUDA_UPDATE_RE.is_match(text));
+        assert!(!GARUDA_UPDATE_RE.is_match(NO_MATCH));
+    }
+
+    #[test]
+    fn test_package_update_re() -> Result<()> {
+        let text = "extra/kio    6.19.0-1     6.19.0-2       0.00 MiB       3.59 MiB";
+        assert!(GARUDA_RE.is_match(text));
+        let caps = GARUDA_RE
+            .captures(text)
+            .ok_or(anyhow::anyhow!("failed to capture"))?;
+        assert_eq!(caps.get(1).map(|m| m.as_str()), Some("extra"));
+        assert_eq!(caps.get(2).map(|m| m.as_str()), Some("kio"));
+        assert_eq!(caps.get(3).map(|m| m.as_str()), Some("6.19.0-1"));
+        assert_eq!(caps.get(4).map(|m| m.as_str()), Some("6.19.0-2"));
+        assert_eq!(caps.get(5).map(|m| m.as_str()), Some("0.00 MiB"));
+        assert_eq!(caps.get(6).map(|m| m.as_str()), Some("3.59 MiB"));
+        Ok(())
     }
 }
