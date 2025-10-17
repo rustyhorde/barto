@@ -52,7 +52,9 @@ pub struct Garuda {
 
 impl Ord for Garuda {
     fn cmp(&self, other: &Self) -> Ordering {
-        self.package.cmp(&other.package)
+        self.channel
+            .cmp(&other.channel)
+            .then(self.package.cmp(&other.package))
     }
 }
 
