@@ -71,8 +71,18 @@ impl Handler {
                 }
                 BartosToBartoCli::Updates(updates) => Self::handle_updates(updates),
                 BartosToBartoCli::Cleanup(deleted) => {
-                    println!("deleted {} output rows", deleted.0);
-                    println!("deleted {} exit status rows", deleted.1);
+                    println!(
+                        "{} {} {}",
+                        BOLD_GREEN.apply_to("deleted"),
+                        BOLD_YELLOW.apply_to(deleted.0),
+                        BOLD_GREEN.apply_to("output rows")
+                    );
+                    println!(
+                        "{} {} {}",
+                        BOLD_GREEN.apply_to("deleted"),
+                        BOLD_YELLOW.apply_to(deleted.1),
+                        BOLD_GREEN.apply_to("exit status rows")
+                    );
                 }
                 BartosToBartoCli::Clients(clients) => {
                     let mut client_datas = clients.values().cloned().collect::<Vec<ClientData>>();
@@ -149,19 +159,19 @@ impl Handler {
                 );
                 println!();
                 println!(
-                    "{}   {} {}",
+                    "{}   {:<4.2} {}",
                     BOLD_GREEN.apply_to("Total Download Size:"),
                     BOLD_BLUE.apply_to(pacman.download_size()),
                     BOLD_BLUE.apply_to("MiB")
                 );
                 println!(
-                    "{}  {} {}",
+                    "{}  {:<4.2} {}",
                     BOLD_GREEN.apply_to("Total Installed Size:"),
                     BOLD_BLUE.apply_to(pacman.install_size()),
                     BOLD_BLUE.apply_to("MiB")
                 );
                 println!(
-                    "{}      {} {}",
+                    "{}      {:<4.2} {}",
                     BOLD_GREEN.apply_to("Net Upgrade Size:"),
                     BOLD_BLUE.apply_to(pacman.net_size()),
                     BOLD_BLUE.apply_to("MiB")
