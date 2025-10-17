@@ -39,11 +39,33 @@ use crate::{common::Clients, config::Config, endpoints::insecure::Name};
 
 // pacman
 // Packages (5) git-2.51.1-1  libarchive-3.8.2-1  linux-6.17.3.arch1-1  python-charset-normalizer-3.4.4-1  python-cryptography-46.0.3-1
+// Packages (2) dhcpcd-10.2.4-1  libxml2-2.15.1-1
+//
+// Total Download Size:   0.96 MiB
+// Total Installed Size:  3.45 MiB
+// Net Upgrade Size:      0.00 MiB
 
 // apt
 // The following packages will be upgraded:
 //   libtdb-dev libtdb1"
 // 2 upgraded, 0 newly installed, 0 to remove and 0 not upgraded.
+
+// homebrew
+// ==> Upgrading 2 outdated packages:
+// protobuf 32.1 -> 33.0
+// ==> Fetching downloads for: openexr and protobuf
+// ==> Fetching openexr
+// ==> Downloading https://ghcr.io/v2/homebrew/core/openexr/blobs/sha256:6e4279cef58092ba7d95c6f805b77ca4a8e3420010b0093d17d5ce058b749fd7
+// ==> Fetching protobuf
+// ==> Downloading https://ghcr.io/v2/homebrew/core/protobuf/blobs/sha256:220d0c9358fda8b85ce23cbb53596547f63895480c16498a6d3b8031710d4b21
+// ==> Upgrading openexr
+// "  3.4.1 -> 3.4.2 "
+// ==> Pouring openexr--3.4.2.arm64_sequoia.bottle.tar.gz
+// 🍺  /opt/homebrew/Cellar/openexr/3.4.2: 212 files, 4.9MB
+// Removing: /opt/homebrew/Cellar/openexr/3.4.1... (212 files, 4.9MB)
+// "  32.1 -> 33.0 "
+// ==> Pouring protobuf--33.0.arm64_sequoia.bottle.tar.gz
+// 🍺  /opt/homebrew/Cellar/protobuf/33.0: 364 files, 16.5MB
 
 #[allow(dead_code)]
 static GARUDA_UPDATE_RE: LazyLock<Regex> = LazyLock::new(|| {
