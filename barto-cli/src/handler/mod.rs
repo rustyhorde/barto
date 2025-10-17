@@ -149,19 +149,22 @@ impl Handler {
                 );
                 println!();
                 println!(
-                    "{}   {} MiB",
+                    "{}   {} {}",
                     BOLD_GREEN.apply_to("Total Download Size:"),
-                    BOLD_BLUE.apply_to(pacman.download_size())
+                    BOLD_BLUE.apply_to(pacman.download_size()),
+                    BOLD_BLUE.apply_to("MiB")
                 );
                 println!(
-                    "{}  {} MiB",
+                    "{}  {} {}",
                     BOLD_GREEN.apply_to("Total Installed Size:"),
-                    BOLD_BLUE.apply_to(pacman.install_size())
+                    BOLD_BLUE.apply_to(pacman.install_size()),
+                    BOLD_BLUE.apply_to("MiB")
                 );
                 println!(
-                    "{}      {} MiB",
+                    "{}      {} {}",
                     BOLD_GREEN.apply_to("Net Upgrade Size:"),
-                    BOLD_BLUE.apply_to(pacman.net_size())
+                    BOLD_BLUE.apply_to(pacman.net_size()),
+                    BOLD_BLUE.apply_to("MiB")
                 );
             }
             UpdateKind::Other => {}
