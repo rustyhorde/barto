@@ -157,21 +157,8 @@ pub(crate) enum Commands {
         )]
         name: String,
         /// The kind of updates to check for
-        #[clap(
-            short,
-            long,
-            help = "Check for garuda updates",
-            conflicts_with = "other"
-        )]
-        garuda: bool,
-        /// The kind of updates to check for
-        #[clap(
-            short,
-            long,
-            help = "Check for other updates",
-            conflicts_with = "garuda"
-        )]
-        other: bool,
+        #[clap(short, long, help = "Check for updates of the given kind")]
+        update_kind: String,
     },
     #[clap(about = "Perform cleanup of old database entries")]
     Cleanup,

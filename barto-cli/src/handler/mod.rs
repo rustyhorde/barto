@@ -69,30 +69,7 @@ impl Handler {
                 BartosToBartoCli::InfoJson(json) => {
                     print!("{json}");
                 }
-                BartosToBartoCli::Updates(updates) => match updates {
-                    UpdateKind::Garuda(garudas) => {
-                        let (
-                            max_channel,
-                            max_package,
-                            max_old_version,
-                            max_new_version,
-                            max_size_change,
-                            max_download_size,
-                        ) = Self::maxes_garuda(&garudas);
-                        for garuda in &garudas {
-                            println!(
-                                "{:<max_channel$} ({:<max_package$}): {:<max_old_version$} -> {:<max_new_version$} ({:>max_size_change$}, {:>max_download_size$})",
-                                BOLD_BLUE.apply_to(garuda.package()),
-                                BOLD_BLUE.apply_to(garuda.channel()),
-                                BOLD_GREEN.apply_to(garuda.old_version()),
-                                BOLD_GREEN.apply_to(garuda.new_version()),
-                                BOLD_GREEN.apply_to(garuda.size_change()),
-                                BOLD_GREEN.apply_to(garuda.download_size())
-                            );
-                        }
-                    }
-                    UpdateKind::Other => {}
-                },
+                BartosToBartoCli::Updates(updates) => Self::handle_updates(updates),
                 BartosToBartoCli::Cleanup(deleted) => {
                     println!("deleted {} output rows", deleted.0);
                     println!("deleted {} exit status rows", deleted.1);
@@ -136,6 +113,58 @@ impl Handler {
                     }
                 }
             },
+        }
+    }
+
+    fn handle_updates(updates: UpdateKind) {
+        match updates {
+            UpdateKind::Garuda(garudas) => {
+                let (
+                    max_channel,
+                    max_package,
+                    max_old_version,
+                    max_new_version,
+                    max_size_change,
+                    max_download_size,
+                ) = Self::maxes_garuda(&garudas);
+                for garuda in &garudas {
+                    println!(
+                        "{:<max_channel$} ({:<max_package$}): {:<max_old_version$} -> {:<max_new_version$} ({:>max_size_change$}, {:>max_download_size$})",
+                        BOLD_BLUE.apply_to(garuda.package()),
+                        BOLD_BLUE.apply_to(garuda.channel()),
+                        BOLD_GREEN.apply_to(garuda.old_version()),
+                        BOLD_GREEN.apply_to(garuda.new_version()),
+                        BOLD_GREEN.apply_to(garuda.size_change()),
+                        BOLD_GREEN.apply_to(garuda.download_size())
+                    );
+                }
+            }
+            UpdateKind::Pacman(pacman) => {
+                let packages = pacman.packages().join(", ");
+                println!(
+                    "{} ({}) {}",
+                    BOLD_GREEN.apply_to("Packages"),
+                    BOLD_GREEN.apply_to(pacman.update_count()),
+                    BOLD_BLUE.apply_to(packages)
+                );
+                println!();
+                println!(
+                    "{}   {} MiB",
+                    BOLD_GREEN.apply_to("Total Download Size:"),
+                    BOLD_BLUE.apply_to(pacman.download_size())
+                );
+                println!(
+                    "{}  {} MiB",
+                    BOLD_GREEN.apply_to("Total Installed Size:"),
+                    BOLD_BLUE.apply_to(pacman.install_size())
+                );
+                println!(
+                    "{}      {} MiB",
+                    BOLD_GREEN.apply_to("Net Upgrade Size:"),
+                    BOLD_BLUE.apply_to(pacman.net_size())
+                );
+            }
+            UpdateKind::Other => {}
         }
     }
 

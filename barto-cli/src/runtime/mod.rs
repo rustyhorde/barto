@@ -83,16 +83,8 @@ where
             let info = encode_to_vec(BartoCli::Info { json: *json }, standard())?;
             Message::Binary(info.into())
         }
-        Commands::Updates {
-            name,
-            garuda,
-            other: _,
-        } => {
-            let kind = if *garuda {
-                CliUpdateKind::Garuda
-            } else {
-                CliUpdateKind::Other
-            };
+        Commands::Updates { name, update_kind } => {
+            let kind = CliUpdateKind::try_from(update_kind.as_str())?;
             let update = encode_to_vec(
                 BartoCli::Updates {
                     name: name.clone(),

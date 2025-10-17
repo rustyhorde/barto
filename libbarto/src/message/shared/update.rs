@@ -10,13 +10,15 @@ use std::cmp::Ordering;
 
 use bincode::{Decode, Encode};
 use bon::Builder;
-use getset::Getters;
+use getset::{CopyGetters, Getters};
 
 /// The update kind
-#[derive(Clone, Debug, Decode, Encode, Eq, PartialEq)]
+#[derive(Clone, Debug, Decode, Encode, PartialEq)]
 pub enum UpdateKind {
     /// A garuda-update message
     Garuda(Vec<Garuda>),
+    /// An Archlinux pacman update message
+    Pacman(Pacman),
     /// An other update message
     Other,
 }
@@ -62,4 +64,25 @@ impl PartialOrd for Garuda {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         Some(self.cmp(other))
     }
+}
+
+/// A garuda-update message
+#[derive(Builder, Clone, CopyGetters, Debug, Decode, Encode, Getters, PartialEq)]
+pub struct Pacman {
+    /// The package update count
+    #[get_copy = "pub"]
+    update_count: usize,
+    /// The channel the package belongs to
+    #[get = "pub"]
+    #[builder(into)]
+    packages: Vec<String>,
+    /// The install size (in MiB)
+    #[get_copy = "pub"]
+    install_size: f64,
+    /// The net size change (in MiB)
+    #[get_copy = "pub"]
+    net_size: f64,
+    /// The download size (in MiB)
+    #[get_copy = "pub"]
+    download_size: f64,
 }

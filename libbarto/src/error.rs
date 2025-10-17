@@ -68,6 +68,12 @@ pub enum Error {
     /// An invalid query type was specified
     #[error("invalid query type")]
     InvalidQueryType,
+    /// An invalid update kind was specified
+    #[error("invalid update kind: '{}'", kind)]
+    InvalidUpdateKind {
+        /// The invalid update kind
+        kind: String,
+    },
 }
 
 /// Converts an `anyhow::Error` into a suitable exit code or clap message for a CLI application.

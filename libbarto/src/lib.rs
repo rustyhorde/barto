@@ -286,6 +286,7 @@ pub use self::message::shared::output::Status;
 pub use self::message::shared::sys::BartocInfo;
 pub use self::message::shared::sys::ClientData;
 pub use self::message::shared::update::Garuda;
+pub use self::message::shared::update::Pacman;
 pub use self::message::shared::update::UpdateKind;
 pub use self::message::shared::uuid::UuidWrapper;
 pub use self::schedule::Realtime;
