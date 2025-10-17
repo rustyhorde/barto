@@ -13,7 +13,7 @@ use bincode::{config::standard, decode_from_slice};
 use bon::Builder;
 use console::Style;
 use futures_util::{StreamExt as _, stream::SplitStream};
-use libbarto::{BartosToBartoCli, ClientData};
+use libbarto::{BartosToBartoCli, ClientData, UpdateKind};
 use tokio::{net::TcpStream, select, time::sleep};
 use tokio_tungstenite::{MaybeTlsStream, WebSocketStream, tungstenite::Message};
 use tracing::trace;
@@ -69,11 +69,22 @@ impl Handler {
                 BartosToBartoCli::InfoJson(json) => {
                     print!("{json}");
                 }
-                BartosToBartoCli::Updates(updates) => {
-                    for update in updates {
-                        println!("{update}");
+                BartosToBartoCli::Updates(updates) => match updates {
+                    UpdateKind::Garuda(garudas) => {
+                        for garuda in &garudas {
+                            println!(
+                                "{} ({}): {} -> {} ({} MiB, {} MiB)",
+                                BOLD_BLUE.apply_to(garuda.package()),
+                                BOLD_BLUE.apply_to(garuda.channel()),
+                                BOLD_GREEN.apply_to(garuda.old_version()),
+                                BOLD_GREEN.apply_to(garuda.new_version()),
+                                BOLD_GREEN.apply_to(garuda.size_change()),
+                                BOLD_GREEN.apply_to(garuda.download_size())
+                            );
+                        }
                     }
-                }
+                    UpdateKind::Other => {}
+                },
                 BartosToBartoCli::Cleanup(deleted) => {
                     println!("deleted {} output rows", deleted.0);
                     println!("deleted {} exit status rows", deleted.1);

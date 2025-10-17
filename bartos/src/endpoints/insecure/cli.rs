@@ -19,7 +19,10 @@ use actix_web::{
 use actix_ws::{AggregatedMessage, Session, handle};
 use bincode::{config::standard, decode_from_slice, encode_to_vec};
 use futures_util::StreamExt as _;
-use libbarto::{BartoCli, BartosToBartoCli, ClientData, OutputTableName, UuidWrapper};
+use libbarto::{
+    BartoCli, BartosToBartoCli, CliUpdateKind, ClientData, Garuda, OutputTableName, UpdateKind,
+    UuidWrapper,
+};
 use regex::Regex;
 use sqlx::{Column, MySqlPool, Row};
 use time::{
@@ -132,11 +135,19 @@ async fn handle_binary(
                 let encoded = encode_to_vec(&btbc, standard())?;
                 session.binary(encoded).await?;
             }
-            BartoCli::Updates { name } => {
-                let updates = select_data(&name, config, pool).await?;
-                info!("received updates message for '{name}'");
-                let updates = BartosToBartoCli::Updates(updates);
-                let encoded = encode_to_vec(&updates, standard())?;
+            BartoCli::Updates { name, kind } => {
+                let msg = match kind {
+                    CliUpdateKind::Garuda => {
+                        info!("received updates message for '{name}' (garuda)");
+                        let updates = garuda_update_data(&name, config, pool).await?;
+                        BartosToBartoCli::Updates(UpdateKind::Garuda(updates))
+                    }
+                    CliUpdateKind::Other => {
+                        info!("received updates message for '{name}' (other)");
+                        BartosToBartoCli::Updates(UpdateKind::Other)
+                    }
+                };
+                let encoded = encode_to_vec(&msg, standard())?;
                 session.binary(encoded).await?;
             }
             BartoCli::Cleanup => {
@@ -190,14 +201,18 @@ async fn handle_binary(
     Ok(())
 }
 
-async fn select_data(name: &str, config: &Config, pool: &MySqlPool) -> anyhow::Result<Vec<String>> {
+async fn garuda_update_data(
+    name: &str,
+    config: &Config,
+    pool: &MySqlPool,
+) -> anyhow::Result<Vec<Garuda>> {
     match config.mariadb().output_table() {
         OutputTableName::Output => output_data(name, pool).await,
         OutputTableName::OutputTest => output_test_data(name, pool).await,
     }
 }
 
-async fn output_data(name: &str, pool: &MySqlPool) -> anyhow::Result<Vec<String>> {
+async fn output_data(name: &str, pool: &MySqlPool) -> anyhow::Result<Vec<Garuda>> {
     let records = sqlx::query!(
         r#"SELECT output.data FROM output WHERE output.bartoc_name = ? order by timestamp"#,
         name,
@@ -210,23 +225,22 @@ async fn output_data(name: &str, pool: &MySqlPool) -> anyhow::Result<Vec<String>
         .map(|r| r.data)
         .filter_map(|s| {
             GARUDA_RE.captures(&s).map(|caps| {
-                format!(
-                    "{} {} {} {} {} {}",
-                    caps.get(1).map_or("", |m| m.as_str()),
-                    caps.get(2).map_or("", |m| m.as_str()),
-                    caps.get(3).map_or("", |m| m.as_str()),
-                    caps.get(4).map_or("", |m| m.as_str()),
-                    caps.get(5).map_or("", |m| m.as_str()),
-                    caps.get(6).map_or("", |m| m.as_str()),
-                )
+                Garuda::builder()
+                    .channel(caps.get(1).map_or("", |m| m.as_str()))
+                    .package(caps.get(2).map_or("", |m| m.as_str()))
+                    .old_version(caps.get(3).map_or("", |m| m.as_str()))
+                    .new_version(caps.get(4).map_or("", |m| m.as_str()))
+                    .size_change(caps.get(5).map_or("", |m| m.as_str()))
+                    .download_size(caps.get(6).map_or("", |m| m.as_str()))
+                    .build()
             })
         })
-        .collect::<Vec<String>>();
+        .collect::<Vec<Garuda>>();
     results.sort();
     Ok(results)
 }
 
-async fn output_test_data(name: &str, pool: &MySqlPool) -> anyhow::Result<Vec<String>> {
+async fn output_test_data(name: &str, pool: &MySqlPool) -> anyhow::Result<Vec<Garuda>> {
     let records = sqlx::query!(
         r#"SELECT output_test.data FROM output_test WHERE output_test.bartoc_name = ? order by timestamp"#,
         name,
@@ -239,18 +253,17 @@ async fn output_test_data(name: &str, pool: &MySqlPool) -> anyhow::Result<Vec<St
         .map(|r| r.data)
         .filter_map(|s| {
             GARUDA_RE.captures(&s).map(|caps| {
-                format!(
-                    "{} {} {} {} {} {}",
-                    caps.get(1).map_or("", |m| m.as_str()),
-                    caps.get(2).map_or("", |m| m.as_str()),
-                    caps.get(3).map_or("", |m| m.as_str()),
-                    caps.get(4).map_or("", |m| m.as_str()),
-                    caps.get(5).map_or("", |m| m.as_str()),
-                    caps.get(6).map_or("", |m| m.as_str()),
-                )
+                Garuda::builder()
+                    .channel(caps.get(1).map_or("", |m| m.as_str()))
+                    .package(caps.get(2).map_or("", |m| m.as_str()))
+                    .old_version(caps.get(3).map_or("", |m| m.as_str()))
+                    .new_version(caps.get(4).map_or("", |m| m.as_str()))
+                    .size_change(caps.get(5).map_or("", |m| m.as_str()))
+                    .download_size(caps.get(6).map_or("", |m| m.as_str()))
+                    .build()
             })
         })
-        .collect::<Vec<String>>();
+        .collect::<Vec<Garuda>>();
     results.sort();
     Ok(results)
 }

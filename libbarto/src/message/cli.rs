@@ -20,6 +20,8 @@ pub enum BartoCli {
     Updates {
         /// The name of the bartoc client to check for recent updates
         name: String,
+        /// The update kind we are requesting
+        kind: UpdateKind,
     },
     /// A request from barto-cli to clean up old database entries
     Cleanup,
@@ -30,4 +32,13 @@ pub enum BartoCli {
         /// The query to run on bartos
         query: String,
     },
+}
+
+/// The update kind we are requesting
+#[derive(Clone, Copy, Debug, Decode, Encode)]
+pub enum UpdateKind {
+    /// A garuda-update message
+    Garuda,
+    /// An other update message
+    Other,
 }

@@ -11,7 +11,7 @@ use std::collections::{BTreeMap, HashMap};
 use bincode::{Decode, Encode};
 use vergen_pretty::PrettyExt;
 
-use crate::{Initialize, UuidWrapper, message::shared::sys::ClientData};
+use crate::{Initialize, UpdateKind, UuidWrapper, message::shared::sys::ClientData};
 
 /// A message from a worker client to a worker session
 #[derive(Clone, Debug, Decode, Encode)]
@@ -28,7 +28,7 @@ pub enum BartosToBartoCli {
     /// Information about the bartos server in JSON format
     InfoJson(String),
     /// Updates about a named bartoc client
-    Updates(Vec<String>),
+    Updates(UpdateKind),
     /// Result of a cleanup operation
     Cleanup((u64, u64)),
     /// Current connected clients

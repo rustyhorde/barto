@@ -18,7 +18,7 @@ use anyhow::{Context as _, Result};
 use bincode::{config::standard, encode_to_vec};
 use clap::Parser as _;
 use futures_util::{SinkExt as _, StreamExt as _};
-use libbarto::{BartoCli, header, init_tracing, load};
+use libbarto::{BartoCli, CliUpdateKind, header, init_tracing, load};
 use tokio::time::sleep;
 use tokio_tungstenite::{connect_async, tungstenite::Message};
 use tracing::trace;
@@ -83,8 +83,23 @@ where
             let info = encode_to_vec(BartoCli::Info { json: *json }, standard())?;
             Message::Binary(info.into())
         }
-        Commands::Updates { name } => {
-            let update = encode_to_vec(BartoCli::Updates { name: name.clone() }, standard())?;
+        Commands::Updates {
+            name,
+            garuda,
+            other: _,
+        } => {
+            let kind = if *garuda {
+                CliUpdateKind::Garuda
+            } else {
+                CliUpdateKind::Other
+            };
+            let update = encode_to_vec(
+                BartoCli::Updates {
+                    name: name.clone(),
+                    kind,
+                },
+                standard(),
+            )?;
             Message::Binary(update.into())
         }
         Commands::Cleanup => {

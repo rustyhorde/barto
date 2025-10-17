@@ -156,6 +156,22 @@ pub(crate) enum Commands {
             help = "The name of the batoc client to check for recent updates"
         )]
         name: String,
+        /// The kind of updates to check for
+        #[clap(
+            short,
+            long,
+            help = "Check for garuda updates",
+            conflicts_with = "other"
+        )]
+        garuda: bool,
+        /// The kind of updates to check for
+        #[clap(
+            short,
+            long,
+            help = "Check for other updates",
+            conflicts_with = "garuda"
+        )]
+        other: bool,
     },
     #[clap(about = "Perform cleanup of old database entries")]
     Cleanup,
