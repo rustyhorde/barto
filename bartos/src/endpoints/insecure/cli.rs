@@ -37,6 +37,14 @@ use vergen_pretty::{Pretty, PrettyExt, vergen_pretty_env};
 
 use crate::{common::Clients, config::Config, endpoints::insecure::Name};
 
+// pacman
+// Packages (5) git-2.51.1-1  libarchive-3.8.2-1  linux-6.17.3.arch1-1  python-charset-normalizer-3.4.4-1  python-cryptography-46.0.3-1
+
+// apt
+// The following packages will be upgraded:
+//   libtdb-dev libtdb1"
+// 2 upgraded, 0 newly installed, 0 to remove and 0 not upgraded.
+
 #[allow(dead_code)]
 static GARUDA_UPDATE_RE: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(r"\(\d+/\d+\) upgrading ([^ ]+) .*").expect("failed to create garuda update regex")
