@@ -140,7 +140,7 @@ pub struct Command {
     cmd: String,
 }
 
-/// hosts configuration
+/// Configuration for the Actix web server
 #[derive(Clone, Debug, Default, Deserialize, Eq, Getters, PartialEq, Serialize)]
 #[getset(get = "pub")]
 pub struct Actix {
@@ -154,7 +154,7 @@ pub struct Actix {
     tls: Option<Tls>,
 }
 
-/// tls configuration
+/// TLS configuration for the Actix web server
 #[derive(Clone, CopyGetters, Debug, Default, Deserialize, Eq, Getters, PartialEq, Serialize)]
 pub struct Tls {
     /// The IP address to listen on
@@ -163,10 +163,10 @@ pub struct Tls {
     /// The port to listen on
     #[getset(get_copy = "pub")]
     port: u16,
-    /// The path to the certificate file
+    /// The path to the certificate file (PEM format)
     #[getset(get = "pub")]
     cert_file_path: String,
-    /// The path to the key file
+    /// The path to the key file (PEM format)
     #[getset(get = "pub")]
     key_file_path: String,
 }
@@ -181,24 +181,24 @@ impl TlsConfig for Tls {
     }
 }
 
-/// bartos configuration for clients
+/// Used in bartoc configuration to define the bartos instance to connect to
 #[derive(Clone, CopyGetters, Debug, Default, Deserialize, Eq, Getters, PartialEq, Serialize)]
 pub struct Bartos {
-    /// The number of workers to start
+    /// The websocket prefix (ws or wss)
     #[getset(get = "pub")]
     prefix: String,
-    /// The IP address to listen on
+    /// The bartos hostname or IP
     #[getset(get = "pub")]
     host: String,
-    /// The port to listen on
+    /// The bartos port
     #[getset(get_copy = "pub")]
     port: u16,
 }
 
-/// hosts configuration
+/// The `MariaDB` configuration
 #[derive(Clone, CopyGetters, Debug, Default, Deserialize, Eq, Getters, PartialEq, Serialize)]
 pub struct Mariadb {
-    /// The host for the database
+    /// The host or IP for the database
     host: String,
     /// The port for the database
     port: Option<u16>,
@@ -210,11 +210,15 @@ pub struct Mariadb {
     database: String,
     /// The options string
     options: Option<String>,
-    /// The output table name
+    /// The output table name, used for testing
+    #[doc(hidden)]
     #[getset(get_copy = "pub")]
+    #[serde(default = "OutputTableName::default")]
     output_table: OutputTableName,
-    /// The status table name
+    /// The status table name, used for testing
+    #[doc(hidden)]
     #[getset(get_copy = "pub")]
+    #[serde(default = "StatusTableName::default")]
     status_table: StatusTableName,
 }
 
@@ -255,6 +259,7 @@ impl Mariadb {
     }
 }
 /// The output table name
+#[doc(hidden)]
 #[derive(Clone, Copy, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
 pub enum OutputTableName {
     /// Use the default table name `output`
@@ -274,6 +279,7 @@ impl From<OutputTableName> for &'static str {
 }
 
 /// The status table name
+#[doc(hidden)]
 #[derive(Clone, Copy, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
 pub enum StatusTableName {
     /// Use the default table name `status`

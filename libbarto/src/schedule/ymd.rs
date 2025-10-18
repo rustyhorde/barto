@@ -81,6 +81,31 @@ impl Display for Year {
     }
 }
 
+impl TryFrom<&str> for Year {
+    type Error = Error;
+
+    fn try_from(yearish: &str) -> Result<Self> {
+        Ok(if yearish == "*" {
+            Year::All
+        } else if RANGE_RE.is_match(yearish) {
+            let caps = RANGE_RE.captures(yearish).ok_or_else(|| anyhow!(""))?;
+            let first = caps
+                .get(1)
+                .ok_or_else(|| anyhow!(""))?
+                .as_str()
+                .parse::<i32>()?;
+            let second = caps
+                .get(2)
+                .ok_or_else(|| anyhow!(""))?
+                .as_str()
+                .parse::<i32>()?;
+            Year::Range(first, second)
+        } else {
+            Year::Year(yearish.parse::<i32>()?)
+        })
+    }
+}
+
 /// The month for a realtime schedule
 #[derive(Clone, Debug, Default, Eq, Hash, PartialEq)]
 pub enum Month {
@@ -121,6 +146,14 @@ impl From<Vec<u8>> for Month {
 impl From<u8> for Month {
     fn from(value: u8) -> Self {
         Month::Months(vec![value])
+    }
+}
+
+impl TryFrom<&str> for Month {
+    type Error = Error;
+
+    fn try_from(monthish: &str) -> Result<Self> {
+        parse_time_chunk::<Month>(monthish, MONTHS_PER_YEAR, true)
     }
 }
 
@@ -175,6 +208,14 @@ impl From<Vec<u8>> for Day {
 impl From<u8> for Day {
     fn from(value: u8) -> Self {
         Day::Days(vec![value])
+    }
+}
+
+impl TryFrom<&str> for Day {
+    type Error = Error;
+
+    fn try_from(dayish: &str) -> Result<Self> {
+        parse_time_chunk::<Day>(dayish, DAYS_PER_MONTH, true)
     }
 }
 
@@ -241,9 +282,9 @@ impl TryFrom<&str> for YearMonthDay {
     fn try_from(ymdish: &str) -> Result<Self> {
         let date_parts: Vec<&str> = ymdish.split('-').collect();
         if date_parts.len() == 3 {
-            let year = parse_year(date_parts[0])?;
-            let month = parse_time_chunk::<Month>(date_parts[1], MONTHS_PER_YEAR, true)?;
-            let day = parse_time_chunk::<Day>(date_parts[2], DAYS_PER_MONTH, true)?;
+            let year = date_parts[0].try_into()?;
+            let month = date_parts[1].try_into()?;
+            let day = date_parts[2].try_into()?;
             Ok(YearMonthDay { year, month, day })
         } else {
             Err(InvalidDate {
@@ -258,25 +299,4 @@ impl Display for YearMonthDay {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "{} {} {}", self.year, self.month, self.day)
     }
-}
-
-fn parse_year(yearish: &str) -> Result<Year> {
-    Ok(if yearish == "*" {
-        Year::All
-    } else if RANGE_RE.is_match(yearish) {
-        let caps = RANGE_RE.captures(yearish).ok_or_else(|| anyhow!(""))?;
-        let first = caps
-            .get(1)
-            .ok_or_else(|| anyhow!(""))?
-            .as_str()
-            .parse::<i32>()?;
-        let second = caps
-            .get(2)
-            .ok_or_else(|| anyhow!(""))?
-            .as_str()
-            .parse::<i32>()?;
-        Year::Range(first, second)
-    } else {
-        Year::Year(yearish.parse::<i32>()?)
-    })
 }

@@ -36,11 +36,8 @@ pub enum Error {
     #[error("no valid captures")]
     NoValidCaptures,
     /// An invalid range was specified when parsing a realtime schedule
-    #[error("invalid range: '{}'", range)]
-    InvalidRange {
-        /// The invalid range
-        range: String,
-    },
+    #[error("invalid range: '{}'", .0)]
+    InvalidRange(String),
     /// An invalid first capture when parsing a realtime schedule
     #[error("invalid first capture")]
     InvalidFirstCapture,
@@ -74,6 +71,9 @@ pub enum Error {
         /// The invalid update kind
         kind: String,
     },
+    /// An invalid date string was specified when parsing a realtime schedule
+    #[error("invalid day of week: '{}'", .0)]
+    InvalidDayOfWeek(String),
 }
 
 /// Converts an `anyhow::Error` into a suitable exit code or clap message for a CLI application.

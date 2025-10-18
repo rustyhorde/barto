@@ -52,7 +52,62 @@ trait All {
     fn rand() -> Self;
 }
 
-/// A realtime schedule
+/// A realtime schedule defines the times at which a task should run.
+///
+/// A realtime schedule is made up of three components:
+/// ```text
+/// |day of the week| |year-month-day| |hour:minute:second|
+///
+/// |day of the week| is optional and defaults to every day ('*') if not specified.
+/// |year-month-day| is optional and defaults to every year, month, and day ('*-*-*') if not specified.
+/// ```
+///
+/// # Day of the Week EBNF
+/// ```text
+/// day_of_week     = "*" | day_list | "" ;
+/// day_list        = day , {", " , day} ;
+/// day             = day_short | day_full | day_range_short | day_range_full ;
+/// day_short       = "Mon" | "Tue" | "Wed" | "Thu" | "Fri" | "Sat" | "Sun" ;
+/// day_full        = "Monday" | "Tuesday" | "Wednesday" | "Thursday" | "Friday" | "Saturday" | "Sunday" ;
+/// day_range_short = day_short , ".." , day_short ;
+/// day_range_full  = day_full , ".." , day_full ;
+/// ```
+///
+/// ## Day of the Week Examples
+/// ```text
+/// '*'                  - every day of the week
+/// 'Sun'                - every Sunday
+/// 'Mon,Wed,Fri'        - every Monday, Wednesday, and Friday
+/// 'Mon..Fri'           - every weekday (Monday through Friday)
+/// 'Sun, Mon..Wed, Sat' - every Sunday, Monday through Wednesday, and Saturday
+/// 'Sun, Sun..Fri, Fri' - every Sunday, Sunday through Friday, and Friday (ranges and duplicates allowed, but not recommended)
+///
+/// # Year-Month-Day EBNF
+/// ```text
+/// random           = "R" ;
+/// non_zero_digit   = "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9" ;
+/// digit            = "0" | non_zero_digit ;
+/// year             = digit , digit , digit , digit, { digit } ;
+/// month            = non_zero_digit , [ digit ] ;
+/// day              = non_zero_digit , [ digit ] ;
+/// year_range       = year , ".." , year ;
+/// month_range      = month , ".." , month ;
+/// day_range        = day , ".." , day ;
+/// year_repitition  = year , [ ".." , year ] , "/" , non_zero_digit , { digit } ;
+/// month_repitition = month , [ ".." , month ] , "/" , non_zero_digit , [ digit ] ;
+/// day_repitition   = day , [ ".." , day ] , "/" , non_zero_digit , [ digit ] ;
+/// year_format      = year | "*" | random | year_range | year_repitition ;
+/// month_format     = month | "*" | random | month_range | month_repitition ;
+/// day_format       = day | "*" | random | day_range | day_repitition ;
+/// year_month_day   = year_format , "-" , month_format , "-" , day_format ;
+///
+/// ## Year-Month-Day Examples
+/// ```text
+/// '*-*-*' - every year, month, and day
+/// "*-R-R" - every year, random month (1 to 12), and random day (1 to 28)"
+/// "*-*-1..15" - every year, first 15 days of every month
+/// ```
+///
 #[derive(Builder, Clone, Debug, Eq, Hash, PartialEq)]
 pub struct Realtime {
     /// The day(s) of the week to run
@@ -214,10 +269,7 @@ fn parse_range(range: &str, max: u8, one_based: bool) -> Result<Vec<u8>> {
         || (one_based && first == 0)
         || ((one_based && second > max) || (!one_based && second >= max))
     {
-        Err(InvalidRange {
-            range: range.to_string(),
-        }
-        .into())
+        Err(InvalidRange(range.to_string()).into())
     } else {
         Ok((first..=second).collect())
     }
@@ -240,10 +292,7 @@ fn parse_repetition(rep: &str, max: u8) -> Result<Vec<u8>> {
         if let Some(end) = caps.get(3) {
             let end = end.as_str().parse::<u8>()?;
             if end < start || end >= max {
-                Err(InvalidRange {
-                    range: format!("{start}..{end}"),
-                }
-                .into())
+                Err(InvalidRange(format!("{start}..{end}")).into())
             } else {
                 Ok((start..=end).step_by(rep).collect())
             }

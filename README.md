@@ -39,8 +39,6 @@ username = "user"                  # Required
 password = "pass"                  # Required
 database = "db"                    # Required
 options = "ssl=true"               # Optional, & separated key-value pairs
-output_table = "Output|OutputTest" # Required
-status_table = "Status|StatusTest" # Required
 
 # stdout Tracing Configuration
 [tracing.stdout]
@@ -65,9 +63,14 @@ with_line_number = false           # Required
 with_level = true                  # Required
 directives = "actix_server=error"  # Required
 
-# Schedules for barto clients
-[schedules]
+# An array of schedules for barto clients
+# This is [schedules.<bartoc name>].  This should match the name defined in your bartoc.toml.
+[schedules.barto] = [
+    { name = "echo", on_calendar = "*-*-* 10:R:R", cmds = [ "echo -n \"barto\"" ] }
+]
 ```
+
+The `on_calendar` format is outlined at [`Realtime`](https://docs.rs/libbarto/latest/libbarto/struct.Realtime.html)
 
 ## `bartoc` - The barto client
 [![Crates.io](https://img.shields.io/crates/v/bartoc.svg)](https://crates.io/crates/bartoc)
