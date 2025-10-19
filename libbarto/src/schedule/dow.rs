@@ -200,6 +200,7 @@ mod test {
     use anyhow::{Result, anyhow};
     use itertools::Itertools as _;
     use proptest::prelude::*;
+    use time::Weekday;
 
     static SHORT_DOWS: &[&str] = &["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
     static LONG_DOWS: &[&str] = &[
@@ -219,23 +220,37 @@ mod test {
             .collect::<Vec<&str>>()
     });
 
-    // #[allow(dead_code)]
-    // fn valid_ranges() -> Vec<String> {
-    //     SHORT_DOWS
-    //         .iter()
-    //         .cloned()
-    //         .chain(LONG_DOWS.iter().cloned())
-    //         .permutations(2)
-    //         .filter_map(|v| {
-    //             let vals = v
-    //                 .iter()
-    //                 .filter_map(|x| parse_dow(x).ok())
-    //                 .collect::<Vec<u8>>();
-    //             if vals[0] < vals[1] { Some(v) } else { None }
-    //         })
-    //         .map(|v| format!("{}..{}", v[0], v[1]))
-    //         .collect()
-    // }
+    struct WeekdayWrapper(Weekday);
+
+    impl From<u8> for WeekdayWrapper {
+        fn from(value: u8) -> Self {
+            let wd = match value {
+                0 => Weekday::Sunday,
+                1 => Weekday::Monday,
+                2 => Weekday::Tuesday,
+                3 => Weekday::Wednesday,
+                4 => Weekday::Thursday,
+                5 => Weekday::Friday,
+                6 => Weekday::Saturday,
+                _ => panic!("invalid weekday value: {}", value),
+            };
+            WeekdayWrapper(wd)
+        }
+    }
+
+    prop_compose! {
+        fn arb_dow_range() (first in any::<u8>(), second in any::<u8>()) -> (String, u8, u8) {
+            let first = first % 7;
+            let second = second % 7;
+            let first_wd = SHORT_DOWS[usize::from(first)];
+            let second_wd = SHORT_DOWS[usize::from(second)];
+            if first <= second {
+                (format!("{}..{}", first_wd, second_wd), first, second)
+            } else {
+                (format!("{}..{}", second_wd, first_wd), second, first)
+            }
+        }
+    }
 
     proptest! {
         #[test]
@@ -257,6 +272,24 @@ mod test {
             prop_assume!(!ALL_DOWS.contains(&s.as_str()));
             assert!(DayOfWeek::try_from(s.as_str()).is_err());
             assert!(s.parse::<DayOfWeek>().is_err());
+        }
+
+        #[test]
+        fn any_valid_range_matches(s in arb_dow_range()) {
+            let (range_str, min, max) = s;
+            match DayOfWeek::try_from(range_str.as_str()) {
+                Err(e) => assert!(false, "valid range '{range_str}' failed to parse: {e}"),
+                Ok(dow_range) => for i in 0..7 {
+                    let wdw = WeekdayWrapper::from(i);
+                    if i < min {
+                        assert!(!dow_range.matches(wdw.0), "day {i} should not match range '{range_str}'");
+                    } else if i > max {
+                        assert!(!dow_range.matches(wdw.0), "day {i} should not match range '{range_str}'");
+                    } else {
+                        assert!(dow_range.matches(wdw.0), "day {i} should match range '{range_str}'");
+                    }
+                },
+            }
         }
     }
 
@@ -401,5 +434,17 @@ mod test {
                 "{range} should be invalid"
             );
         }
+    }
+
+    #[test]
+    fn all_matches() {
+        let dow_all = DayOfWeek::All;
+        assert!(dow_all.matches(Weekday::Sunday));
+        assert!(dow_all.matches(Weekday::Monday));
+        assert!(dow_all.matches(Weekday::Tuesday));
+        assert!(dow_all.matches(Weekday::Wednesday));
+        assert!(dow_all.matches(Weekday::Thursday));
+        assert!(dow_all.matches(Weekday::Friday));
+        assert!(dow_all.matches(Weekday::Saturday));
     }
 }

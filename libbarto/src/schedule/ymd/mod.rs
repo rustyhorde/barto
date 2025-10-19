@@ -6,105 +6,24 @@
 // option. All files in the project carrying such notice may not be copied,
 // modified, or distributed except according to those terms.
 
+pub(crate) mod year;
+
 use std::fmt::{Display, Formatter};
 
-use anyhow::{Error, Result, anyhow};
+use anyhow::{Error, Result};
 use bon::Builder;
 use getset::{CopyGetters, Getters};
 use rand::Rng;
 
 use crate::{
     error::Error::InvalidDate,
-    schedule::{All, RANGE_RE, parse_time_chunk},
+    schedule::{All, parse_time_chunk, ymd::year::Year},
     utils::as_two_digit,
 };
 
 const MONTHS_PER_YEAR: u8 = 12;
 // TODO: Fix this
 const DAYS_PER_MONTH: u8 = 31;
-
-/// The year for a realtime schedule
-#[derive(Clone, Copy, Debug, Default, Eq, Hash, PartialEq)]
-pub enum Year {
-    /// Every year
-    #[default]
-    All,
-    /// A range of years
-    Range(i32, i32),
-    /// A repetition of years
-    ///
-    /// This is a sequence of years: start, start + rep, start + 2*rep
-    /// up to the optional end year.
-    Repetition {
-        /// The year to start
-        start: i32,
-        /// An optional end year
-        end: Option<i32>,
-        /// The repetition value
-        rep: u8,
-    },
-    /// Specific years
-    Year(i32),
-}
-
-impl Year {
-    pub(crate) fn matches(&self, given: i32) -> bool {
-        match self {
-            Year::All => true,
-            Year::Range(lo, hi) => *lo <= given && given <= *hi,
-            Year::Repetition { start, end, rep } => if let Some(end) = end {
-                *start..=*end
-            } else {
-                *start..=9999
-            }
-            .step_by(usize::from(*rep))
-            .any(|x| x == given),
-            Year::Year(year) => *year == given,
-        }
-    }
-}
-
-impl Display for Year {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Year::All => write!(f, "*"),
-            Year::Range(lo, hi) => write!(f, "{lo}..{hi}"),
-            Year::Repetition { start, end, rep } => {
-                if let Some(end) = end {
-                    write!(f, "{start}/{rep}..{end}")
-                } else {
-                    write!(f, "{start}/{rep}")
-                }
-            }
-            Year::Year(year) => write!(f, "{year:04}"),
-        }
-    }
-}
-
-impl TryFrom<&str> for Year {
-    type Error = Error;
-
-    fn try_from(yearish: &str) -> Result<Self> {
-        Ok(if yearish == "*" {
-            Year::All
-        } else if RANGE_RE.is_match(yearish) {
-            let caps = RANGE_RE.captures(yearish).ok_or_else(|| anyhow!(""))?;
-            let first = caps
-                .get(1)
-                .ok_or_else(|| anyhow!(""))?
-                .as_str()
-                .parse::<i32>()?;
-            let second = caps
-                .get(2)
-                .ok_or_else(|| anyhow!(""))?
-                .as_str()
-                .parse::<i32>()?;
-            Year::Range(first, second)
-        } else {
-            Year::Year(yearish.parse::<i32>()?)
-        })
-    }
-}
 
 /// The month for a realtime schedule
 #[derive(Clone, Debug, Default, Eq, Hash, PartialEq)]
