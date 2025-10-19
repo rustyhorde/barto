@@ -492,6 +492,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::clone_on_copy)] // for testing purposes
     fn clone_works() {
         let year = Year::Repetition {
             start: 2020,
@@ -507,5 +508,5 @@ mod tests {
         let year = Year::Year(2025);
         let copied_year = year;
         assert_eq!(year, copied_year);
-    }   
+    }
 }
