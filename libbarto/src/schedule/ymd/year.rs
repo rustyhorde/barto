@@ -65,6 +65,58 @@ impl Year {
     fn invalid_year(year: &str) -> Error {
         InvalidYear(year.to_string()).into()
     }
+
+    fn parse_years_range(yearish: &str) -> Result<Self> {
+        if let Some(caps) = YEAR_RANGE_RE.captures(yearish) {
+            let first = caps[1]
+                .parse::<i32>()
+                .map_err(|_| Self::invalid_year(yearish))?;
+            let second = caps[2]
+                .parse::<i32>()
+                .map_err(|_| Self::invalid_year(yearish))?;
+            if second < first {
+                Err(Self::invalid_year(yearish))
+            } else {
+                Ok(Year::Range(first, second))
+            }
+        } else {
+            Err(Self::invalid_year(yearish))
+        }
+    }
+
+    fn parse_years_repetition(yearish: &str) -> Result<Self> {
+        if let Some(caps) = YEAR_REP_RE.captures(yearish) {
+            let start = caps[1]
+                .parse::<i32>()
+                .map_err(|_| Self::invalid_year(yearish))?;
+            let end = if let Some(end_match) = caps.get(3) {
+                Some(
+                    end_match
+                        .as_str()
+                        .parse::<i32>()
+                        .map_err(|_| Self::invalid_year(yearish))?,
+                )
+            } else {
+                None
+            };
+            let rep = caps[4]
+                .parse::<u8>()
+                .map_err(|_| Self::invalid_year(yearish))?;
+            if rep == 0 {
+                Err(Self::invalid_year(yearish))
+            } else if let Some(end_val) = end {
+                if end_val < start {
+                    Err(Self::invalid_year(yearish))
+                } else {
+                    Ok(Year::Repetition { start, end, rep })
+                }
+            } else {
+                Ok(Year::Repetition { start, end, rep })
+            }
+        } else {
+            Err(Self::invalid_year(yearish))
+        }
+    }
 }
 
 impl Display for Year {
@@ -74,12 +126,12 @@ impl Display for Year {
             Year::Range(lo, hi) => write!(f, "{lo}..{hi}"),
             Year::Repetition { start, end, rep } => {
                 if let Some(end) = end {
-                    write!(f, "{start}/{rep}..{end}")
+                    write!(f, "{start}..{end}/{rep}")
                 } else {
                     write!(f, "{start}/{rep}")
                 }
             }
-            Year::Year(year) => write!(f, "{year:04}"),
+            Year::Year(year) => write!(f, "{year}"),
         }
     }
 }
@@ -92,54 +144,10 @@ impl TryFrom<&str> for Year {
             Err(Self::invalid_year(yearish))
         } else if yearish == "*" {
             Ok(Year::All)
-        } else if YEAR_RANGE_RE.is_match(yearish) {
-            if let Some(caps) = YEAR_RANGE_RE.captures(yearish) {
-                let first = caps[1]
-                    .parse::<i32>()
-                    .map_err(|_| Self::invalid_year(yearish))?;
-                let second = caps[2]
-                    .parse::<i32>()
-                    .map_err(|_| Self::invalid_year(yearish))?;
-                if second < first {
-                    Err(Self::invalid_year(yearish))
-                } else {
-                    Ok(Year::Range(first, second))
-                }
-            } else {
-                Err(Self::invalid_year(yearish))
-            }
         } else if YEAR_REP_RE.is_match(yearish) {
-            if let Some(caps) = YEAR_REP_RE.captures(yearish) {
-                let start = caps[1]
-                    .parse::<i32>()
-                    .map_err(|_| Self::invalid_year(yearish))?;
-                let end = if let Some(end_match) = caps.get(3) {
-                    Some(
-                        end_match
-                            .as_str()
-                            .parse::<i32>()
-                            .map_err(|_| Self::invalid_year(yearish))?,
-                    )
-                } else {
-                    None
-                };
-                let rep = caps[4]
-                    .parse::<u8>()
-                    .map_err(|_| Self::invalid_year(yearish))?;
-                if rep == 0 {
-                    Err(Self::invalid_year(yearish))
-                } else if let Some(end_val) = end {
-                    if end_val < start {
-                        Err(Self::invalid_year(yearish))
-                    } else {
-                        Ok(Year::Repetition { start, end, rep })
-                    }
-                } else {
-                    Ok(Year::Repetition { start, end, rep })
-                }
-            } else {
-                Err(Self::invalid_year(yearish))
-            }
+            Self::parse_years_repetition(yearish)
+        } else if YEAR_RANGE_RE.is_match(yearish) {
+            Self::parse_years_range(yearish)
         } else {
             Ok(Year::Year(yearish.parse::<i32>()?))
         }
@@ -156,29 +164,32 @@ impl FromStr for Year {
 
 #[cfg(test)]
 mod tests {
-    use std::{cmp::Ordering, sync::LazyLock};
+    use std::{cmp::Ordering, fmt::Write as _, sync::LazyLock};
+
+    use crate::schedule::ymd::year::YEAR_RANGE_RE;
 
     use super::Year;
 
     use anyhow::Result;
     use proptest::prelude::*;
+    use rand::rng;
     use regex::Regex;
 
     static VALID_I32_RE: LazyLock<Regex> =
         LazyLock::new(|| Regex::new(r"-?\d+").expect("invalid at least 4 digits regex"));
 
     prop_compose! {
-        fn arb_year() (year in any::<i32>()) -> String {
-            year.to_string()
+        fn arb_year() (year in any::<i32>()) -> (String, i32) {
+            (year.to_string(), year)
         }
     }
 
     prop_compose! {
-        fn arb_valid_range()(first in any::<i32>(), second in any::<i32>()) -> String {
+        fn arb_valid_range()(first in any::<i32>(), second in any::<i32>()) -> (String, i32, i32) {
             if first <= second {
-                format!("{first}..{second}")
+                (format!("{first}..{second}"), first, second)
             } else {
-                format!("{second}..{first}")
+                (format!("{second}..{first}"), second, first)
             }
         }
     }
@@ -189,6 +200,40 @@ mod tests {
                 Ordering::Less | Ordering::Equal => format!("{second}..{first}"),
                 Ordering::Greater => format!("{first}..{second}"),
             }
+        }
+    }
+
+    prop_compose! {
+        fn arb_valid_repetition()(s in arb_valid_range(), rep in any::<u8>()) -> String {
+            let (mut prefix, _, _) = s;
+            let rep = if rep == 0 { 1 } else { rep };
+            write!(prefix, "/{rep}").unwrap();
+            prefix
+        }
+    }
+
+    prop_compose! {
+        fn arb_invalid_repetition_zero_rep()(s in arb_valid_range()) -> String {
+            let (mut prefix, _, _) = s;
+            write!(prefix, "/0").unwrap();
+            prefix
+        }
+    }
+
+    prop_compose! {
+        fn arb_invalid_repetition()(s in arb_invalid_range(), rep in any::<u8>()) -> String {
+            let mut prefix = s;
+            write!(prefix, "/{rep}").unwrap();
+            prefix
+        }
+    }
+
+    prop_compose! {
+        fn arb_valid_repetition_no_end()(first in any::<i32>(), rep in any::<u8>()) -> String {
+            let mut prefix = format!("{first}");
+            let rep = if rep == 0 { 1 } else { rep };
+            write!(prefix, "/{rep}").unwrap();
+            prefix
         }
     }
 
@@ -203,8 +248,9 @@ mod tests {
 
         #[test]
         fn any_valid_i32_str_works(s in arb_year()) {
-            assert!(Year::try_from(s.as_str()).is_ok());
-            assert!(s.parse::<Year>().is_ok());
+            let (year, _) = s;
+            assert!(Year::try_from(year.as_str()).is_ok());
+            assert!(year.parse::<Year>().is_ok());
         }
 
         #[test]
@@ -215,8 +261,62 @@ mod tests {
 
         #[test]
         fn any_valid_range_str_works(s in arb_valid_range()) {
+            let (s, _, _) = s;
             assert!(Year::try_from(s.as_str()).is_ok());
             assert!(s.parse::<Year>().is_ok());
+        }
+
+        #[test]
+        fn invalid_range_errors(s in "\\PC*") {
+            prop_assume!(!YEAR_RANGE_RE.is_match(s.as_str()));
+            assert!(Year::parse_years_range(s.as_str()).is_err());
+        }
+
+        #[test]
+        fn any_valid_repetition_str_works(s in arb_valid_repetition()) {
+            assert!(Year::try_from(s.as_str()).is_ok());
+            assert!(s.parse::<Year>().is_ok());
+        }
+
+        #[test]
+        fn any_valid_repetition_no_end_str_works(s in arb_valid_repetition_no_end()) {
+            assert!(Year::try_from(s.as_str()).is_ok());
+            assert!(s.parse::<Year>().is_ok());
+        }
+
+        #[test]
+        fn invalid_repetition_zero_rep_errors(s in arb_invalid_repetition_zero_rep()) {
+            assert!(Year::try_from(s.as_str()).is_err());
+            assert!(s.parse::<Year>().is_err());
+        }
+
+        #[test]
+        fn any_invalid_repetition_str_errors(s in arb_invalid_repetition()) {
+            assert!(Year::try_from(s.as_str()).is_err());
+            assert!(s.parse::<Year>().is_err());
+        }
+
+        #[test]
+        fn any_valid_i32_matches(s in arb_year()) {
+            let (year, year_val) = s;
+            let year = Year::try_from(year.as_str()).expect("valid year failed to parse");
+            assert!(year.matches(year_val));
+        }
+
+        #[test]
+        fn any_valid_range_matches(s in arb_valid_range()) {
+            let (range_str, min, max) = s;
+            match Year::try_from(range_str.as_str()) {
+                Err(e) => panic!("valid range '{range_str}' failed to parse: {e}"),
+                Ok(year_range) => for _ in 0..256 {
+                    let in_range = rng().random_range(min..=max);
+                    let below = rng().random_range(i32::MIN..min);
+                    let above = rng().random_range(max..=i32::MAX);
+                    assert!(year_range.matches(in_range), "day {in_range} should match range '{range_str}'");
+                    assert!(!year_range.matches(below), "day {below} should not match range '{range_str}'");
+                    assert!(!year_range.matches(above), "day {above} should not match range '{range_str}'");
+                },
+            }
         }
     }
 
@@ -231,5 +331,36 @@ mod tests {
         assert_eq!(Year::All, Year::try_from("*")?);
         assert_eq!(Year::All, "*".parse::<Year>()?);
         Ok(())
+    }
+
+    #[test]
+    fn all_display_works() {
+        assert_eq!(Year::All.to_string(), "*");
+        assert_eq!(Year::Year(2025).to_string(), "2025");
+        assert_eq!(Year::Range(2020, 2025).to_string(), "2020..2025");
+        assert_eq!(
+            Year::Repetition {
+                start: 2020,
+                end: Some(2030),
+                rep: 2
+            }
+            .to_string(),
+            "2020..2030/2"
+        );
+        assert_eq!(
+            Year::Repetition {
+                start: 2020,
+                end: None,
+                rep: 2
+            }
+            .to_string(),
+            "2020/2"
+        );
+    }
+
+    #[test]
+    fn invalid_caps() {
+        assert!(Year::parse_years_range("invalid").is_err());
+        assert!(Year::parse_years_repetition("invalid").is_err());
     }
 }
