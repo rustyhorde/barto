@@ -220,7 +220,7 @@ impl Display for Realtime {
 
 fn parse_time_chunk<T>(part: &str, max: u8, one_based: bool) -> Result<T>
 where
-    T: All + From<Vec<u8>>,
+    T: All + TryFrom<Vec<u8>, Error = Error>,
 {
     if part == "*" {
         Ok(T::all())
@@ -239,7 +239,7 @@ where
             .collect();
         err?;
         time_v.sort_unstable();
-        Ok(T::from(time_v))
+        T::try_from(time_v)
     }
 }
 
@@ -423,9 +423,9 @@ mod test {
         let expected = Realtime::builder()
             .hms(
                 HourMinuteSecond::builder()
-                    .hour(3)
-                    .minute(0)
-                    .second(0)
+                    .hour(Hour::try_from(3)?)
+                    .minute(Minute::top_of_hour())
+                    .second(Second::top_of_minute())
                     .build(),
             )
             .build();
@@ -467,9 +467,9 @@ mod test {
             .day_of_week((1..=5).collect::<Vec<u8>>())
             .hms(
                 HourMinuteSecond::builder()
-                    .hour(3)
-                    .minute(22)
-                    .second(17)
+                    .hour(Hour::try_from(3)?)
+                    .minute(Minute::try_from(22)?)
+                    .second(Second::try_from(17)?)
                     .build(),
             )
             .build();
@@ -484,9 +484,9 @@ mod test {
             .day_of_week(vec![0, 1, 2, 3, 4, 6])
             .hms(
                 HourMinuteSecond::builder()
-                    .hour(vec![0, 3, 4, 5, 6, 7, 10, 14, 16, 18])
-                    .minute(22)
-                    .second(17)
+                    .hour(Hour::try_from(vec![0, 3, 4, 5, 6, 7, 10, 14, 16, 18])?)
+                    .minute(Minute::try_from(22)?)
+                    .second(Second::try_from(17)?)
                     .build(),
             )
             .build();
@@ -519,9 +519,9 @@ mod test {
     #[test]
     fn should_run() -> Result<()> {
         let hms = HourMinuteSecond::builder()
-            .hour(4)
-            .minute(37)
-            .second(0)
+            .hour(Hour::try_from(4)?)
+            .minute(Minute::try_from(37)?)
+            .second(Second::try_from(0)?)
             .build();
         let rt = Realtime::builder().hms(hms).build();
         let odt = OffsetDateTime::now_utc();

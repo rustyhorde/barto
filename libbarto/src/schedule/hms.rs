@@ -42,6 +42,10 @@ impl Hour {
             Hour::Hours(hours) => hours.contains(&given),
         }
     }
+
+    pub(crate) fn midnight() -> Self {
+        Hour::Hours(vec![0])
+    }
 }
 
 impl Default for Hour {
@@ -62,15 +66,27 @@ impl All for Hour {
     }
 }
 
-impl From<Vec<u8>> for Hour {
-    fn from(value: Vec<u8>) -> Self {
-        Hour::Hours(value)
+impl TryFrom<Vec<u8>> for Hour {
+    type Error = Error;
+
+    fn try_from(values: Vec<u8>) -> Result<Self> {
+        for &value in &values {
+            if value >= HOURS_PER_DAY {
+                return Err(InvalidTime {
+                    time: value.to_string(),
+                }
+                .into());
+            }
+        }
+        Ok(Hour::Hours(values))
     }
 }
 
-impl From<u8> for Hour {
-    fn from(value: u8) -> Self {
-        Hour::Hours(vec![value])
+impl TryFrom<u8> for Hour {
+    type Error = Error;
+
+    fn try_from(value: u8) -> Result<Self> {
+        Hour::try_from(vec![value])
     }
 }
 
@@ -101,6 +117,10 @@ impl Minute {
             Minute::Minutes(minutes) => minutes.contains(&given),
         }
     }
+
+    pub(crate) fn top_of_hour() -> Self {
+        Minute::Minutes(vec![0])
+    }
 }
 
 impl Default for Minute {
@@ -121,15 +141,27 @@ impl All for Minute {
     }
 }
 
-impl From<Vec<u8>> for Minute {
-    fn from(value: Vec<u8>) -> Self {
-        Minute::Minutes(value)
+impl TryFrom<Vec<u8>> for Minute {
+    type Error = Error;
+
+    fn try_from(values: Vec<u8>) -> Result<Self> {
+        for &value in &values {
+            if value >= MINUTES_PER_HOUR {
+                return Err(InvalidTime {
+                    time: value.to_string(),
+                }
+                .into());
+            }
+        }
+        Ok(Minute::Minutes(values))
     }
 }
 
-impl From<u8> for Minute {
-    fn from(value: u8) -> Self {
-        Minute::Minutes(vec![value])
+impl TryFrom<u8> for Minute {
+    type Error = Error;
+
+    fn try_from(value: u8) -> Result<Self> {
+        Minute::try_from(vec![value])
     }
 }
 
@@ -160,6 +192,10 @@ impl Second {
             Second::Seconds(seconds) => seconds.contains(&given),
         }
     }
+
+    pub(crate) fn top_of_minute() -> Self {
+        Second::Seconds(vec![0])
+    }
 }
 
 impl Default for Second {
@@ -180,15 +216,27 @@ impl All for Second {
     }
 }
 
-impl From<Vec<u8>> for Second {
-    fn from(value: Vec<u8>) -> Self {
-        Second::Seconds(value)
+impl TryFrom<Vec<u8>> for Second {
+    type Error = Error;
+
+    fn try_from(values: Vec<u8>) -> Result<Self> {
+        for &value in &values {
+            if value >= SECONDS_PER_MINUTE {
+                return Err(InvalidTime {
+                    time: value.to_string(),
+                }
+                .into());
+            }
+        }
+        Ok(Second::Seconds(values))
     }
 }
 
-impl From<u8> for Second {
-    fn from(value: u8) -> Self {
-        Second::Seconds(vec![value])
+impl TryFrom<u8> for Second {
+    type Error = Error;
+
+    fn try_from(value: u8) -> Result<Self> {
+        Second::try_from(vec![value])
     }
 }
 
@@ -222,22 +270,27 @@ impl HourMinuteSecond {
     #[must_use]
     pub fn daily() -> Self {
         HourMinuteSecond::builder()
-            .hour(0)
-            .minute(0)
-            .second(0)
+            .hour(Hour::midnight())
+            .minute(Minute::top_of_hour())
+            .second(Second::top_of_minute())
             .build()
     }
 
     /// A helper to create an hourly schedule at the top of the hour
     #[must_use]
     pub fn hourly() -> Self {
-        HourMinuteSecond::builder().minute(0).second(0).build()
+        HourMinuteSecond::builder()
+            .minute(Minute::top_of_hour())
+            .second(Second::top_of_minute())
+            .build()
     }
 
     /// A helper to create a minutely schedule at the top of the minute
     #[must_use]
     pub fn minutely() -> Self {
-        HourMinuteSecond::builder().second(0).build()
+        HourMinuteSecond::builder()
+            .second(Second::top_of_minute())
+            .build()
     }
 }
 

@@ -77,6 +77,12 @@ pub enum Error {
     /// An invalid year string was specified when parsing a realtime schedule
     #[error("invalid year: '{}'", .0)]
     InvalidYear(String),
+    /// An invalid month string was specified when parsing a realtime schedule
+    #[error("invalid month: '{}'", .0)]
+    InvalidMonth(String),
+    /// An invalid day string was specified when parsing a realtime schedule
+    #[error("invalid day: '{}'", .0)]
+    InvalidDay(String),
 }
 
 /// Converts an `anyhow::Error` into a suitable exit code or clap message for a CLI application.

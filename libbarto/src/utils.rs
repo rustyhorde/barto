@@ -59,7 +59,7 @@ pub(crate) fn until_err<T>(err: &mut &mut Result<()>, item: Result<T>) -> Option
     }
 }
 
-pub(crate) fn as_two_digit(values: &[u8]) -> String {
+pub(crate) fn as_two_digit<T: std::fmt::Display>(values: &[T]) -> String {
     let two_digit_values = values
         .iter()
         .map(|s| format!("{s:02}"))

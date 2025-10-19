@@ -195,7 +195,10 @@ mod tests {
     }
 
     prop_compose! {
-        fn arb_invalid_range()(first in any::<i32>(), second in any::<i32>()) -> String {
+        fn arb_invalid_range()(mut first in any::<i32>(), second in any::<i32>()) -> String {
+            if first == second {
+                first += 1;
+            }
             match first.cmp(&second) {
                 Ordering::Less | Ordering::Equal => format!("{second}..{first}"),
                 Ordering::Greater => format!("{first}..{second}"),
@@ -312,7 +315,7 @@ mod tests {
                 Ok(year_range) => for _ in 0..256 {
                     let in_range = rng().random_range(min..=max);
                     let below = rng().random_range(i32::MIN..min);
-                    let above = rng().random_range(max..=i32::MAX);
+                    let above = rng().random_range((max + 1)..=i32::MAX);
                     assert!(year_range.matches(in_range), "day {in_range} should match range '{range_str}'");
                     assert!(!year_range.matches(below), "day {below} should not match range '{range_str}'");
                     assert!(!year_range.matches(above), "day {above} should not match range '{range_str}'");
