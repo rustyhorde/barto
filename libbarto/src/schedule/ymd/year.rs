@@ -156,7 +156,7 @@ impl FromStr for Year {
 
 #[cfg(test)]
 mod tests {
-    use std::sync::LazyLock;
+    use std::{cmp::Ordering, sync::LazyLock};
 
     use super::Year;
 
@@ -185,13 +185,9 @@ mod tests {
 
     prop_compose! {
         fn arb_invalid_range()(first in any::<i32>(), second in any::<i32>()) -> String {
-            if first < second {
-                format!("{second}..{first}")
-            } else if first == second {
-                let new_first = first + 1;
-                format!("{new_first}..{second}")
-            } else {
-                format!("{first}..{second}")
+            match first.cmp(&second) {
+                Ordering::Less | Ordering::Equal => format!("{second}..{first}"),
+                Ordering::Greater => format!("{first}..{second}"),
             }
         }
     }

@@ -197,7 +197,7 @@ mod test {
     use std::sync::LazyLock;
 
     use super::DayOfWeek;
-    use anyhow::{Result, anyhow};
+    use anyhow::Result;
     use itertools::Itertools as _;
     use proptest::prelude::*;
     use time::Weekday;
@@ -232,7 +232,7 @@ mod test {
                 4 => Weekday::Thursday,
                 5 => Weekday::Friday,
                 6 => Weekday::Saturday,
-                _ => panic!("invalid weekday value: {}", value),
+                _ => panic!("invalid weekday value: {value}"),
             };
             WeekdayWrapper(wd)
         }
@@ -245,9 +245,9 @@ mod test {
             let first_wd = SHORT_DOWS[usize::from(first)];
             let second_wd = SHORT_DOWS[usize::from(second)];
             if first <= second {
-                (format!("{}..{}", first_wd, second_wd), first, second)
+                (format!("{first_wd}..{second_wd}"), first, second)
             } else {
-                (format!("{}..{}", second_wd, first_wd), second, first)
+                (format!("{second_wd}..{first_wd}"), second, first)
             }
         }
     }
@@ -278,12 +278,10 @@ mod test {
         fn any_valid_range_matches(s in arb_dow_range()) {
             let (range_str, min, max) = s;
             match DayOfWeek::try_from(range_str.as_str()) {
-                Err(e) => assert!(false, "valid range '{range_str}' failed to parse: {e}"),
+                Err(e) => panic!("valid range '{range_str}' failed to parse: {e}"),
                 Ok(dow_range) => for i in 0..7 {
                     let wdw = WeekdayWrapper::from(i);
-                    if i < min {
-                        assert!(!dow_range.matches(wdw.0), "day {i} should not match range '{range_str}'");
-                    } else if i > max {
+                    if i < min || i > max {
                         assert!(!dow_range.matches(wdw.0), "day {i} should not match range '{range_str}'");
                     } else {
                         assert!(dow_range.matches(wdw.0), "day {i} should match range '{range_str}'");
@@ -291,6 +289,12 @@ mod test {
                 },
             }
         }
+    }
+
+    #[test]
+    #[should_panic = "invalid weekday value: 7"]
+    fn invalid_weekday_wrapper_panics() {
+        let _ = WeekdayWrapper::from(7);
     }
 
     #[test]
@@ -309,6 +313,8 @@ mod test {
     fn valid_single_dow() {
         for dow in ALL_DOWS.iter() {
             assert!(DayOfWeek::try_from(*dow).is_ok());
+            assert!(dow.parse::<DayOfWeek>().is_ok());
+            assert!(DayOfWeek::try_from((*dow).to_string()).is_ok());
         }
     }
 
@@ -322,11 +328,8 @@ mod test {
             .map(|v| v.join(","))
             .collect::<Vec<String>>();
         for p in ps {
-            assert!(
-                DayOfWeek::try_from(p.as_str()).is_ok(),
-                "Failed on input: {p}",
-            );
-            assert!(p.parse::<DayOfWeek>().is_ok(), "Failed on input: {p}");
+            assert!(DayOfWeek::try_from(p.as_str()).is_ok());
+            assert!(p.parse::<DayOfWeek>().is_ok());
         }
     }
 
@@ -347,14 +350,8 @@ mod test {
             .map(|v| format!("{}..{}", v[0], v[1]))
             .collect::<Vec<String>>();
         for range in &valid_ranges {
-            assert!(
-                DayOfWeek::try_from(range.as_str()).is_ok(),
-                "Failed on input: {range}"
-            );
-            assert!(
-                range.parse::<DayOfWeek>().is_ok(),
-                "Failed on input: {range}"
-            );
+            assert!(DayOfWeek::try_from(range.as_str()).is_ok());
+            assert!(range.parse::<DayOfWeek>().is_ok());
         }
     }
 
@@ -398,14 +395,8 @@ mod test {
     }
 
     #[test]
-    fn invalid_range() -> Result<()> {
-        match <DayOfWeek>::try_from("Mon..Hogwash,Wed") {
-            Ok(_) => Err(anyhow!("this day of week should be invalid")),
-            Err(e) => {
-                assert_eq!(format!("{e}"), "invalid day of week: 'Hogwash'");
-                Ok(())
-            }
-        }
+    fn invalid_range() {
+        assert!(DayOfWeek::try_from("Mon..Hogwash,Wed").is_err());
     }
 
     #[test]
@@ -425,14 +416,8 @@ mod test {
             .map(|v| format!("{}..{}", v[0], v[1]))
             .collect::<Vec<String>>();
         for range in &invalid_ranges {
-            assert!(
-                DayOfWeek::try_from(range.as_str()).is_err(),
-                "{range} should be invalid"
-            );
-            assert!(
-                range.parse::<DayOfWeek>().is_err(),
-                "{range} should be invalid"
-            );
+            assert!(DayOfWeek::try_from(range.as_str()).is_err());
+            assert!(range.parse::<DayOfWeek>().is_err());
         }
     }
 
@@ -446,5 +431,21 @@ mod test {
         assert!(dow_all.matches(Weekday::Thursday));
         assert!(dow_all.matches(Weekday::Friday));
         assert!(dow_all.matches(Weekday::Saturday));
+    }
+
+    #[test]
+    fn all_display_works() {
+        assert_eq!(DayOfWeek::All.to_string(), "*");
+        assert_eq!(DayOfWeek::Days(vec![0, 2, 4]).to_string(), "Sun, Tue, Thu");
+        assert_eq!(
+            DayOfWeek::Days(vec![0, 1, 2, 3, 4, 5, 6]).to_string(),
+            "Sun, Mon, Tue, Wed, Thu, Fri, Sat"
+        );
+        assert_eq!(DayOfWeek::Days(vec![7]).to_string(), "Unk");
+    }
+
+    #[test]
+    fn invalid_caps() {
+        assert!(DayOfWeek::parse_dow_range("sUn").is_err());
     }
 }
