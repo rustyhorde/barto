@@ -172,7 +172,7 @@ mod tests {
 
     use anyhow::Result;
     use proptest::prelude::*;
-    use rand::rng;
+    use rand::{rng, seq::IndexedRandom};
     use regex::Regex;
 
     static VALID_I32_RE: LazyLock<Regex> =
@@ -204,11 +204,11 @@ mod tests {
     }
 
     prop_compose! {
-        fn arb_valid_repetition()(s in arb_valid_range(), rep in any::<u8>()) -> String {
-            let (mut prefix, _, _) = s;
+        fn arb_valid_repetition()(s in arb_valid_range(), rep in any::<u8>()) -> (String, i32, i32, u8) {
+            let (mut prefix, min, max) = s;
             let rep = if rep == 0 { 1 } else { rep };
             write!(prefix, "/{rep}").unwrap();
-            prefix
+            (prefix, min, max, rep)
         }
     }
 
@@ -274,8 +274,9 @@ mod tests {
 
         #[test]
         fn any_valid_repetition_str_works(s in arb_valid_repetition()) {
-            assert!(Year::try_from(s.as_str()).is_ok());
-            assert!(s.parse::<Year>().is_ok());
+            let (prefix, _, _, _) = s;
+            assert!(Year::try_from(prefix.as_str()).is_ok());
+            assert!(prefix.parse::<Year>().is_ok());
         }
 
         #[test]
@@ -359,8 +360,152 @@ mod tests {
     }
 
     #[test]
+    fn all_debug_works() {
+        assert_eq!(format!("{:?}", Year::All), "All");
+        assert_eq!(format!("{:?}", Year::Year(2025)), "Year(2025)");
+        assert_eq!(
+            format!("{:?}", Year::Range(2020, 2025)),
+            "Range(2020, 2025)"
+        );
+        assert_eq!(
+            format!(
+                "{:?}",
+                Year::Repetition {
+                    start: 2020,
+                    end: Some(2030),
+                    rep: 2
+                }
+            ),
+            "Repetition { start: 2020, end: Some(2030), rep: 2 }"
+        );
+        assert_eq!(
+            format!(
+                "{:?}",
+                Year::Repetition {
+                    start: 2020,
+                    end: None,
+                    rep: 2
+                }
+            ),
+            "Repetition { start: 2020, end: None, rep: 2 }"
+        );
+    }
+
+    #[test]
     fn invalid_caps() {
         assert!(Year::parse_years_range("invalid").is_err());
         assert!(Year::parse_years_repetition("invalid").is_err());
     }
+
+    #[test]
+    fn valid_repetition_matches() {
+        let min = 2000;
+        let max = 4000;
+        let rep = 2u8;
+        let range_str = format!("{min}..{max}/{rep}");
+        let all_range = (2000..=4000)
+            .step_by(usize::from(rep))
+            .collect::<Vec<i32>>();
+        let res = Year::try_from(range_str.as_str());
+        assert!(res.is_ok());
+        let year_range = res.unwrap();
+        for _ in 0..256 {
+            let in_range = all_range.choose(&mut rng()).unwrap();
+            let below = rng().random_range(i32::MIN..min);
+            let above = rng().random_range(max..=i32::MAX);
+            assert!(year_range.matches(*in_range));
+            assert!(!year_range.matches(below));
+            assert!(!year_range.matches(above));
+        }
+    }
+
+    #[test]
+    fn valid_repetition_no_end_matches() {
+        let min = i32::MAX - 4000;
+        let rep = 2u8;
+        let range_str = format!("{min}/{rep}");
+        let all_range = (min..=i32::MAX)
+            .step_by(usize::from(rep))
+            .collect::<Vec<i32>>();
+        let res = Year::try_from(range_str.as_str());
+        assert!(res.is_ok());
+        let year_range = res.unwrap();
+        for _ in 0..256 {
+            let in_range = all_range.choose(&mut rng()).unwrap();
+            let below = rng().random_range(i32::MIN..min);
+            assert!(year_range.matches(*in_range));
+            assert!(!year_range.matches(below));
+        }
+    }
+
+    #[test]
+    fn eq_works() {
+        assert!(Year::All == Year::default());
+        assert!(Year::All == Year::All);
+        assert!(Year::Year(2025) == Year::Year(2025));
+        assert!(Year::Range(2020, 2025) == Year::Range(2020, 2025));
+        assert!(
+            Year::Repetition {
+                start: 2020,
+                end: Some(2030),
+                rep: 2
+            } == Year::Repetition {
+                start: 2020,
+                end: Some(2030),
+                rep: 2
+            }
+        );
+    }
+
+    #[test]
+    fn hash_works() {
+        use std::collections::hash_map::DefaultHasher;
+        use std::hash::{Hash, Hasher};
+
+        fn calculate_hash<T: Hash>(t: &T) -> u64 {
+            let mut s = DefaultHasher::new();
+            t.hash(&mut s);
+            s.finish()
+        }
+
+        assert_eq!(calculate_hash(&Year::All), calculate_hash(&Year::default()));
+        assert_eq!(
+            calculate_hash(&Year::Year(2025)),
+            calculate_hash(&Year::Year(2025))
+        );
+        assert_eq!(
+            calculate_hash(&Year::Range(2020, 2025)),
+            calculate_hash(&Year::Range(2020, 2025))
+        );
+        assert_eq!(
+            calculate_hash(&Year::Repetition {
+                start: 2020,
+                end: Some(2030),
+                rep: 2
+            }),
+            calculate_hash(&Year::Repetition {
+                start: 2020,
+                end: Some(2030),
+                rep: 2
+            })
+        );
+    }
+
+    #[test]
+    fn clone_works() {
+        let year = Year::Repetition {
+            start: 2020,
+            end: Some(2030),
+            rep: 2,
+        };
+        let cloned_year = year.clone();
+        assert_eq!(year, cloned_year);
+    }
+
+    #[test]
+    fn copy_works() {
+        let year = Year::Year(2025);
+        let copied_year = year;
+        assert_eq!(year, copied_year);
+    }   
 }
