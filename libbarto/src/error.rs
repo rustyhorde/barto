@@ -54,11 +54,8 @@ pub enum Error {
         date: String,
     },
     /// An invalid calendar string was specified when parsing a realtime schedule
-    #[error("invalid calendar string: '{}'", calendar)]
-    InvalidCalendar {
-        /// The invalid calendar string
-        calendar: String,
-    },
+    #[error("invalid calendar string: '{}'", .0)]
+    InvalidCalendar(String),
     /// An invalid query type was specified
     #[error("invalid query type")]
     InvalidQueryType,

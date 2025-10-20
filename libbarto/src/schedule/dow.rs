@@ -23,7 +23,7 @@ use crate::{
 };
 
 static DOW_RANGE_RE: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"([a-zA-Z]{3,})\.\.([a-zA-Z]{3,})").expect("invalid day of week range regex")
+    Regex::new(r"^([a-zA-Z]{3,9})\.\.([a-zA-Z]{3,9})$").expect("invalid day of week range regex")
 });
 
 /// The day of the week for a realtime schedule

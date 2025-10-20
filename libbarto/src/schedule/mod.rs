@@ -52,41 +52,6 @@ trait All {
     fn rand() -> Self;
 }
 
-// pub(crate) trait Blah<T> {
-//     fn min(self: &Self) -> T;
-//     fn max(self: &Self) -> T;
-//     fn one_based(self: &Self) -> bool;
-// }
-// #[derive(Builder)]
-// struct ConstrainedValue<T> {
-//     min: T,
-//     max: T,
-//     one_based: bool,
-//     #[builder(default)]
-//     values: Vec<T>,
-// }
-
-// impl ConstrainedValue<u8> {
-//     fn all(&mut self) {
-//         self.values = (self.min..=self.max).collect();
-//     }
-
-//     fn rand(&mut self) {
-//         let rand_in_range = rng().random_range(self.min..=self.max);
-//         self.values = vec![rand_in_range]
-//     }
-
-//     pub(crate) fn parse(&mut self, cvish: &str) -> Result<()> {
-//         if cvish == "*" {
-//             Ok(self.all())
-//         } else if cvish == "R" {
-//             Ok(self.rand())
-//         } else {
-//             Err(anyhow::anyhow!("not implemented"))
-//         }
-//     }
-// }
-
 /// A realtime schedule defines the times at which a task should run.
 ///
 /// A realtime schedule is made up of three components:
@@ -230,10 +195,7 @@ impl TryFrom<&str> for Realtime {
             }
             ("*", "*", parts[0])
         } else {
-            return Err(InvalidCalendar {
-                calendar: calendar.to_string(),
-            }
-            .into());
+            return Err(InvalidCalendar(calendar.to_string()).into());
         };
 
         let dow: DayOfWeek = day_of_week.try_into()?;
