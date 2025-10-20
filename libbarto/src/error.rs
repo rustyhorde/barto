@@ -45,11 +45,8 @@ pub enum Error {
     #[error("invalid second capture")]
     InvalidSecondCapture,
     /// An invalid time string was specified when parsing a realtime schedule
-    #[error("invalid time string: '{}'", time)]
-    InvalidTime {
-        /// The invalid time string
-        time: String,
-    },
+    #[error("invalid time string: '{}'", .0)]
+    InvalidTime(String),
     /// An invalid date string was specified when parsing a realtime schedule
     #[error("invalid date string: '{}'", date)]
     InvalidDate {

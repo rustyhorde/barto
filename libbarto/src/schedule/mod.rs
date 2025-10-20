@@ -52,6 +52,41 @@ trait All {
     fn rand() -> Self;
 }
 
+// pub(crate) trait Blah<T> {
+//     fn min(self: &Self) -> T;
+//     fn max(self: &Self) -> T;
+//     fn one_based(self: &Self) -> bool;
+// }
+// #[derive(Builder)]
+// struct ConstrainedValue<T> {
+//     min: T,
+//     max: T,
+//     one_based: bool,
+//     #[builder(default)]
+//     values: Vec<T>,
+// }
+
+// impl ConstrainedValue<u8> {
+//     fn all(&mut self) {
+//         self.values = (self.min..=self.max).collect();
+//     }
+
+//     fn rand(&mut self) {
+//         let rand_in_range = rng().random_range(self.min..=self.max);
+//         self.values = vec![rand_in_range]
+//     }
+
+//     pub(crate) fn parse(&mut self, cvish: &str) -> Result<()> {
+//         if cvish == "*" {
+//             Ok(self.all())
+//         } else if cvish == "R" {
+//             Ok(self.rand())
+//         } else {
+//             Err(anyhow::anyhow!("not implemented"))
+//         }
+//     }
+// }
+
 /// A realtime schedule defines the times at which a task should run.
 ///
 /// A realtime schedule is made up of three components:
@@ -300,10 +335,7 @@ fn parse_repetition(rep: &str, max: u8) -> Result<Vec<u8>> {
             Ok((start..max).step_by(rep).collect())
         }
     } else {
-        Err(InvalidTime {
-            time: rep.to_string(),
-        }
-        .into())
+        Err(InvalidTime(rep.to_string()).into())
     }
 }
 
@@ -314,8 +346,10 @@ fn parse_value(value: &str) -> Result<Vec<u8>> {
 #[cfg(test)]
 mod test {
     use crate::{
-        DayOfWeek, Hour, HourMinuteSecond, Minute, Second, YearMonthDay,
-        schedule::{MONTHLY, QUARTERLY, SEMIANNUALLY, WEEKLY, YEARLY},
+        DayOfWeek, HourMinuteSecond, Second, YearMonthDay,
+        schedule::{
+            MONTHLY, QUARTERLY, SEMIANNUALLY, WEEKLY, YEARLY, hms::hour::Hour, hms::minute::Minute,
+        },
     };
 
     use super::{DAILY, HOURLY, MINUTELY, Realtime};
