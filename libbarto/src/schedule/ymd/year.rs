@@ -314,11 +314,15 @@ mod tests {
                 Err(e) => panic!("valid range '{range_str}' failed to parse: {e}"),
                 Ok(year_range) => for _ in 0..256 {
                     let in_range = rng().random_range(min..=max);
-                    let below = rng().random_range(i32::MIN..min);
-                    let above = rng().random_range((max + 1)..=i32::MAX);
                     assert!(year_range.matches(in_range), "day {in_range} should match range '{range_str}'");
-                    assert!(!year_range.matches(below), "day {below} should not match range '{range_str}'");
-                    assert!(!year_range.matches(above), "day {above} should not match range '{range_str}'");
+                    if min > i32::MIN {
+                        let below = rng().random_range(i32::MIN..min);
+                        assert!(!year_range.matches(below), "day {below} should not match range '{range_str}'");
+                    }
+                    if max + 1 < i32::MAX {
+                        let above = rng().random_range((max + 1)..=i32::MAX);
+                        assert!(!year_range.matches(above), "day {above} should not match range '{range_str}'");
+                    }
                 },
             }
         }

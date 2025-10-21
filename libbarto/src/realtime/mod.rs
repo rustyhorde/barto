@@ -19,6 +19,7 @@ use crate::{
     realtime::{
         cv::ConstrainedValueMatcher as _,
         ymd::{
+            day::{Day, DayOfMonth},
             month::{Month, MonthOfYear},
             year::Year,
         },
@@ -33,7 +34,7 @@ pub struct RealtimeNew {
     day_of_week: Option<Vec<u8>>,
     year: Year,
     month: Month,
-    day: Option<Vec<u8>>,
+    day: Day,
     hour: Option<Vec<u8>>,
     minute: Option<Vec<u8>>,
     second: Option<Vec<u8>>,
@@ -52,9 +53,9 @@ impl RealtimeNew {
             Some(month) => self.month.matches(month),
             None => false,
         };
-        let day_match = match &self.day {
-            Some(days) => days.contains(&now.day()),
-            None => true,
+        let day_match = match DayOfMonth::from_u8(now.day()) {
+            Some(day) => self.day.matches(day),
+            None => false,
         };
         let hour_match = match &self.hour {
             Some(hours) => hours.contains(&now.hour()),

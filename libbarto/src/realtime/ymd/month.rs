@@ -133,18 +133,6 @@ impl One for MonthOfYear {
     }
 }
 
-// impl NumCast for MonthOfYear {
-//     fn from<T: ToPrimitive>(n: T) -> Option<Self> {
-//         n.to_u8().and_then(|v| {
-//             if (1..=12).contains(&v) {
-//                 Some(MonthOfYear(v))
-//             } else {
-//                 None
-//             }
-//         })
-//     }
-// }
-
 impl Add for MonthOfYear {
     type Output = MonthOfYear;
 
@@ -164,8 +152,6 @@ impl Add for MonthOfYear {
     }
 }
 
-// 1  2  3  4 5  6  7  8  9 10 11 12
-// 0  1  2  3 4  5  6  7  8  9 10 11
 impl Sub for MonthOfYear {
     type Output = MonthOfYear;
 
@@ -225,14 +211,15 @@ impl From<MonthOfYear> for u8 {
 
 #[cfg(test)]
 mod tests {
-    use std::sync::LazyLock;
+    use std::{cmp::Ordering, fmt::Write as _, sync::LazyLock};
 
     use anyhow::Result;
-    use num_traits::{FromPrimitive as _, One as _, ToPrimitive as _, Zero as _};
+    use num_traits::{Bounded, FromPrimitive as _, One as _, ToPrimitive as _, Zero as _};
     use proptest::{
         prelude::{any, proptest},
         prop_assume, prop_compose,
     };
+    use rand::{Rng as _, rng};
     use regex::Regex;
 
     use crate::realtime::cv::ConstrainedValueMatcher as _;
@@ -262,6 +249,24 @@ mod tests {
         }
     }
 
+    prop_compose! {
+        fn arb_valid_repetition()(s in arb_valid_range(), rep in any::<u8>()) -> (String, u8, u8, u8) {
+            let (mut prefix, min, max) = s;
+            let rep = if rep == 0 { 1 } else { rep };
+            write!(prefix, "/{rep}").unwrap();
+            (prefix, min, max, rep)
+        }
+    }
+
+    prop_compose! {
+        fn arb_valid_repetition_no_end()(first in month_strategy(), rep in any::<u8>()) -> String {
+            let (mut first_str, _) = first;
+            let rep = if rep == 0 { 1 } else { rep };
+            write!(first_str, "/{rep}").unwrap();
+            first_str
+        }
+    }
+
     // Invalid strategy generators
     prop_compose! {
         pub fn invalid_month_strategy()(num in any::<u8>()) -> String {
@@ -271,6 +276,34 @@ mod tests {
                 num
             };
             month.to_string()
+        }
+    }
+
+    prop_compose! {
+        fn arb_invalid_range()(mut first in any::<u8>(), second in any::<u8>()) -> String {
+            if first == second {
+                first += 1;
+            }
+            match first.cmp(&second) {
+                Ordering::Less | Ordering::Equal => format!("{second}..{first}"),
+                Ordering::Greater => format!("{first}..{second}"),
+            }
+        }
+    }
+
+    prop_compose! {
+        fn arb_invalid_repetition()(s in arb_invalid_range(), rep in any::<u8>()) -> String {
+            let mut prefix = s;
+            write!(prefix, "/{rep}").unwrap();
+            prefix
+        }
+    }
+
+    prop_compose! {
+        fn arb_invalid_repetition_zero_rep()(s in arb_valid_range()) -> String {
+            let (mut prefix, _, _) = s;
+            write!(prefix, "/0").unwrap();
+            prefix
         }
     }
 
@@ -294,6 +327,18 @@ mod tests {
             let month_res = s.parse::<Month>();
             assert!(month_res.is_err());
         }
+
+        #[test]
+        fn arb_invalid_range_errors(s in arb_invalid_range()) {
+            assert!(Month::try_from(s.as_str()).is_err());
+            assert!(s.parse::<Month>().is_err());
+        }
+
+        #[test]
+        fn arb_invalid_repetition_zero_rep_errors(s in arb_invalid_repetition_zero_rep()) {
+            assert!(Month::try_from(s.as_str()).is_err());
+            assert!(s.parse::<Month>().is_err());
+        }
     }
 
     // Valid input tests
@@ -312,6 +357,40 @@ mod tests {
             let (s, _, _) = s;
             assert!(Month::try_from(s.as_str()).is_ok());
             assert!(s.parse::<Month>().is_ok());
+        }
+
+        #[test]
+        fn arb_valid_month_repetition(s in arb_valid_repetition()) {
+            let (prefix, _, _, _) = s;
+            assert!(Month::try_from(prefix.as_str()).is_ok());
+            assert!(prefix.parse::<Month>().is_ok());
+        }
+
+        #[test]
+        fn arb_valid_month_repetition_no_end(s in arb_valid_repetition_no_end()) {
+            assert!(Month::try_from(s.as_str()).is_ok());
+            assert!(s.parse::<Month>().is_ok());
+        }
+
+        #[test]
+        fn any_valid_range_matches(s in arb_valid_range()) {
+            let (range_str, min, max) = s;
+            prop_assume!(min != max);
+            match Month::try_from(range_str.as_str()) {
+                Err(e) => panic!("valid range '{range_str}' failed to parse: {e}"),
+                Ok(cv_range) => for _ in 0..256 {
+                    let in_range = rng().random_range(min..=max);
+                    assert!(cv_range.matches(MonthOfYear(in_range)), "day {in_range} should match range '{range_str}'");
+                    if min > u8::from(MonthOfYear::min_value()) {
+                        let below = rng().random_range(u8::from(MonthOfYear::min_value())..min);
+                        assert!(!cv_range.matches(MonthOfYear(below)), "day {below} should not match range '{range_str}'");
+                    }
+                    if max + 1 < u8::from(MonthOfYear::max_value()) {
+                        let above = rng().random_range((max + 1)..=u8::from(MonthOfYear::max_value()));
+                        assert!(!cv_range.matches(MonthOfYear(above)), "day {above} should not match range '{range_str}'");
+                    }
+                },
+            }
         }
     }
 

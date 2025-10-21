@@ -16,16 +16,12 @@ use anyhow::{Error, Result};
 
 use crate::{
     error::Error::InvalidDate,
-    realtime::ymd::{month::Month, year::Year},
+    realtime::ymd::{day::Day, month::Month, year::Year},
 };
 
-pub(crate) type YearMonthDayTuple = (Year, Month, Option<Vec<u8>>);
+pub(crate) type YearMonthDayTuple = (Year, Month, Day);
 
-pub(crate) struct YearMonthDay(
-    pub(crate) Year,
-    pub(crate) Month,
-    pub(crate) Option<Vec<u8>>,
-);
+pub(crate) struct YearMonthDay(pub(crate) Year, pub(crate) Month, pub(crate) Day);
 
 impl YearMonthDay {
     pub(crate) fn take(self) -> YearMonthDayTuple {
@@ -41,7 +37,7 @@ impl TryFrom<&str> for YearMonthDay {
         if date_parts.len() == 3 {
             let year = date_parts[0].parse::<Year>()?;
             let month = date_parts[1].parse::<Month>()?;
-            let day = None;
+            let day = date_parts[2].parse::<Day>()?;
             Ok(YearMonthDay(year, month, day))
         } else {
             Err(InvalidDate(ymdish.to_string()).into())
