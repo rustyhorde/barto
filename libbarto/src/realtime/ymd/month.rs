@@ -15,7 +15,7 @@ use std::{
 };
 
 use anyhow::{Error, Result};
-use num_traits::{Bounded, FromPrimitive, NumCast, One, ToPrimitive, Zero};
+use num_traits::{Bounded, FromPrimitive, One, ToPrimitive, Zero};
 use regex::Regex;
 
 use crate::{
@@ -133,17 +133,17 @@ impl One for MonthOfYear {
     }
 }
 
-impl NumCast for MonthOfYear {
-    fn from<T: ToPrimitive>(n: T) -> Option<Self> {
-        n.to_u8().and_then(|v| {
-            if (1..=12).contains(&v) {
-                Some(MonthOfYear(v))
-            } else {
-                None
-            }
-        })
-    }
-}
+// impl NumCast for MonthOfYear {
+//     fn from<T: ToPrimitive>(n: T) -> Option<Self> {
+//         n.to_u8().and_then(|v| {
+//             if (1..=12).contains(&v) {
+//                 Some(MonthOfYear(v))
+//             } else {
+//                 None
+//             }
+//         })
+//     }
+// }
 
 impl Add for MonthOfYear {
     type Output = MonthOfYear;
@@ -198,12 +198,7 @@ impl Rem for MonthOfYear {
     type Output = MonthOfYear;
 
     fn rem(self, rhs: Self) -> Self::Output {
-        let new = ((self.0 - 1) % rhs.0) + 1;
-        if new == 0 {
-            MonthOfYear::zero()
-        } else {
-            MonthOfYear(new)
-        }
+        MonthOfYear(((self.0 - 1) % rhs.0) + 1)
     }
 }
 
@@ -230,11 +225,108 @@ impl From<MonthOfYear> for u8 {
 
 #[cfg(test)]
 mod tests {
-    use num_traits::{One as _, Zero as _};
+    use std::sync::LazyLock;
+
+    use anyhow::Result;
+    use num_traits::{FromPrimitive as _, One as _, ToPrimitive as _, Zero as _};
+    use proptest::{
+        prelude::{any, proptest},
+        prop_assume, prop_compose,
+    };
+    use regex::Regex;
 
     use crate::realtime::cv::ConstrainedValueMatcher as _;
 
-    use super::{Month, MonthOfYear};
+    use super::{MONTH_RANGE_RE, MONTH_REPETITION_RE, Month, MonthOfYear};
+
+    static VALID_MONTH_RE: LazyLock<Regex> =
+        LazyLock::new(|| Regex::new(r"^(1[0-2]|[1-9])$").unwrap());
+
+    // Valid strategy generators
+    prop_compose! {
+        pub fn month_strategy()(num in any::<u8>()) -> (String, u8) {
+            let month = (num % 12) + 1;
+            (month.to_string(), month)
+        }
+    }
+
+    prop_compose! {
+        fn arb_valid_range()(first in month_strategy(), second in month_strategy()) -> (String, u8, u8) {
+            let (first_str, first_val) = first;
+            let (second_str, second_val) = second;
+            if first_val <= second_val {
+                (format!("{first_str}..{second_str}"), first_val, second_val)
+            } else {
+                (format!("{second_str}..{first_str}"), second_val, first_val)
+            }
+        }
+    }
+
+    // Invalid strategy generators
+    prop_compose! {
+        pub fn invalid_month_strategy()(num in any::<u8>()) -> String {
+            let month = if num > 0 && num <= 12 {
+                num + 12
+            } else {
+                num
+            };
+            month.to_string()
+        }
+    }
+
+    // Invalid input tests
+    proptest! {
+        #[test]
+        fn random_input_errors(s in "\\PC*") {
+            prop_assume!(!VALID_MONTH_RE.is_match(s.as_str()));
+            prop_assume!(!MONTH_REPETITION_RE.is_match(s.as_str()));
+            prop_assume!(!MONTH_RANGE_RE.is_match(s.as_str()));
+            prop_assume!(s.as_str() != "*");
+            prop_assume!(s.as_str() != "R");
+            assert!(Month::try_from(s.as_str()).is_err());
+            assert!(s.parse::<Month>().is_err());
+        }
+
+        #[test]
+        fn invalid_month_errors(s in invalid_month_strategy()) {
+            let month_res = Month::try_from(s.as_str());
+            assert!(month_res.is_err());
+            let month_res = s.parse::<Month>();
+            assert!(month_res.is_err());
+        }
+    }
+
+    // Valid input tests
+    proptest! {
+        #[test]
+        fn arb_valid_month(value in month_strategy()) {
+            let (month_str, _) = value;
+            let month_res = Month::try_from(month_str.as_str());
+            assert!(month_res.is_ok());
+            let month_res = month_str.parse::<Month>();
+            assert!(month_res.is_ok());
+        }
+
+        #[test]
+        fn arb_valid_month_range(s in arb_valid_range()) {
+            let (s, _, _) = s;
+            assert!(Month::try_from(s.as_str()).is_ok());
+            assert!(s.parse::<Month>().is_ok());
+        }
+    }
+
+    #[test]
+    fn empty_string_errors() {
+        assert!(Month::try_from("").is_err());
+        assert!("".parse::<Month>().is_err());
+    }
+
+    #[test]
+    fn all() -> Result<()> {
+        assert_eq!(Month::All, Month::try_from("*")?);
+        assert_eq!(Month::All, "*".parse::<Month>()?);
+        Ok(())
+    }
 
     #[test]
     #[should_panic(expected = "MonthOfYear addition overflowed")]
@@ -253,6 +345,27 @@ mod tests {
     }
 
     #[test]
+    #[should_panic(expected = "MonthOfYear multiplication is not supported")]
+    fn mul_panics_properly() {
+        let month1 = MonthOfYear(5);
+        let month2 = MonthOfYear(8);
+        let _ = month1 * month2;
+    }
+
+    #[test]
+    #[should_panic(expected = "MonthOfYear division is not supported")]
+    fn div_panics_properly() {
+        let month1 = MonthOfYear(5);
+        let month2 = MonthOfYear(8);
+        let _ = month1 / month2;
+    }
+
+    #[test]
+    fn invalid_input_errors() {
+        assert!("0".parse::<MonthOfYear>().is_err());
+    }
+
+    #[test]
     fn sub_works() {
         let month = MonthOfYear::zero();
         let month1 = MonthOfYear(10);
@@ -268,7 +381,75 @@ mod tests {
         let month1 = MonthOfYear::one();
         let month2 = MonthOfYear(5);
         assert_eq!(MonthOfYear(5), month + month2);
+        assert_eq!(MonthOfYear(5), month2 + month);
         assert_eq!(MonthOfYear(6), month1 + month2);
+    }
+
+    #[test]
+    fn rem_works() {
+        let month = MonthOfYear::zero();
+        let month1 = MonthOfYear::one();
+        let month2 = MonthOfYear(3);
+        assert_eq!(MonthOfYear(1), month % month1);
+        assert_eq!(MonthOfYear(2), month1 % month1);
+        assert_eq!(MonthOfYear(1), month2 % month1);
+    }
+
+    #[test]
+    fn from_i64_works() -> Result<()> {
+        for i in 1..=12 {
+            let month_opt = MonthOfYear::from_i64(i);
+            assert!(month_opt.is_some());
+            let month = month_opt.unwrap();
+            assert_eq!(u8::try_from(i)?, month.0);
+        }
+        assert!(MonthOfYear::from_i64(0).is_none());
+        assert!(MonthOfYear::from_i64(13).is_none());
+        Ok(())
+    }
+
+    #[test]
+    fn from_u64_works() -> Result<()> {
+        for i in 1..=12 {
+            let month_opt = MonthOfYear::from_u64(u64::from(i));
+            assert!(month_opt.is_some());
+            let month = month_opt.unwrap();
+            assert_eq!(i, month.0);
+        }
+        assert!(MonthOfYear::from_u64(0).is_none());
+        assert!(MonthOfYear::from_u64(13).is_none());
+        Ok(())
+    }
+
+    #[test]
+    fn to_i64_works() {
+        for i in 1..=12 {
+            let month = MonthOfYear(i);
+            let month_i64_opt = month.to_i64();
+            assert!(month_i64_opt.is_some());
+            let month_i64 = month_i64_opt.unwrap();
+            assert_eq!(i64::from(i), month_i64);
+        }
+    }
+
+    #[test]
+    fn to_u64_works() {
+        for i in 1..=12 {
+            let month = MonthOfYear(i);
+            let month_u64_opt = month.to_u64();
+            assert!(month_u64_opt.is_some());
+            let month_u64 = month_u64_opt.unwrap();
+            assert_eq!(u64::from(i), month_u64);
+        }
+    }
+
+    #[test]
+    fn u8_from_works() {
+        for i in 1..=12 {
+            let month = MonthOfYear(i);
+            let month_u8 = u8::from(month);
+            assert_eq!(i, month_u8);
+        }
     }
 
     #[test]

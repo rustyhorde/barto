@@ -9,7 +9,7 @@
 use std::{collections::HashSet, hash::Hash, str::FromStr};
 
 use anyhow::{Error, Result};
-use num_traits::{Bounded, FromPrimitive, NumCast, NumOps, ToPrimitive, Zero};
+use num_traits::{Bounded, FromPrimitive, NumOps, ToPrimitive, Zero};
 use regex::Regex;
 
 use crate::utils::until_err;
@@ -65,12 +65,12 @@ where
     }
 }
 pub(crate) trait Constrainable:
-    Bounded + Eq + FromStr + Hash + NumCast + Ord + PartialEq + PartialOrd + ToPrimitive
+    Bounded + Eq + FromStr + Hash + Ord + PartialEq + PartialOrd + ToPrimitive
 {
 }
 
 impl<T> Constrainable for T where
-    T: Bounded + Eq + FromStr + Hash + NumCast + Ord + PartialEq + PartialOrd + ToPrimitive
+    T: Bounded + Eq + FromStr + Hash + Ord + PartialEq + PartialOrd + ToPrimitive
 {
 }
 
