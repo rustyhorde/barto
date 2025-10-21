@@ -6,21 +6,33 @@
 // option. All files in the project carrying such notice may not be copied,
 // modified, or distributed except according to those terms.
 
+mod cv;
 mod dow;
+mod ymd;
 
 use anyhow::{Error, Result};
+use num_traits::FromPrimitive as _;
 use time::OffsetDateTime;
 
-use crate::error::Error::InvalidCalendar;
+use crate::{
+    error::Error::InvalidCalendar,
+    realtime::{
+        cv::ConstrainedValueMatcher as _,
+        ymd::{
+            month::{Month, MonthOfYear},
+            year::Year,
+        },
+    },
+};
 
-use self::dow::Dow;
+use self::{dow::Dow, ymd::YearMonthDay};
 
 /// A realtime schedule definition
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct RealtimeNew {
     day_of_week: Option<Vec<u8>>,
-    year: Option<Vec<i32>>,
-    month: Option<Vec<u8>>,
+    year: Year,
+    month: Month,
     day: Option<Vec<u8>>,
     hour: Option<Vec<u8>>,
     minute: Option<Vec<u8>>,
@@ -35,13 +47,10 @@ impl RealtimeNew {
             Some(dows) => dows.contains(&now.weekday().number_days_from_sunday()),
             None => true,
         };
-        let year_match = match &self.year {
-            Some(years) => years.contains(&now.year()),
-            None => true,
-        };
-        let month_match = match &self.month {
-            Some(months) => months.contains(&(now.month().into())),
-            None => true,
+        let year_match = self.year.matches(now.year());
+        let month_match = match MonthOfYear::from_u8(now.month().into()) {
+            Some(month) => self.month.matches(month),
+            None => false,
         };
         let day_match = match &self.day {
             Some(days) => days.contains(&now.day()),
@@ -76,7 +85,7 @@ impl TryFrom<&str> for RealtimeNew {
     fn try_from(calendar: &str) -> Result<Self> {
         let parts: Vec<&str> = calendar.split_whitespace().collect();
 
-        let (day_of_week, _date, _hms) = if parts.len() == 3 {
+        let (day_of_week, date, _hms) = if parts.len() == 3 {
             // has day of week
             (parts[0], parts[1], parts[2])
         } else if parts.len() == 2 {
@@ -90,11 +99,13 @@ impl TryFrom<&str> for RealtimeNew {
         };
 
         let day_of_week = day_of_week.parse::<Dow>()?.0;
+        let (year, month, day) = date.parse::<YearMonthDay>()?.take();
+
         let rt = RealtimeNew {
             day_of_week,
-            year: None,
-            month: None,
-            day: None,
+            year,
+            month,
+            day,
             hour: None,
             minute: None,
             second: None,

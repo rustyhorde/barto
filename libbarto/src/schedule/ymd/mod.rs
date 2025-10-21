@@ -86,10 +86,7 @@ impl TryFrom<&str> for YearMonthDay {
             let day = date_parts[2].try_into()?;
             Ok(YearMonthDay { year, month, day })
         } else {
-            Err(InvalidDate {
-                date: ymdish.to_string(),
-            }
-            .into())
+            Err(InvalidDate(ymdish.to_string()).into())
         }
     }
 }
