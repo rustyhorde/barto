@@ -23,9 +23,9 @@ use crate::{
     realtime::cv::{ConstrainedValue, ConstrainedValueParser},
 };
 
-static MONTH_RANGE_RE: LazyLock<Regex> =
+pub(crate) static MONTH_RANGE_RE: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"^(\d+)\.\.(\d+)$").expect("invalid month range regex"));
-static MONTH_REPETITION_RE: LazyLock<Regex> =
+pub(crate) static MONTH_REPETITION_RE: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"^(\d+)(\.\.(\d+))?/(\d+)$").expect("invalid repetition regex"));
 
 pub(crate) type Month = ConstrainedValue<MonthOfYear>;
@@ -210,7 +210,7 @@ impl From<MonthOfYear> for u8 {
 }
 
 #[cfg(test)]
-mod tests {
+pub(crate) mod tests {
     use std::{cmp::Ordering, fmt::Write as _, sync::LazyLock};
 
     use anyhow::Result;
@@ -226,12 +226,12 @@ mod tests {
 
     use super::{MONTH_RANGE_RE, MONTH_REPETITION_RE, Month, MonthOfYear};
 
-    static VALID_MONTH_RE: LazyLock<Regex> =
+    pub(crate) static VALID_MONTH_RE: LazyLock<Regex> =
         LazyLock::new(|| Regex::new(r"^(1[0-2]|[1-9])$").unwrap());
 
     // Valid strategy generators
     prop_compose! {
-        pub fn month_strategy()(num in any::<u8>()) -> (String, u8) {
+        pub(crate) fn month_strategy()(num in any::<u8>()) -> (String, u8) {
             let month = (num % 12) + 1;
             (month.to_string(), month)
         }

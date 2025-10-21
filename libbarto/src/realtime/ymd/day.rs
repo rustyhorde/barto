@@ -22,9 +22,9 @@ use crate::{
     realtime::cv::{ConstrainedValue, ConstrainedValueParser},
 };
 
-static DAY_RANGE_RE: LazyLock<Regex> =
+pub(crate) static DAY_RANGE_RE: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"^(\d+)\.\.(\d+)$").expect("invalid day range regex"));
-static DAY_REPETITION_RE: LazyLock<Regex> =
+pub(crate) static DAY_REPETITION_RE: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"^(\d+)(\.\.(\d+))?/(\d+)$").expect("invalid repetition regex"));
 
 pub(crate) type Day = ConstrainedValue<DayOfMonth>;
@@ -209,7 +209,7 @@ impl From<DayOfMonth> for u8 {
 }
 
 #[cfg(test)]
-mod test {
+pub(crate) mod test {
     use std::{cmp::Ordering, fmt::Write as _, sync::LazyLock};
 
     use crate::realtime::cv::ConstrainedValueMatcher as _;
@@ -224,12 +224,12 @@ mod test {
     use rand::{Rng as _, rng};
     use regex::Regex;
 
-    static VALID_DAY_RE: LazyLock<Regex> =
+    pub(crate) static VALID_DAY_RE: LazyLock<Regex> =
         LazyLock::new(|| Regex::new(r"^(0?[1-9]|[12][0-9]|3[01])$").unwrap());
 
     // Valid strategy generators
     prop_compose! {
-        pub fn day_strategy()(num in any::<u8>()) -> (String, u8) {
+        pub(crate) fn day_strategy()(num in any::<u8>()) -> (String, u8) {
             let day = (num % 31) + 1;
             (day.to_string(), day)
         }
