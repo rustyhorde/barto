@@ -85,7 +85,7 @@ mod test {
         fn arb_ymd() (year in any::<i32>(), month in month_strategy(), day in day_strategy()) -> (String, i32, u8, u8) {
             let (month_str, month_val) = month;
             let (day_str, day_val) = day;
-            let ymd_str = format!("{}-{}-{}", year, month_str, day_str);
+            let ymd_str = format!("{year}-{month_str}-{day_str}");
             (ymd_str, year, month_val, day_val)
         }
     }
@@ -115,7 +115,7 @@ mod test {
             prop_assume!(!DAY_RANGE_RE.is_match(day.as_str()));
             prop_assume!(day.as_str() != "*");
             prop_assume!(day.as_str() != "R");
-            let ymd = format!("{}-{}-{}", year, month, day);
+            let ymd = format!("{year}-{month}-{day}");
             assert!(YearMonthDay::try_from(ymd.as_str()).is_err());
             assert!(ymd.as_str().parse::<YearMonthDay>().is_err());
         }
