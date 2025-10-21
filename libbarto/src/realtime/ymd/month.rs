@@ -409,7 +409,7 @@ mod tests {
     }
 
     #[test]
-    fn from_u64_works() -> Result<()> {
+    fn from_u64_works() {
         for i in 1..=12 {
             let month_opt = MonthOfYear::from_u64(u64::from(i));
             assert!(month_opt.is_some());
@@ -418,7 +418,6 @@ mod tests {
         }
         assert!(MonthOfYear::from_u64(0).is_none());
         assert!(MonthOfYear::from_u64(13).is_none());
-        Ok(())
     }
 
     #[test]
