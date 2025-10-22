@@ -278,8 +278,10 @@ pub(crate) mod test {
     }
 
     prop_compose! {
-        fn arb_invalid_range()(mut first in any::<u8>(), second in any::<u8>()) -> String {
-            if first == second {
+        fn arb_invalid_range()(mut first in any::<u8>(), mut second in any::<u8>()) -> String {
+            if first == second && first == 31 {
+                second -= 1;
+            } else if first == second {
                 first += 1;
             }
             match first.cmp(&second) {
