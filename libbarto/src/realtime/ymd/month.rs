@@ -16,6 +16,7 @@ use std::{
 
 use anyhow::{Error, Result};
 use num_traits::{Bounded, FromPrimitive, One, ToPrimitive, Zero};
+use rand::{Rng as _, rng};
 use regex::Regex;
 
 use crate::{
@@ -51,8 +52,18 @@ impl ConstrainedValueParser<'_, MonthOfYear> for Month {
         InvalidMonthOfYear(s.to_string()).into()
     }
 
+    fn allow_rand() -> bool {
+        true
+    }
+
     fn all() -> Self {
         Month::All
+    }
+
+    fn rand() -> Self {
+        let rand_month = rng()
+            .random_range(u8::from(MonthOfYear::min_value())..=u8::from(MonthOfYear::max_value()));
+        Month::Specific(vec![MonthOfYear(rand_month)])
     }
 
     fn repetition_regex() -> Regex {
@@ -410,6 +421,12 @@ pub(crate) mod tests {
         assert_eq!(Month::All, Month::try_from("*")?);
         assert_eq!(Month::All, "*".parse::<Month>()?);
         Ok(())
+    }
+
+    #[test]
+    fn rand_works() {
+        assert!(Month::try_from("R").is_ok());
+        assert!("R".parse::<Month>().is_ok());
     }
 
     #[test]

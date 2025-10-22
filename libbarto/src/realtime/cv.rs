@@ -85,7 +85,13 @@ where
 
     fn range_regex() -> Regex;
 
+    fn allow_rand() -> bool {
+        false
+    }
+
     fn all() -> Self;
+
+    fn rand() -> Self;
 
     fn rep(start: T, end: Option<T>, rep: u8) -> Self;
 
@@ -98,6 +104,8 @@ where
             Err(Self::invalid(s))
         } else if s == "*" {
             Ok(Self::all())
+        } else if s == "R" && Self::allow_rand() {
+            Ok(Self::rand())
         } else if Self::repetition_regex().is_match(s) {
             Self::parse_repetition(s)
         } else if Self::range_regex().is_match(s) {

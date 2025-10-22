@@ -8,6 +8,7 @@
 
 mod cv;
 mod dow;
+mod hms;
 mod ymd;
 
 use anyhow::{Error, Result};

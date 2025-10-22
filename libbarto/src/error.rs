@@ -80,6 +80,9 @@ pub enum Error {
     /// An invalid `DayOfMonth` string was specified when parsing a realtime schedule
     #[error("invalid day of month: '{}'", .0)]
     InvalidDayOfMonth(String),
+    /// An invalid `HourOfDay` string was specified when parsing a realtime schedule
+    #[error("invalid hour of day: '{}'", .0)]
+    InvalidHourOfDay(String),
 }
 
 /// Converts an `anyhow::Error` into a suitable exit code or clap message for a CLI application.

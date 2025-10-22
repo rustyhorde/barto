@@ -49,6 +49,10 @@ impl ConstrainedValueParser<'_, i32> for Year {
         Year::All
     }
 
+    fn rand() -> Self {
+        unreachable!("Year does not support 'R' for random value")
+    }
+
     fn repetition_regex() -> Regex {
         YEAR_REPETITION_RE.clone()
     }
@@ -82,7 +86,7 @@ pub(crate) mod test {
     use rand::{Rng as _, rng};
     use regex::Regex;
 
-    use crate::realtime::cv::ConstrainedValueMatcher as _;
+    use crate::realtime::cv::{ConstrainedValueMatcher as _, ConstrainedValueParser};
 
     use super::Year;
 
@@ -243,5 +247,11 @@ pub(crate) mod test {
         assert_eq!(Year::All, Year::try_from("*")?);
         assert_eq!(Year::All, "*".parse::<Year>()?);
         Ok(())
+    }
+
+    #[test]
+    #[should_panic = "internal error: entered unreachable code: Year does not support 'R' for random value"]
+    fn rand_panics() {
+        let _blah = Year::rand();
     }
 }
