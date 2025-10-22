@@ -227,7 +227,7 @@ pub(crate) mod tests {
     use super::{MONTH_RANGE_RE, MONTH_REPETITION_RE, Month, MonthOfYear};
 
     pub(crate) static VALID_MONTH_RE: LazyLock<Regex> =
-        LazyLock::new(|| Regex::new(r"^(1[0-2]|[1-9])$").unwrap());
+        LazyLock::new(|| Regex::new(r"^\+?(1[0-2]|[1-9])$").unwrap());
 
     // Valid strategy generators
     prop_compose! {

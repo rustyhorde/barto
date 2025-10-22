@@ -225,7 +225,7 @@ pub(crate) mod test {
     use regex::Regex;
 
     pub(crate) static VALID_DAY_RE: LazyLock<Regex> =
-        LazyLock::new(|| Regex::new(r"^(0?[1-9]|[12][0-9]|3[01])$").unwrap());
+        LazyLock::new(|| Regex::new(r"^\+?(0?[1-9]|[12][0-9]|3[01])$").unwrap());
 
     // Valid strategy generators
     prop_compose! {

@@ -87,7 +87,7 @@ pub(crate) mod test {
     use super::Year;
 
     pub(crate) static VALID_I32_RE: LazyLock<Regex> =
-        LazyLock::new(|| Regex::new(r"-?\d+").expect("invalid at least 4 digits regex"));
+        LazyLock::new(|| Regex::new(r"^(-?|\+?)\d+$").expect("invalid at least 4 digits regex"));
 
     // Valid strategies
     prop_compose! {
