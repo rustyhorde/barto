@@ -280,15 +280,18 @@ pub(crate) mod tests {
     }
 
     prop_compose! {
-        fn arb_invalid_range()(mut first in any::<u8>(), mut second in any::<u8>()) -> String {
-            if first == second && first == 12 {
-                second -= 1;
-            } else if first == second {
-                first += 1;
-            }
-            match first.cmp(&second) {
-                Ordering::Less | Ordering::Equal => format!("{second}..{first}"),
-                Ordering::Greater => format!("{first}..{second}"),
+        fn arb_invalid_range()(first in month_strategy(), second in month_strategy()) -> String {
+            let (_, first_val) = first;
+            let (_, second_val) = second;
+
+            let new_first = if first_val == second_val {
+                first_val - 1
+            } else {
+                first_val
+            };
+            match first_val.cmp(&second_val) {
+                Ordering::Less | Ordering::Equal => format!("{second_val}..{new_first}"),
+                Ordering::Greater => format!("{new_first}..{second_val}"),
             }
         }
     }
