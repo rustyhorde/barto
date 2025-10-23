@@ -36,6 +36,7 @@ sysinfo = { workspace = true }
 thiserror = { workspace = true }
 time = { workspace = true, features = [
     "formatting",
+    "macros",
     "serde",
     "serde-human-readable",
 ] }
@@ -55,7 +56,6 @@ vergen-gix = { workspace = true }
 unexpected_cfgs = { level = "warn", check-cfg = ['cfg(coverage,coverage_nightly)'] }
 
 [dev-dependencies]
-itertools = "0.14.0"
 proptest = "1.8.0"
 rand = "0.9.2"
 

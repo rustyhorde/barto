@@ -14,8 +14,9 @@ use regex::Regex;
 
 use crate::utils::until_err;
 
+/// A value constrained by specific rules (such as the day of the month)
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub(crate) enum ConstrainedValue<T>
+pub enum ConstrainedValue<T>
 where
     T: Constrainable,
 {
@@ -64,41 +65,58 @@ where
         }
     }
 }
-pub(crate) trait Constrainable:
-    Bounded + Eq + FromStr + Hash + Ord + PartialEq + PartialOrd + ToPrimitive
+
+/// A trait for types that can be constrained
+pub trait Constrainable:
+    Bounded + Copy + Eq + FromStr + Hash + Ord + PartialEq + PartialOrd + ToPrimitive
 {
 }
 
 impl<T> Constrainable for T where
-    T: Bounded + Eq + FromStr + Hash + Ord + PartialEq + PartialOrd + ToPrimitive
+    T: Bounded + Copy + Eq + FromStr + Hash + Ord + PartialEq + PartialOrd + ToPrimitive
 {
 }
 
-pub(crate) trait ConstrainedValueParser<'a, T>:
+/// A trait for parsing constrained values
+pub trait ConstrainedValueParser<'a, T>:
     FromStr<Err = Error> + TryFrom<&'a str, Error = Error>
 where
     T: Constrainable,
 {
+    /// The error to return for an invalid parse
     fn invalid(s: &str) -> Error;
 
+    /// The regex to match repetitions
     fn repetition_regex() -> Regex;
 
+    /// The regex to match ranges
     fn range_regex() -> Regex;
 
+    /// Whether to allow 'R' for random value
+    #[must_use]
     fn allow_rand() -> bool {
         false
     }
 
+    /// The 'all' constrained value
     fn all() -> Self;
 
+    /// The 'rand' constrained value
     fn rand() -> Self;
 
+    /// The 'repetition' constrained value
     fn rep(start: T, end: Option<T>, rep: u8) -> Self;
 
+    /// The 'range' constrained value
     fn range(first: T, second: T) -> Self;
 
+    /// The 'specific' constrained value
     fn specific(values: Vec<T>) -> Self;
 
+    /// Parse a constrained value from a string
+    ///
+    /// # Errors
+    ///
     fn parse(s: &str) -> Result<Self> {
         if s.is_empty() {
             Err(Self::invalid(s))
@@ -115,6 +133,10 @@ where
         }
     }
 
+    /// Parse a range constrained value from a string
+    ///
+    /// # Errors
+    ///
     fn parse_range(s: &str) -> Result<Self> {
         if let Some(caps) = Self::range_regex().captures(s) {
             let first = caps[1].parse::<T>().map_err(|_| Self::invalid(s))?;
@@ -132,6 +154,10 @@ where
         }
     }
 
+    /// Parse a repetition constrained value from a string
+    ///
+    /// # Errors
+    ///
     fn parse_repetition(s: &str) -> Result<Self> {
         if let Some(caps) = Self::repetition_regex().captures(s) {
             let start = caps[1].parse::<T>().map_err(|_| Self::invalid(s))?;
@@ -162,6 +188,10 @@ where
         }
     }
 
+    /// Parse a specific constrained value from a string
+    ///
+    /// # Errors
+    ///
     fn parse_specific(s: &str) -> Result<Self> {
         let mut err = Ok(());
         let mut values: Vec<T> = s
@@ -177,9 +207,81 @@ where
     }
 }
 
-pub(crate) trait ConstrainedValueMatcher<T>
+/// A trait for matching constrained values
+pub trait ConstrainedValueMatcher<T>
 where
     T: Constrainable,
 {
+    /// Check if the constrained value matches the given value
     fn matches(&self, value: T) -> bool;
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    type Test = ConstrainedValue<u8>;
+
+    impl TryFrom<&str> for Test {
+        type Error = Error;
+
+        #[cfg_attr(coverage_nightly, coverage(off))]
+        fn try_from(s: &str) -> Result<Self> {
+            Test::parse(s)
+        }
+    }
+
+    impl FromStr for Test {
+        type Err = Error;
+
+        #[cfg_attr(coverage_nightly, coverage(off))]
+        fn from_str(s: &str) -> Result<Self> {
+            Test::try_from(s)
+        }
+    }
+
+    #[cfg_attr(coverage_nightly, coverage(off))]
+    impl ConstrainedValueParser<'_, u8> for Test {
+        fn invalid(s: &str) -> Error {
+            Error::msg(format!("invalid constrained value: {s}"))
+        }
+
+        fn all() -> Self {
+            Test::All
+        }
+
+        fn rand() -> Self {
+            Test::All
+        }
+
+        fn repetition_regex() -> Regex {
+            Regex::new(r"^(\d{1,3})(-(\d{1,3}))?/(\d{1,3})$").unwrap()
+        }
+
+        fn range_regex() -> Regex {
+            Regex::new(r"^(\d{1,3})-(\d{1,3})$").unwrap()
+        }
+
+        fn rep(start: u8, end: Option<u8>, rep: u8) -> Self {
+            Test::Repetition { start, end, rep }
+        }
+
+        fn range(first: u8, second: u8) -> Self {
+            Test::Range(first, second)
+        }
+
+        fn specific(values: Vec<u8>) -> Self {
+            Test::Specific(values)
+        }
+    }
+
+    #[test]
+    fn parse_range_errors() {
+        assert!(Test::parse_range("").is_err());
+    }
+
+    #[test]
+    fn parse_repetition_errors() {
+        assert!(Test::parse_repetition("").is_err());
+    }
 }

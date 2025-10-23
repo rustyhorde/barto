@@ -8,6 +8,7 @@
 
 use std::{
     cmp::Ordering,
+    fmt::{Display, Formatter},
     ops::{Add, Div, Mul, Rem, Sub},
     str::FromStr,
     sync::LazyLock,
@@ -28,7 +29,20 @@ pub(crate) static MINUTE_RANGE_RE: LazyLock<Regex> =
 pub(crate) static MINUTE_REPETITION_RE: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"^(\d+)(\.\.(\d+))?/(\d+)$").expect("invalid repetition regex"));
 
-pub(crate) type Minute = ConstrainedValue<MinuteOfHour>;
+/// Represents a constrained value matcher for minutes of the hour
+pub type Minute = ConstrainedValue<MinuteOfHour>;
+
+impl Minute {
+    pub(crate) fn zero() -> Self {
+        Minute::Specific(vec![MinuteOfHour::zero()])
+    }
+}
+
+impl Default for Minute {
+    fn default() -> Self {
+        Minute::All
+    }
+}
 
 impl TryFrom<&str> for Minute {
     type Error = Error;
@@ -87,8 +101,36 @@ impl ConstrainedValueParser<'_, MinuteOfHour> for Minute {
     }
 }
 
+impl Display for Minute {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Minute::All => write!(f, "*"),
+            Minute::Specific(values) => {
+                let mut first = true;
+                for value in values {
+                    if !first {
+                        write!(f, ",")?;
+                    }
+                    write!(f, "{}", value.0)?;
+                    first = false;
+                }
+                Ok(())
+            }
+            Minute::Range(start, end) => write!(f, "{}..{}", start.0, end.0),
+            Minute::Repetition { start, end, rep } => {
+                if let Some(end) = end {
+                    write!(f, "{}..{}/{}", start.0, end.0, rep)
+                } else {
+                    write!(f, "{}/{}", start.0, rep)
+                }
+            }
+        }
+    }
+}
+
+/// Represents a minute of the hour (0-59)
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub(crate) struct MinuteOfHour(pub(crate) u8);
+pub struct MinuteOfHour(pub(crate) u8);
 
 impl Bounded for MinuteOfHour {
     fn min_value() -> Self {
@@ -545,5 +587,41 @@ pub(crate) mod test {
             let minute_u8 = u8::from(minute);
             assert_eq!(i, minute_u8);
         }
+    }
+
+    #[test]
+    fn default_works() {
+        assert_eq!(Minute::All, Minute::default());
+    }
+
+    #[test]
+    fn zero_works() {
+        let minute = Minute::zero();
+        assert_eq!(Minute::Specific(vec![MinuteOfHour::zero()]), minute);
+    }
+
+    #[test]
+    fn display_works() {
+        let minute_all = Minute::All;
+        assert_eq!("*", minute_all.to_string());
+        let minute_specific = Minute::Specific(vec![MinuteOfHour(5)]);
+        assert_eq!("5", minute_specific.to_string());
+        let multiple_minutes_specific =
+            Minute::Specific(vec![MinuteOfHour(10), MinuteOfHour(20), MinuteOfHour(30)]);
+        assert_eq!("10,20,30", multiple_minutes_specific.to_string());
+        let minute_range = Minute::Range(MinuteOfHour(10), MinuteOfHour(15));
+        assert_eq!("10..15", minute_range.to_string());
+        let minute_repetition = Minute::Repetition {
+            start: MinuteOfHour(20),
+            end: None,
+            rep: 3,
+        };
+        assert_eq!("20/3", minute_repetition.to_string());
+        let minute_repetition_with_end = Minute::Repetition {
+            start: MinuteOfHour(25),
+            end: Some(MinuteOfHour(30)),
+            rep: 5,
+        };
+        assert_eq!("25..30/5", minute_repetition_with_end.to_string());
     }
 }

@@ -6,7 +6,11 @@
 // option. All files in the project carrying such notice may not be copied,
 // modified, or distributed except according to those terms.
 
-use std::{str::FromStr, sync::LazyLock};
+use std::{
+    fmt::{Display, Formatter},
+    str::FromStr,
+    sync::LazyLock,
+};
 
 use anyhow::{Error, Result};
 use regex::Regex;
@@ -22,7 +26,14 @@ static YEAR_REPETITION_RE: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(r"^(-?\d+)(\.\.(-?\d+))?/(\d+)$").expect("invalid repetition regex")
 });
 
-pub(crate) type Year = ConstrainedValue<i32>;
+/// A year constraint for realtime schedules (`i32::MIN..=i32::MAX`)
+pub type Year = ConstrainedValue<i32>;
+
+impl Default for Year {
+    fn default() -> Self {
+        Year::All
+    }
+}
 
 impl TryFrom<&str> for Year {
     type Error = Error;
@@ -71,6 +82,30 @@ impl ConstrainedValueParser<'_, i32> for Year {
 
     fn specific(values: Vec<i32>) -> Self {
         Year::Specific(values)
+    }
+}
+
+impl Display for Year {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Year::All => write!(f, "*"),
+            Year::Specific(values) => {
+                let s = values
+                    .iter()
+                    .map(ToString::to_string)
+                    .collect::<Vec<String>>()
+                    .join(",");
+                write!(f, "{s}")
+            }
+            Year::Range(first, second) => write!(f, "{first}..{second}"),
+            Year::Repetition { start, end, rep } => {
+                if let Some(end) = end {
+                    write!(f, "{start}..{end}/{rep}")
+                } else {
+                    write!(f, "{start}/{rep}")
+                }
+            }
+        }
     }
 }
 
@@ -252,6 +287,33 @@ pub(crate) mod test {
     #[test]
     #[should_panic = "internal error: entered unreachable code: Year does not support 'R' for random value"]
     fn rand_panics() {
+        assert!(!Year::allow_rand());
         let _blah = Year::rand();
+    }
+
+    #[test]
+    fn default_is_all() {
+        let default_year = Year::default();
+        assert_eq!(Year::All, default_year);
+    }
+
+    #[test]
+    fn display_works() -> Result<()> {
+        let year = Year::try_from("2020..2025")?;
+        assert_eq!(year.to_string(), "2020..2025");
+
+        let year = Year::try_from("2020/2")?;
+        assert_eq!(year.to_string(), "2020/2");
+
+        let year = Year::try_from("2020..2025/3")?;
+        assert_eq!(year.to_string(), "2020..2025/3");
+
+        let year = Year::try_from("2021,2023,2025")?;
+        assert_eq!(year.to_string(), "2021,2023,2025");
+
+        let year = Year::All;
+        assert_eq!(year.to_string(), "*");
+
+        Ok(())
     }
 }

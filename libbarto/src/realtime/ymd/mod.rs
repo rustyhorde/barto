@@ -10,7 +10,11 @@ pub(crate) mod day;
 pub(crate) mod month;
 pub(crate) mod year;
 
-use std::{str::FromStr, sync::LazyLock};
+use std::{
+    fmt::{Display, Formatter},
+    str::FromStr,
+    sync::LazyLock,
+};
 
 use anyhow::{Error, Result};
 use regex::Regex;
@@ -20,16 +24,34 @@ use crate::{
     realtime::ymd::{day::Day, month::Month, year::Year},
 };
 
-static YMD_RE: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r"^(-?\d+)-(\d{1,2})-(\d{1,2})$").expect("invalid YMD regex"));
+static YMD_RE: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"^(\*|-?\d+)-(\*|\d{1,2})-(\*|\d{1,2})$").expect("invalid YMD regex")
+});
 
 pub(crate) type YearMonthDayTuple = (Year, Month, Day);
 
+#[derive(Debug, Clone, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub(crate) struct YearMonthDay(pub(crate) Year, pub(crate) Month, pub(crate) Day);
 
 impl YearMonthDay {
     pub(crate) fn take(self) -> YearMonthDayTuple {
         (self.0, self.1, self.2)
+    }
+
+    pub(crate) fn monthly() -> Self {
+        YearMonthDay(Year::default(), Month::default(), Day::first())
+    }
+
+    pub(crate) fn quarterly() -> Self {
+        YearMonthDay(Year::default(), Month::quarterly(), Day::first())
+    }
+
+    pub(crate) fn semiannually() -> Self {
+        YearMonthDay(Year::default(), Month::semiannually(), Day::first())
+    }
+
+    pub(crate) fn yearly() -> Self {
+        YearMonthDay(Year::default(), Month::first(), Day::first())
     }
 }
 
@@ -37,7 +59,13 @@ impl TryFrom<&str> for YearMonthDay {
     type Error = Error;
 
     fn try_from(ymdish: &str) -> Result<Self> {
-        if let Some(caps) = YMD_RE.captures(ymdish) {
+        if ymdish == "*" {
+            Ok(YearMonthDay(
+                Year::default(),
+                Month::default(),
+                Day::default(),
+            ))
+        } else if let Some(caps) = YMD_RE.captures(ymdish) {
             let year = caps[1].parse::<Year>()?;
             let month = caps[2].parse::<Month>()?;
             let day = caps[3].parse::<Day>()?;
@@ -56,8 +84,14 @@ impl FromStr for YearMonthDay {
     }
 }
 
+impl Display for YearMonthDay {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{} {} {}", self.0, self.1, self.2)
+    }
+}
+
 #[cfg(test)]
-mod test {
+pub(crate) mod test {
     use proptest::{
         prelude::{any, proptest},
         prop_assume, prop_compose,
@@ -82,7 +116,7 @@ mod test {
 
     // Valid strategies
     prop_compose! {
-        fn arb_ymd() (year in any::<i32>(), month in month_strategy(), day in day_strategy()) -> (String, i32, u8, u8) {
+        pub(crate) fn arb_ymd() (year in any::<i32>(), month in month_strategy(), day in day_strategy()) -> (String, i32, u8, u8) {
             let (month_str, month_val) = month;
             let (day_str, day_val) = day;
             let ymd_str = format!("{year}-{month_str}-{day_str}");
@@ -128,5 +162,37 @@ mod test {
         assert_eq!(year, Year::all());
         assert_eq!(month, Month::all());
         assert_eq!(day, Day::all());
+    }
+
+    #[test]
+    fn monthly_works() {
+        let ymd = YearMonthDay::monthly();
+        assert_eq!(ymd.0, Year::default());
+        assert_eq!(ymd.1, Month::default());
+        assert_eq!(ymd.2, Day::first());
+    }
+
+    #[test]
+    fn quarterly_works() {
+        let ymd = YearMonthDay::quarterly();
+        assert_eq!(ymd.0, Year::default());
+        assert_eq!(ymd.1, Month::quarterly());
+        assert_eq!(ymd.2, Day::first());
+    }
+
+    #[test]
+    fn semiannually_works() {
+        let ymd = YearMonthDay::semiannually();
+        assert_eq!(ymd.0, Year::default());
+        assert_eq!(ymd.1, Month::semiannually());
+        assert_eq!(ymd.2, Day::first());
+    }
+
+    #[test]
+    fn yearly_works() {
+        let ymd = YearMonthDay::yearly();
+        assert_eq!(ymd.0, Year::default());
+        assert_eq!(ymd.1, Month::first());
+        assert_eq!(ymd.2, Day::first());
     }
 }

@@ -8,6 +8,7 @@
 
 use std::{
     cmp::Ordering,
+    fmt::{Display, Formatter},
     ops::{Add, Div, Mul, Rem, Sub},
     str::FromStr,
     sync::LazyLock,
@@ -28,7 +29,20 @@ pub(crate) static HOUR_RANGE_RE: LazyLock<Regex> =
 pub(crate) static HOUR_REPETITION_RE: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"^(\d+)(\.\.(\d+))?/(\d+)$").expect("invalid repetition regex"));
 
-pub(crate) type Hour = ConstrainedValue<HourOfDay>;
+/// Represents a constrained value matcher for hours of the day
+pub type Hour = ConstrainedValue<HourOfDay>;
+
+impl Hour {
+    pub(crate) fn zero() -> Self {
+        Hour::Specific(vec![HourOfDay::zero()])
+    }
+}
+
+impl Default for Hour {
+    fn default() -> Self {
+        Hour::All
+    }
+}
 
 impl TryFrom<&str> for Hour {
     type Error = Error;
@@ -86,8 +100,36 @@ impl ConstrainedValueParser<'_, HourOfDay> for Hour {
     }
 }
 
+impl Display for Hour {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Hour::All => write!(f, "*"),
+            Hour::Specific(values) => {
+                let mut first = true;
+                for value in values {
+                    if !first {
+                        write!(f, ",")?;
+                    }
+                    write!(f, "{}", value.0)?;
+                    first = false;
+                }
+                Ok(())
+            }
+            Hour::Range(start, end) => write!(f, "{}..{}", start.0, end.0),
+            Hour::Repetition { start, end, rep } => {
+                if let Some(end) = end {
+                    write!(f, "{}..{}/{}", start.0, end.0, rep)
+                } else {
+                    write!(f, "{}/{}", start.0, rep)
+                }
+            }
+        }
+    }
+}
+
+/// Represents an hour of the day (0-23)
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub(crate) struct HourOfDay(pub(crate) u8);
+pub struct HourOfDay(pub(crate) u8);
 
 impl Bounded for HourOfDay {
     fn min_value() -> Self {
@@ -545,5 +587,38 @@ pub(crate) mod test {
             let hour_u8 = u8::from(hour);
             assert_eq!(i, hour_u8);
         }
+    }
+
+    #[test]
+    fn default_works() {
+        assert_eq!(Hour::All, Hour::default());
+    }
+
+    #[test]
+    fn zero_works() {
+        let hour = Hour::zero();
+        assert_eq!(Hour::Specific(vec![HourOfDay::zero()]), hour);
+    }
+
+    #[test]
+    fn display_works() {
+        let hour_all = Hour::All;
+        assert_eq!("*", hour_all.to_string());
+        let hour_specific = Hour::Specific(vec![HourOfDay(3), HourOfDay(15), HourOfDay(22)]);
+        assert_eq!("3,15,22", hour_specific.to_string());
+        let hour_range = Hour::Range(HourOfDay(5), HourOfDay(20));
+        assert_eq!("5..20", hour_range.to_string());
+        let hour_rep_with_end = Hour::Repetition {
+            start: HourOfDay(2),
+            end: Some(HourOfDay(18)),
+            rep: 4,
+        };
+        assert_eq!("2..18/4", hour_rep_with_end.to_string());
+        let hour_rep_no_end = Hour::Repetition {
+            start: HourOfDay(7),
+            end: None,
+            rep: 3,
+        };
+        assert_eq!("7/3", hour_rep_no_end.to_string());
     }
 }

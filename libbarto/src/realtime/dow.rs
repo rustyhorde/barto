@@ -21,13 +21,19 @@ use crate::{
     utils::until_err,
 };
 
-pub(crate) struct Dow(pub(crate) Option<Vec<u8>>);
+/// The day(s) of the week matcher
+#[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub struct Dow(pub(crate) Option<Vec<u8>>);
 
 static DOW_RANGE_RE: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(r"^([a-zA-Z]{3,9})\.\.([a-zA-Z]{3,9})$").expect("invalid day of week range regex")
 });
 
 impl Dow {
+    pub(crate) fn monday() -> Self {
+        Dow(Some(vec![1]))
+    }
+
     fn invalid_dow(dow: &str) -> Error {
         InvalidDayOfWeek(dow.to_string()).into()
     }
@@ -81,6 +87,12 @@ impl Dow {
             };
             Ok(res)
         }
+    }
+}
+
+impl Default for Dow {
+    fn default() -> Self {
+        Dow(Some(vec![0, 1, 2, 3, 4, 5, 6]))
     }
 }
 
@@ -145,7 +157,7 @@ impl Display for Dow {
 }
 
 #[cfg(test)]
-mod test {
+pub(crate) mod test {
     use std::{cmp::Ordering, sync::LazyLock};
 
     use anyhow::Result;
@@ -175,7 +187,7 @@ mod test {
     });
 
     prop_compose! {
-        fn arb_dow() (idx in any::<u8>(), long in any::<bool>()) -> (String, u8) {
+        pub(crate) fn arb_dow() (idx in any::<u8>(), long in any::<bool>()) -> (String, u8) {
             let idx = idx % 7;
             if long {
                 (LONG_DOWS[usize::from(idx)].to_string(), idx)
@@ -287,5 +299,25 @@ mod test {
     #[test]
     fn invalid_caps() {
         assert!(Dow::parse_dow_range("sUn").is_err());
+    }
+
+    #[test]
+    fn default_works() {
+        let dow = Dow::default();
+        assert!(dow.0.is_some());
+        let vals = dow.0.unwrap();
+        assert_eq!(vals.len(), 7);
+        for i in 0..7 {
+            assert!(vals.contains(&i));
+        }
+    }
+
+    #[test]
+    fn monday_works() {
+        let dow = Dow::monday();
+        assert!(dow.0.is_some());
+        let vals = dow.0.unwrap();
+        assert_eq!(vals.len(), 1);
+        assert_eq!(vals[0], 1);
     }
 }

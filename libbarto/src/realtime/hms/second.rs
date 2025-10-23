@@ -8,6 +8,7 @@
 
 use std::{
     cmp::Ordering,
+    fmt::{Display, Formatter},
     ops::{Add, Div, Mul, Rem, Sub},
     str::FromStr,
     sync::LazyLock,
@@ -28,7 +29,20 @@ pub(crate) static SECOND_RANGE_RE: LazyLock<Regex> =
 pub(crate) static SECOND_REPETITION_RE: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"^(\d+)(\.\.(\d+))?/(\d+)$").expect("invalid repetition regex"));
 
-pub(crate) type Second = ConstrainedValue<SecondOfMinute>;
+/// Represents a constrained value matcher for seconds of the minute
+pub type Second = ConstrainedValue<SecondOfMinute>;
+
+impl Second {
+    pub(crate) fn zero() -> Self {
+        Second::Specific(vec![SecondOfMinute::zero()])
+    }
+}
+
+impl Default for Second {
+    fn default() -> Self {
+        Second::All
+    }
+}
 
 impl TryFrom<&str> for Second {
     type Error = Error;
@@ -87,8 +101,36 @@ impl ConstrainedValueParser<'_, SecondOfMinute> for Second {
     }
 }
 
+impl Display for Second {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Second::All => write!(f, "*"),
+            Second::Specific(values) => {
+                let mut first = true;
+                for value in values {
+                    if !first {
+                        write!(f, ",")?;
+                    }
+                    write!(f, "{}", value.0)?;
+                    first = false;
+                }
+                Ok(())
+            }
+            Second::Range(start, end) => write!(f, "{}..{}", start.0, end.0),
+            Second::Repetition { start, end, rep } => {
+                if let Some(end) = end {
+                    write!(f, "{}..{}/{}", start.0, end.0, rep)
+                } else {
+                    write!(f, "{}/{}", start.0, rep)
+                }
+            }
+        }
+    }
+}
+
+/// Represents a second of the minute (0-59)
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub(crate) struct SecondOfMinute(pub(crate) u8);
+pub struct SecondOfMinute(pub(crate) u8);
 
 impl Bounded for SecondOfMinute {
     fn min_value() -> Self {
@@ -545,5 +587,44 @@ pub(crate) mod test {
             let second_u8 = u8::from(second);
             assert_eq!(i, second_u8);
         }
+    }
+
+    #[test]
+    fn default_works() {
+        assert_eq!(Second::All, Second::default());
+    }
+
+    #[test]
+    fn zero_works() {
+        let second = Second::zero();
+        assert_eq!(Second::Specific(vec![SecondOfMinute::zero()]), second);
+    }
+
+    #[test]
+    fn display_works() {
+        let second_all = Second::All;
+        assert_eq!("*", second_all.to_string());
+        let second_specific = Second::Specific(vec![SecondOfMinute(5)]);
+        assert_eq!("5", second_specific.to_string());
+        let multiple_seconds_specific = Second::Specific(vec![
+            SecondOfMinute(10),
+            SecondOfMinute(20),
+            SecondOfMinute(30),
+        ]);
+        assert_eq!("10,20,30", multiple_seconds_specific.to_string());
+        let second_range = Second::Range(SecondOfMinute(10), SecondOfMinute(15));
+        assert_eq!("10..15", second_range.to_string());
+        let second_repetition = Second::Repetition {
+            start: SecondOfMinute(20),
+            end: None,
+            rep: 3,
+        };
+        assert_eq!("20/3", second_repetition.to_string());
+        let second_repetition_with_end = Second::Repetition {
+            start: SecondOfMinute(25),
+            end: Some(SecondOfMinute(30)),
+            rep: 5,
+        };
+        assert_eq!("25..30/5", second_repetition_with_end.to_string());
     }
 }

@@ -6,7 +6,11 @@
 // option. All files in the project carrying such notice may not be copied,
 // modified, or distributed except according to those terms.
 
-use std::{str::FromStr, sync::LazyLock};
+use std::{
+    fmt::{Display, Formatter},
+    str::FromStr,
+    sync::LazyLock,
+};
 
 use anyhow::{Error, Result};
 use regex::Regex;
@@ -25,11 +29,24 @@ static HMS_RE: LazyLock<Regex> =
 
 pub(crate) type HourMinuteSecondTuple = (Hour, Minute, Second);
 
+#[derive(Debug, Clone, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub(crate) struct HourMinuteSecond(pub(crate) Hour, pub(crate) Minute, pub(crate) Second);
 
 impl HourMinuteSecond {
     pub(crate) fn take(self) -> HourMinuteSecondTuple {
         (self.0, self.1, self.2)
+    }
+
+    pub(crate) fn minutely() -> Self {
+        HourMinuteSecond(Hour::default(), Minute::default(), Second::zero())
+    }
+
+    pub(crate) fn hourly() -> Self {
+        HourMinuteSecond(Hour::default(), Minute::zero(), Second::zero())
+    }
+
+    pub(crate) fn daily() -> Self {
+        HourMinuteSecond(Hour::zero(), Minute::zero(), Second::zero())
     }
 }
 
@@ -56,8 +73,14 @@ impl FromStr for HourMinuteSecond {
     }
 }
 
+impl Display for HourMinuteSecond {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}:{}:{}", self.0, self.1, self.2)
+    }
+}
+
 #[cfg(test)]
-mod test {
+pub(crate) mod test {
     use proptest::{prelude::proptest, prop_assume, prop_compose};
 
     use crate::realtime::{
@@ -81,7 +104,7 @@ mod test {
 
     // Valid strategies
     prop_compose! {
-        fn arb_hms() (hour in hour_strategy(), minute in minute_strategy(), second in second_strategy()) -> (String, u8, u8, u8) {
+        pub(crate) fn arb_hms() (hour in hour_strategy(), minute in minute_strategy(), second in second_strategy()) -> (String, u8, u8, u8) {
             let (hour_str, hour_val) = hour;
             let (minute_str, minute_val) = minute;
             let (second_str, second_val) = second;
@@ -130,5 +153,32 @@ mod test {
         assert_eq!(hour, Hour::all());
         assert_eq!(minute, Minute::all());
         assert_eq!(second, Second::all());
+    }
+
+    #[test]
+    fn minutely_works() {
+        let hms = HourMinuteSecond::minutely();
+        let (hour, minute, second) = hms.take();
+        assert_eq!(hour, Hour::default());
+        assert_eq!(minute, Minute::default());
+        assert_eq!(second, Second::zero());
+    }
+
+    #[test]
+    fn hourly_works() {
+        let hms = HourMinuteSecond::hourly();
+        let (hour, minute, second) = hms.take();
+        assert_eq!(hour, Hour::default());
+        assert_eq!(minute, Minute::zero());
+        assert_eq!(second, Second::zero());
+    }
+
+    #[test]
+    fn daily_works() {
+        let hms = HourMinuteSecond::daily();
+        let (hour, minute, second) = hms.take();
+        assert_eq!(hour, Hour::zero());
+        assert_eq!(minute, Minute::zero());
+        assert_eq!(second, Second::zero());
     }
 }

@@ -9,6 +9,7 @@
 use core::panic;
 use std::{
     cmp::Ordering,
+    fmt::Display,
     ops::{Add, Div, Mul, Rem, Sub},
     str::FromStr,
     sync::LazyLock,
@@ -29,7 +30,33 @@ pub(crate) static MONTH_RANGE_RE: LazyLock<Regex> =
 pub(crate) static MONTH_REPETITION_RE: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"^(\d+)(\.\.(\d+))?/(\d+)$").expect("invalid repetition regex"));
 
-pub(crate) type Month = ConstrainedValue<MonthOfYear>;
+/// A constrained value representing a month of the year (1-12)
+pub type Month = ConstrainedValue<MonthOfYear>;
+
+impl Month {
+    pub(crate) fn first() -> Self {
+        Month::Specific(vec![MonthOfYear(1)])
+    }
+
+    pub(crate) fn quarterly() -> Self {
+        Month::Specific(vec![
+            MonthOfYear(1),
+            MonthOfYear(4),
+            MonthOfYear(7),
+            MonthOfYear(10),
+        ])
+    }
+
+    pub(crate) fn semiannually() -> Self {
+        Month::Specific(vec![MonthOfYear(1), MonthOfYear(7)])
+    }
+}
+
+impl Default for Month {
+    fn default() -> Self {
+        Month::All
+    }
+}
 
 impl TryFrom<&str> for Month {
     type Error = Error;
@@ -87,8 +114,36 @@ impl ConstrainedValueParser<'_, MonthOfYear> for Month {
     }
 }
 
+impl Display for Month {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Month::All => write!(f, "*"),
+            Month::Specific(values) => {
+                let mut first = true;
+                for v in values {
+                    if !first {
+                        write!(f, ",")?;
+                    }
+                    write!(f, "{}", u8::from(*v))?;
+                    first = false;
+                }
+                Ok(())
+            }
+            Month::Range(start, end) => write!(f, "{}..{}", u8::from(*start), u8::from(*end)),
+            Month::Repetition { start, end, rep } => {
+                if let Some(end) = end {
+                    write!(f, "{}..{}/{}", u8::from(*start), u8::from(*end), rep)
+                } else {
+                    write!(f, "{}/{}", u8::from(*start), rep)
+                }
+            }
+        }
+    }
+}
+
+/// A month of the year (1-12)
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub(crate) struct MonthOfYear(pub(crate) u8);
+pub struct MonthOfYear(pub(crate) u8);
 
 impl Bounded for MonthOfYear {
     fn min_value() -> Self {
@@ -606,5 +661,76 @@ pub(crate) mod tests {
         assert!(!month.matches(MonthOfYear(10)));
         assert!(!month.matches(MonthOfYear(11)));
         assert!(!month.matches(MonthOfYear(12)));
+    }
+
+    #[test]
+    fn default_works() {
+        let default_month = Month::default();
+        assert_eq!(Month::All, default_month);
+    }
+
+    #[test]
+    fn first_works() {
+        let first_month = Month::first();
+        assert!(first_month.matches(MonthOfYear(1)));
+        for month in 2..=12 {
+            assert!(!first_month.matches(MonthOfYear(month)));
+        }
+    }
+
+    #[test]
+    fn quarterly_works() {
+        let quarterly = Month::quarterly();
+        assert!(quarterly.matches(MonthOfYear(1)));
+        assert!(!quarterly.matches(MonthOfYear(2)));
+        assert!(!quarterly.matches(MonthOfYear(3)));
+        assert!(quarterly.matches(MonthOfYear(4)));
+        assert!(!quarterly.matches(MonthOfYear(5)));
+        assert!(!quarterly.matches(MonthOfYear(6)));
+        assert!(quarterly.matches(MonthOfYear(7)));
+        assert!(!quarterly.matches(MonthOfYear(8)));
+        assert!(!quarterly.matches(MonthOfYear(9)));
+        assert!(quarterly.matches(MonthOfYear(10)));
+        assert!(!quarterly.matches(MonthOfYear(11)));
+        assert!(!quarterly.matches(MonthOfYear(12)));
+    }
+
+    #[test]
+    fn semiannually_works() {
+        let semiannual = Month::semiannually();
+        assert!(semiannual.matches(MonthOfYear(1)));
+        assert!(!semiannual.matches(MonthOfYear(2)));
+        assert!(!semiannual.matches(MonthOfYear(3)));
+        assert!(!semiannual.matches(MonthOfYear(4)));
+        assert!(!semiannual.matches(MonthOfYear(5)));
+        assert!(!semiannual.matches(MonthOfYear(6)));
+        assert!(semiannual.matches(MonthOfYear(7)));
+        assert!(!semiannual.matches(MonthOfYear(8)));
+        assert!(!semiannual.matches(MonthOfYear(9)));
+        assert!(!semiannual.matches(MonthOfYear(10)));
+        assert!(!semiannual.matches(MonthOfYear(11)));
+        assert!(!semiannual.matches(MonthOfYear(12)));
+    }
+
+    #[test]
+    fn display_works() {
+        let month = Month::All;
+        assert_eq!("*", month.to_string());
+        let month = Month::Specific(vec![MonthOfYear(1), MonthOfYear(3), MonthOfYear(12)]);
+        assert_eq!("1,3,12", month.to_string());
+        let month = Month::Range(MonthOfYear(2), MonthOfYear(8));
+        assert_eq!("2..8", month.to_string());
+        let month = Month::Repetition {
+            start: MonthOfYear(1),
+            end: Some(MonthOfYear(12)),
+            rep: 3,
+        };
+        assert_eq!("1..12/3", month.to_string());
+        let month = Month::Repetition {
+            start: MonthOfYear(4),
+            end: None,
+            rep: 2,
+        };
+        assert_eq!("4/2", month.to_string());
     }
 }

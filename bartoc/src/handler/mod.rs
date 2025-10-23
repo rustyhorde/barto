@@ -300,7 +300,7 @@ impl Handler {
                         _ = interval.tick() => {
                             let start = Instant::now();
                             let now = OffsetDateTime::now_utc();
-                            let run_nows: Vec<Realtime> = cloned_rt_map.keys().filter(|&rt| rt.should_run(now)).cloned().collect();
+                            let run_nows: Vec<Realtime> = cloned_rt_map.keys().filter(|&rt| rt.is_now(now)).cloned().collect();
                             let cmds: HashMap<String, Vec<String>> = run_nows.into_iter().filter_map(|rt| {
                                 cloned_rt_map.get(&rt).map(|(name, cmds)| (name.clone(), cmds.clone()))
                             }).collect();

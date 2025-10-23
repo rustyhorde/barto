@@ -8,6 +8,7 @@
 
 use std::{
     cmp::Ordering,
+    fmt::{Display, Formatter},
     ops::{Add, Div, Mul, Rem, Sub},
     str::FromStr,
     sync::LazyLock,
@@ -28,7 +29,20 @@ pub(crate) static DAY_RANGE_RE: LazyLock<Regex> =
 pub(crate) static DAY_REPETITION_RE: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"^(\d+)(\.\.(\d+))?/(\d+)$").expect("invalid repetition regex"));
 
-pub(crate) type Day = ConstrainedValue<DayOfMonth>;
+/// Represents a constrained value for the day of the month (1-31)
+pub type Day = ConstrainedValue<DayOfMonth>;
+
+impl Day {
+    pub(crate) fn first() -> Self {
+        Day::Specific(vec![DayOfMonth::min_value()])
+    }
+}
+
+impl Default for Day {
+    fn default() -> Self {
+        Day::All
+    }
+}
 
 impl TryFrom<&str> for Day {
     type Error = Error;
@@ -86,8 +100,29 @@ impl ConstrainedValueParser<'_, DayOfMonth> for Day {
     }
 }
 
+impl Display for Day {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Day::All => write!(f, "*"),
+            Day::Specific(values) => {
+                let strs: Vec<String> = values.iter().map(|d| d.0.to_string()).collect();
+                write!(f, "{}", strs.join(","))
+            }
+            Day::Range(first, second) => write!(f, "{}..{}", first.0, second.0),
+            Day::Repetition { start, end, rep } => {
+                if let Some(end) = end {
+                    write!(f, "{}..{}/{}", start.0, end.0, rep)
+                } else {
+                    write!(f, "{}/{}", start.0, rep)
+                }
+            }
+        }
+    }
+}
+
+/// Represents a day of the month (1-31)
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub(crate) struct DayOfMonth(pub(crate) u8);
+pub struct DayOfMonth(pub(crate) u8);
 
 impl Bounded for DayOfMonth {
     fn min_value() -> Self {
@@ -604,5 +639,39 @@ pub(crate) mod test {
         assert!(!day.matches(DayOfMonth(10)));
         assert!(!day.matches(DayOfMonth(11)));
         assert!(!day.matches(DayOfMonth(12)));
+    }
+
+    #[test]
+    fn default_works() {
+        let default_day = Day::default();
+        assert_eq!(Day::All, default_day);
+    }
+
+    #[test]
+    fn first_works() {
+        let first_day = Day::first();
+        assert_eq!(Day::Specific(vec![DayOfMonth::min_value()]), first_day);
+    }
+
+    #[test]
+    fn display_works() {
+        let day = Day::All;
+        assert_eq!("*", day.to_string());
+        let month = Day::Specific(vec![DayOfMonth(1), DayOfMonth(3), DayOfMonth(12)]);
+        assert_eq!("1,3,12", month.to_string());
+        let month = Day::Range(DayOfMonth(2), DayOfMonth(8));
+        assert_eq!("2..8", month.to_string());
+        let month = Day::Repetition {
+            start: DayOfMonth(1),
+            end: Some(DayOfMonth(12)),
+            rep: 3,
+        };
+        assert_eq!("1..12/3", month.to_string());
+        let month = Day::Repetition {
+            start: DayOfMonth(4),
+            end: None,
+            rep: 2,
+        };
+        assert_eq!("4/2", month.to_string());
     }
 }
