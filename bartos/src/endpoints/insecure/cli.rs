@@ -89,8 +89,10 @@ static NET_UPGRADE_SIZE_RE: LazyLock<Regex> = LazyLock::new(|| {
         .expect("failed to create net upgrade size regex")
 });
 static CACHYOS_UPDATE_RE: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"(core|extra|multilib)\/([^ ]+)\s+([^ ]+)\s+([^ ]+)\s+(.+ MiB)\s+(.+ MiB)")
-        .expect("failed to create cachyos-update regex")
+    Regex::new(
+        r"(cachyos-.*|core|extra|multilib)\/([^ ]+)\s+([^ ]+)\s+([^ ]+)\s+(.+ MiB)\s+(.+ MiB)",
+    )
+    .expect("failed to create cachyos-update regex")
 });
 static GARUDA_UPDATE_RE: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(

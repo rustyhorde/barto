@@ -55,6 +55,7 @@ impl TryFrom<&str> for UpdateKind {
         match value.to_lowercase().as_str() {
             "garuda" => Ok(UpdateKind::Garuda),
             "pacman" => Ok(UpdateKind::Pacman),
+            "cachyos" => Ok(UpdateKind::Cachyos),
             "other" => Ok(UpdateKind::Other),
             _ => Err(crate::Error::InvalidUpdateKind {
                 kind: value.to_string(),
