@@ -126,7 +126,7 @@ mod test {
     use regex::Regex;
 
     static VALID_HOUR_RE: LazyLock<Regex> =
-        LazyLock::new(|| Regex::new(r"^([0-9]|[1][0-9]|2[0-3])$").unwrap());
+        LazyLock::new(|| Regex::new(r"^\+?(0?|0?[1-9]|1[0-9]|2[0-3])$").unwrap());
 
     prop_compose! {
         pub fn hour_strategy()(num in any::<u8>()) -> (String, u8) {
