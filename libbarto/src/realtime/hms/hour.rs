@@ -220,7 +220,7 @@ impl From<HourOfDay> for u8 {
 }
 
 #[cfg(test)]
-mod test {
+pub(crate) mod test {
     use std::{cmp::Ordering, fmt::Write as _, sync::LazyLock};
 
     use anyhow::Result;

@@ -37,6 +37,12 @@ use vergen_pretty::{Pretty, PrettyExt, vergen_pretty_env};
 
 use crate::{common::Clients, config::Config, endpoints::insecure::Name};
 
+// CachyOS
+// cachyos-extra-v3/bind      9.20.13-1.1  9.20.15-1.1    0.01 MiB       2.21 MiB
+// cachyos-core-v3/gc         8.2.10-1.1   8.2.10-2.1     0.00 MiB       0.24 MiB
+// cachyos-extra-v3/libdecor  0.2.3-1.1    0.2.4-1.1      0.00 MiB       0.05 MiB
+// cachyos-extra-v3/pcsclite  2.4.0-2.1    2.4.0-3.1      0.00 MiB       0.10 MiB
+
 // pacman
 // Packages (5) git-2.51.1-1  libarchive-3.8.2-1  linux-6.17.3.arch1-1  python-charset-normalizer-3.4.4-1  python-cryptography-46.0.3-1
 // Packages (2) dhcpcd-10.2.4-1  libxml2-2.15.1-1

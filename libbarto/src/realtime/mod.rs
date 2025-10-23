@@ -19,6 +19,12 @@ use crate::{
     error::Error::InvalidCalendar,
     realtime::{
         cv::ConstrainedValueMatcher as _,
+        hms::{
+            HourMinuteSecond,
+            hour::{Hour, HourOfDay},
+            minute::{Minute, MinuteOfHour},
+            second::{Second, SecondOfMinute},
+        },
         ymd::{
             day::{Day, DayOfMonth},
             month::{Month, MonthOfYear},
@@ -36,9 +42,9 @@ pub struct RealtimeNew {
     year: Year,
     month: Month,
     day: Day,
-    hour: Option<Vec<u8>>,
-    minute: Option<Vec<u8>>,
-    second: Option<Vec<u8>>,
+    hour: Hour,
+    minute: Minute,
+    second: Second,
 }
 
 impl RealtimeNew {
@@ -58,17 +64,17 @@ impl RealtimeNew {
             Some(day) => self.day.matches(day),
             None => false,
         };
-        let hour_match = match &self.hour {
-            Some(hours) => hours.contains(&now.hour()),
-            None => true,
+        let hour_match = match HourOfDay::from_u8(now.hour()) {
+            Some(hour) => self.hour.matches(hour),
+            None => false,
         };
-        let minute_match = match &self.minute {
-            Some(minutes) => minutes.contains(&now.minute()),
-            None => true,
+        let minute_match = match MinuteOfHour::from_u8(now.minute()) {
+            Some(minute) => self.minute.matches(minute),
+            None => false,
         };
-        let second_match = match &self.second {
-            Some(seconds) => seconds.contains(&now.second()),
-            None => true,
+        let second_match = match SecondOfMinute::from_u8(now.second()) {
+            Some(second) => self.second.matches(second),
+            None => false,
         };
 
         dow_match
@@ -87,7 +93,7 @@ impl TryFrom<&str> for RealtimeNew {
     fn try_from(calendar: &str) -> Result<Self> {
         let parts: Vec<&str> = calendar.split_whitespace().collect();
 
-        let (day_of_week, date, _hms) = if parts.len() == 3 {
+        let (day_of_week, date, hms) = if parts.len() == 3 {
             // has day of week
             (parts[0], parts[1], parts[2])
         } else if parts.len() == 2 {
@@ -102,15 +108,16 @@ impl TryFrom<&str> for RealtimeNew {
 
         let day_of_week = day_of_week.parse::<Dow>()?.0;
         let (year, month, day) = date.parse::<YearMonthDay>()?.take();
+        let (hour, minute, second) = hms.parse::<HourMinuteSecond>()?.take();
 
         let rt = RealtimeNew {
             day_of_week,
             year,
             month,
             day,
-            hour: None,
-            minute: None,
-            second: None,
+            hour,
+            minute,
+            second,
         };
         Ok(rt)
     }
