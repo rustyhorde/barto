@@ -86,6 +86,9 @@ pub enum Error {
     /// An invalid `MinuteOfHour` string was specified when parsing a realtime schedule
     #[error("invalid minute of hour: '{}'", .0)]
     InvalidMinuteOfHour(String),
+    /// An invalid `SecondOfMinute` string was specified when parsing a realtime schedule
+    #[error("invalid second of minute: '{}'", .0)]
+    InvalidSecondOfMinute(String),
 }
 
 /// Converts an `anyhow::Error` into a suitable exit code or clap message for a CLI application.

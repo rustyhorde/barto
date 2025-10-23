@@ -323,6 +323,7 @@ mod test {
             prefix
         }
     }
+
     // Invalid input tests
     proptest! {
         #[test]
