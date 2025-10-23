@@ -13,20 +13,14 @@ pub(crate) mod year;
 use std::{
     fmt::{Display, Formatter},
     str::FromStr,
-    sync::LazyLock,
 };
 
 use anyhow::{Error, Result};
-use regex::Regex;
 
 use crate::{
     error::Error::InvalidDate,
     realtime::ymd::{day::Day, month::Month, year::Year},
 };
-
-static YMD_RE: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"^(\*|-?\d+)-(\*|\d{1,2})-(\*|\d{1,2})$").expect("invalid YMD regex")
-});
 
 pub(crate) type YearMonthDayTuple = (Year, Month, Day);
 
@@ -65,13 +59,17 @@ impl TryFrom<&str> for YearMonthDay {
                 Month::default(),
                 Day::default(),
             ))
-        } else if let Some(caps) = YMD_RE.captures(ymdish) {
-            let year = caps[1].parse::<Year>()?;
-            let month = caps[2].parse::<Month>()?;
-            let day = caps[3].parse::<Day>()?;
-            Ok(YearMonthDay(year, month, day))
         } else {
-            Err(InvalidDate(ymdish.to_string()).into())
+            let ymd_split = ymdish.split('/').collect::<Vec<&str>>();
+
+            if ymd_split.len() == 3 {
+                let year = ymd_split[0].parse::<Year>()?;
+                let month = ymd_split[1].parse::<Month>()?;
+                let day = ymd_split[2].parse::<Day>()?;
+                Ok(YearMonthDay(year, month, day))
+            } else {
+                Err(InvalidDate(ymdish.to_string()).into())
+            }
         }
     }
 }
@@ -86,7 +84,7 @@ impl FromStr for YearMonthDay {
 
 impl Display for YearMonthDay {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{} {} {}", self.0, self.1, self.2)
+        write!(f, "{}/{}/{}", self.0, self.1, self.2)
     }
 }
 
@@ -119,7 +117,7 @@ pub(crate) mod test {
         pub(crate) fn arb_ymd() (year in any::<i32>(), month in month_strategy(), day in day_strategy()) -> (String, i32, u8, u8) {
             let (month_str, month_val) = month;
             let (day_str, day_val) = day;
-            let ymd_str = format!("{year}-{month_str}-{day_str}");
+            let ymd_str = format!("{year}/{month_str}/{day_str}");
             (ymd_str, year, month_val, day_val)
         }
     }

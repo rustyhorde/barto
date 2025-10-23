@@ -9,11 +9,9 @@
 use std::{
     fmt::{Display, Formatter},
     str::FromStr,
-    sync::LazyLock,
 };
 
 use anyhow::{Error, Result};
-use regex::Regex;
 
 use crate::{
     error::Error::InvalidTime,
@@ -23,9 +21,6 @@ use crate::{
 pub(crate) mod hour;
 pub(crate) mod minute;
 pub(crate) mod second;
-
-static HMS_RE: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r"^(\d{1,2}):(\d{1,2}):(\d{1,2})$").expect("invalid HMS regex"));
 
 pub(crate) type HourMinuteSecondTuple = (Hour, Minute, Second);
 
@@ -54,10 +49,12 @@ impl TryFrom<&str> for HourMinuteSecond {
     type Error = Error;
 
     fn try_from(hms: &str) -> Result<Self> {
-        if let Some(caps) = HMS_RE.captures(hms) {
-            let hour = caps[1].parse::<Hour>()?;
-            let minute = caps[2].parse::<Minute>()?;
-            let second = caps[3].parse::<Second>()?;
+        let hms_split = hms.split(':').collect::<Vec<&str>>();
+
+        if hms_split.len() == 3 {
+            let hour = hms_split[0].parse::<Hour>()?;
+            let minute = hms_split[1].parse::<Minute>()?;
+            let second = hms_split[2].parse::<Second>()?;
             Ok(HourMinuteSecond(hour, minute, second))
         } else {
             Err(InvalidTime(hms.to_string()).into())

@@ -11,7 +11,10 @@ pub(crate) mod dow;
 pub(crate) mod hms;
 pub(crate) mod ymd;
 
-use std::fmt::{Display, Formatter};
+use std::{
+    fmt::{Display, Formatter},
+    str::FromStr,
+};
 
 use anyhow::{Error, Result};
 use bon::Builder;
@@ -210,6 +213,14 @@ impl TryFrom<&str> for Realtime {
     }
 }
 
+impl FromStr for Realtime {
+    type Err = Error;
+
+    fn from_str(s: &str) -> Result<Self> {
+        Realtime::try_from(s)
+    }
+}
+
 impl Display for Realtime {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         let ymd = YearMonthDay(self.year.clone(), self.month.clone(), self.day.clone());
@@ -404,5 +415,13 @@ mod tests {
         assert!(new_now_res.is_ok());
         let new_now = new_now_res.unwrap();
         assert!(rt.is_now(new_now));
+    }
+
+    #[test]
+    fn random_works() {
+        let re_res = Realtime::try_from("*/*/* 10:R:R");
+        assert!(re_res.is_ok());
+        let re_res = "*/*/* 0/2:R:R".parse::<Realtime>();
+        assert!(re_res.is_ok());
     }
 }
