@@ -36,11 +36,8 @@ pub enum Error {
     #[error("no valid captures")]
     NoValidCaptures,
     /// An invalid range was specified when parsing a realtime schedule
-    #[error("invalid range: '{}'", range)]
-    InvalidRange {
-        /// The invalid range
-        range: String,
-    },
+    #[error("invalid range: '{}'", .0)]
+    InvalidRange(String),
     /// An invalid first capture when parsing a realtime schedule
     #[error("invalid first capture")]
     InvalidFirstCapture,
@@ -48,26 +45,50 @@ pub enum Error {
     #[error("invalid second capture")]
     InvalidSecondCapture,
     /// An invalid time string was specified when parsing a realtime schedule
-    #[error("invalid time string: '{}'", time)]
-    InvalidTime {
-        /// The invalid time string
-        time: String,
-    },
+    #[error("invalid time string: '{}'", .0)]
+    InvalidTime(String),
     /// An invalid date string was specified when parsing a realtime schedule
-    #[error("invalid date string: '{}'", date)]
-    InvalidDate {
-        /// The invalid date string
-        date: String,
-    },
+    #[error("invalid date string: '{}'", .0)]
+    InvalidDate(String),
     /// An invalid calendar string was specified when parsing a realtime schedule
-    #[error("invalid calendar string: '{}'", calendar)]
-    InvalidCalendar {
-        /// The invalid calendar string
-        calendar: String,
-    },
+    #[error("invalid calendar string: '{}'", .0)]
+    InvalidCalendar(String),
     /// An invalid query type was specified
     #[error("invalid query type")]
     InvalidQueryType,
+    /// An invalid update kind was specified
+    #[error("invalid update kind: '{}'", kind)]
+    InvalidUpdateKind {
+        /// The invalid update kind
+        kind: String,
+    },
+    /// An invalid date string was specified when parsing a realtime schedule
+    #[error("invalid day of week: '{}'", .0)]
+    InvalidDayOfWeek(String),
+    /// An invalid year string was specified when parsing a realtime schedule
+    #[error("invalid year: '{}'", .0)]
+    InvalidYear(String),
+    /// An invalid month string was specified when parsing a realtime schedule
+    #[error("invalid month: '{}'", .0)]
+    InvalidMonth(String),
+    /// An invalid day string was specified when parsing a realtime schedule
+    #[error("invalid day: '{}'", .0)]
+    InvalidDay(String),
+    /// An invalid `MonthOfYear` string was specified when parsing a realtime schedule
+    #[error("invalid month of year: '{}'", .0)]
+    InvalidMonthOfYear(String),
+    /// An invalid `DayOfMonth` string was specified when parsing a realtime schedule
+    #[error("invalid day of month: '{}'", .0)]
+    InvalidDayOfMonth(String),
+    /// An invalid `HourOfDay` string was specified when parsing a realtime schedule
+    #[error("invalid hour of day: '{}'", .0)]
+    InvalidHourOfDay(String),
+    /// An invalid `MinuteOfHour` string was specified when parsing a realtime schedule
+    #[error("invalid minute of hour: '{}'", .0)]
+    InvalidMinuteOfHour(String),
+    /// An invalid `SecondOfMinute` string was specified when parsing a realtime schedule
+    #[error("invalid second of minute: '{}'", .0)]
+    InvalidSecondOfMinute(String),
 }
 
 /// Converts an `anyhow::Error` into a suitable exit code or clap message for a CLI application.

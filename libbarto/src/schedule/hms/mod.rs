@@ -6,202 +6,28 @@
 // option. All files in the project carrying such notice may not be copied,
 // modified, or distributed except according to those terms.
 
-use std::{
-    fmt::{Display, Formatter},
-    vec,
-};
+pub(crate) mod hour;
+pub(crate) mod minute;
+pub(crate) mod second;
+
+use std::fmt::{Display, Formatter};
 
 use anyhow::{Error, Result};
 use bon::Builder;
 use getset::Getters;
-use rand::Rng;
 
 use crate::{
     error::Error::InvalidTime,
-    schedule::{All, parse_time_chunk},
-    utils::as_two_digit,
+    schedule::{
+        hms::{
+            hour::{HOURS_PER_DAY, Hour},
+            minute::{MINUTES_PER_HOUR, Minute},
+            second::{SECONDS_PER_MINUTE, Second},
+        },
+        parse_time_chunk,
+    },
 };
 
-const HOURS_PER_DAY: u8 = 24;
-const MINUTES_PER_HOUR: u8 = 60;
-const SECONDS_PER_MINUTE: u8 = 60;
-
-/// The hour for a realtime schedule
-#[derive(Clone, Debug, Eq, Hash, PartialEq)]
-pub enum Hour {
-    /// Every hour
-    All,
-    /// Specific hours
-    Hours(Vec<u8>),
-}
-
-impl Hour {
-    pub(crate) fn matches(&self, given: u8) -> bool {
-        match self {
-            Hour::All => true,
-            Hour::Hours(hours) => hours.contains(&given),
-        }
-    }
-}
-
-impl Default for Hour {
-    fn default() -> Self {
-        Self::Hours(vec![0])
-    }
-}
-
-impl All for Hour {
-    fn all() -> Self {
-        Self::All
-    }
-
-    fn rand() -> Self {
-        let mut rng = rand::rng();
-        let rand_in_range = rng.random_range(0..HOURS_PER_DAY);
-        Hour::Hours(vec![rand_in_range])
-    }
-}
-
-impl From<Vec<u8>> for Hour {
-    fn from(value: Vec<u8>) -> Self {
-        Hour::Hours(value)
-    }
-}
-
-impl From<u8> for Hour {
-    fn from(value: u8) -> Self {
-        Hour::Hours(vec![value])
-    }
-}
-
-impl Display for Hour {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Hour::All => write!(f, "*"),
-            Hour::Hours(hours) => {
-                write!(f, "{}", as_two_digit(hours))
-            }
-        }
-    }
-}
-
-/// The minute for a realtime schedule
-#[derive(Clone, Debug, Eq, Hash, PartialEq)]
-pub enum Minute {
-    /// Every minute
-    All,
-    /// Specific minutes
-    Minutes(Vec<u8>),
-}
-
-impl Minute {
-    pub(crate) fn matches(&self, given: u8) -> bool {
-        match self {
-            Minute::All => true,
-            Minute::Minutes(minutes) => minutes.contains(&given),
-        }
-    }
-}
-
-impl Default for Minute {
-    fn default() -> Self {
-        Self::Minutes(vec![0])
-    }
-}
-
-impl All for Minute {
-    fn all() -> Self {
-        Self::All
-    }
-
-    fn rand() -> Self {
-        let mut rng = rand::rng();
-        let rand_in_range = rng.random_range(0..MINUTES_PER_HOUR);
-        Minute::Minutes(vec![rand_in_range])
-    }
-}
-
-impl From<Vec<u8>> for Minute {
-    fn from(value: Vec<u8>) -> Self {
-        Minute::Minutes(value)
-    }
-}
-
-impl From<u8> for Minute {
-    fn from(value: u8) -> Self {
-        Minute::Minutes(vec![value])
-    }
-}
-
-impl Display for Minute {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Minute::All => write!(f, "*"),
-            Minute::Minutes(minutes) => {
-                write!(f, "{}", as_two_digit(minutes))
-            }
-        }
-    }
-}
-
-/// The seconds for a realtime schedule
-#[derive(Clone, Debug, Eq, Hash, PartialEq)]
-pub enum Second {
-    /// Every second
-    All,
-    /// Specific seconds
-    Seconds(Vec<u8>),
-}
-
-impl Second {
-    pub(crate) fn matches(&self, given: u8) -> bool {
-        match self {
-            Second::All => true,
-            Second::Seconds(seconds) => seconds.contains(&given),
-        }
-    }
-}
-
-impl Default for Second {
-    fn default() -> Self {
-        Self::Seconds(vec![0])
-    }
-}
-
-impl All for Second {
-    fn all() -> Self {
-        Self::All
-    }
-
-    fn rand() -> Self {
-        let mut rng = rand::rng();
-        let rand_in_range = rng.random_range(0..60);
-        Second::Seconds(vec![rand_in_range])
-    }
-}
-
-impl From<Vec<u8>> for Second {
-    fn from(value: Vec<u8>) -> Self {
-        Second::Seconds(value)
-    }
-}
-
-impl From<u8> for Second {
-    fn from(value: u8) -> Self {
-        Second::Seconds(vec![value])
-    }
-}
-
-impl Display for Second {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Second::All => write!(f, "*"),
-            Second::Seconds(seconds) => {
-                write!(f, "{}", as_two_digit(seconds))
-            }
-        }
-    }
-}
 /// An hour, minute, and second combination
 #[derive(Builder, Clone, Debug, Default, Eq, Getters, Hash, PartialEq)]
 #[getset(get = "pub")]
@@ -222,22 +48,27 @@ impl HourMinuteSecond {
     #[must_use]
     pub fn daily() -> Self {
         HourMinuteSecond::builder()
-            .hour(0)
-            .minute(0)
-            .second(0)
+            .hour(Hour::midnight())
+            .minute(Minute::top_of_hour())
+            .second(Second::top_of_minute())
             .build()
     }
 
     /// A helper to create an hourly schedule at the top of the hour
     #[must_use]
     pub fn hourly() -> Self {
-        HourMinuteSecond::builder().minute(0).second(0).build()
+        HourMinuteSecond::builder()
+            .minute(Minute::top_of_hour())
+            .second(Second::top_of_minute())
+            .build()
     }
 
     /// A helper to create a minutely schedule at the top of the minute
     #[must_use]
     pub fn minutely() -> Self {
-        HourMinuteSecond::builder().second(0).build()
+        HourMinuteSecond::builder()
+            .second(Second::top_of_minute())
+            .build()
     }
 }
 
@@ -256,10 +87,7 @@ impl TryFrom<&str> for HourMinuteSecond {
                 second,
             })
         } else {
-            Err(InvalidTime {
-                time: hms.to_string(),
-            }
-            .into())
+            Err(InvalidTime(hms.to_string()).into())
         }
     }
 }

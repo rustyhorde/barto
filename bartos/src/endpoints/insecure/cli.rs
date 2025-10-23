@@ -19,7 +19,10 @@ use actix_web::{
 use actix_ws::{AggregatedMessage, Session, handle};
 use bincode::{config::standard, decode_from_slice, encode_to_vec};
 use futures_util::StreamExt as _;
-use libbarto::{BartoCli, BartosToBartoCli, ClientData, OutputTableName, UuidWrapper};
+use libbarto::{
+    BartoCli, BartosToBartoCli, CliUpdateKind, ClientData, Garuda, OutputTableName, Pacman,
+    UpdateKind, UuidWrapper,
+};
 use regex::Regex;
 use sqlx::{Column, MySqlPool, Row};
 use time::{
@@ -34,9 +37,68 @@ use vergen_pretty::{Pretty, PrettyExt, vergen_pretty_env};
 
 use crate::{common::Clients, config::Config, endpoints::insecure::Name};
 
-#[allow(dead_code)]
+// CachyOS
+// cachyos-extra-v3/bind      9.20.13-1.1  9.20.15-1.1    0.01 MiB       2.21 MiB
+// cachyos-core-v3/gc         8.2.10-1.1   8.2.10-2.1     0.00 MiB       0.24 MiB
+// cachyos-extra-v3/libdecor  0.2.3-1.1    0.2.4-1.1      0.00 MiB       0.05 MiB
+// cachyos-extra-v3/pcsclite  2.4.0-2.1    2.4.0-3.1      0.00 MiB       0.10 MiB
+
+// pacman
+// Packages (5) git-2.51.1-1  libarchive-3.8.2-1  linux-6.17.3.arch1-1  python-charset-normalizer-3.4.4-1  python-cryptography-46.0.3-1
+// Packages (2) dhcpcd-10.2.4-1  libxml2-2.15.1-1
+//
+// Total Download Size:   0.96 MiB
+// Total Installed Size:  3.45 MiB
+// Net Upgrade Size:      0.00 MiB
+
+// apt
+// The following packages will be upgraded:
+//   libtdb-dev libtdb1"
+// 2 upgraded, 0 newly installed, 0 to remove and 0 not upgraded.
+
+// homebrew
+// ==> Upgrading 2 outdated packages:
+// protobuf 32.1 -> 33.0
+// ==> Fetching downloads for: openexr and protobuf
+// ==> Fetching openexr
+// ==> Downloading https://ghcr.io/v2/homebrew/core/openexr/blobs/sha256:6e4279cef58092ba7d95c6f805b77ca4a8e3420010b0093d17d5ce058b749fd7
+// ==> Fetching protobuf
+// ==> Downloading https://ghcr.io/v2/homebrew/core/protobuf/blobs/sha256:220d0c9358fda8b85ce23cbb53596547f63895480c16498a6d3b8031710d4b21
+// ==> Upgrading openexr
+// "  3.4.1 -> 3.4.2 "
+// ==> Pouring openexr--3.4.2.arm64_sequoia.bottle.tar.gz
+// 🍺  /opt/homebrew/Cellar/openexr/3.4.2: 212 files, 4.9MB
+// Removing: /opt/homebrew/Cellar/openexr/3.4.1... (212 files, 4.9MB)
+// "  32.1 -> 33.0 "
+// ==> Pouring protobuf--33.0.arm64_sequoia.bottle.tar.gz
+// 🍺  /opt/homebrew/Cellar/protobuf/33.0: 364 files, 16.5MB
+
+static PACMAN_PACKAGES_RE: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"Packages \((\d+)\) (.*)").expect("failed to create pacman packages update regex")
+});
+static PACMAN_DOWNLOAD_SIZE_RE: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"Total Download Size:[ ]+(\d+\.\d+) MiB")
+        .expect("failed to create pacman download size regex")
+});
+static PACMAN_INSTALL_SIZE_RE: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"Total Installed Size:[ ]+(\d+\.\d+) MiB")
+        .expect("failed to create pacman install size regex")
+});
+static NET_UPGRADE_SIZE_RE: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"Net Upgrade Size:[ ]+(\d+\.\d+) MiB")
+        .expect("failed to create net upgrade size regex")
+});
+static CACHYOS_UPDATE_RE: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(
+        r"(cachyos-.*|core|extra|multilib)\/([^ ]+)\s+([^ ]+)\s+([^ ]+)\s+(.+ MiB)\s+(.+ MiB)",
+    )
+    .expect("failed to create cachyos-update regex")
+});
 static GARUDA_UPDATE_RE: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"\(\d+/\d+\) upgrading ([^ ]+) .*").expect("failed to create garuda update regex")
+    Regex::new(
+        r"(chaotic-aur|core|extra|multilib)\/([^ ]+)\s+([^ ]+)\s+([^ ]+)\s+(.+ MiB)\s+(.+ MiB)",
+    )
+    .expect("failed to create garuda-update regex")
 });
 
 pub(crate) async fn cli(
@@ -128,11 +190,29 @@ async fn handle_binary(
                 let encoded = encode_to_vec(&btbc, standard())?;
                 session.binary(encoded).await?;
             }
-            BartoCli::Updates { name } => {
-                let updates = select_data(&name, config, pool).await?;
-                info!("received updates message for '{name}'");
-                let updates = BartosToBartoCli::Updates(updates);
-                let encoded = encode_to_vec(&updates, standard())?;
+            BartoCli::Updates { name, kind } => {
+                let msg = match kind {
+                    CliUpdateKind::Garuda => {
+                        info!("received updates message for '{name}' (garuda)");
+                        let updates = garuda_update_data(&name, config, pool).await?;
+                        BartosToBartoCli::Updates(UpdateKind::Garuda(updates))
+                    }
+                    CliUpdateKind::Pacman => {
+                        info!("received updates message for '{name}' (pacman)");
+                        let updates = pacman_update_data(&name, config, pool).await?;
+                        BartosToBartoCli::Updates(UpdateKind::Pacman(updates))
+                    }
+                    CliUpdateKind::Cachyos => {
+                        info!("received updates message for '{name}' (cachyos)");
+                        let updates = cachyos_update_data(&name, config, pool).await?;
+                        BartosToBartoCli::Updates(UpdateKind::Cachyos(updates))
+                    }
+                    CliUpdateKind::Other => {
+                        info!("received updates message for '{name}' (other)");
+                        BartosToBartoCli::Updates(UpdateKind::Other)
+                    }
+                };
+                let encoded = encode_to_vec(&msg, standard())?;
                 session.binary(encoded).await?;
             }
             BartoCli::Cleanup => {
@@ -186,55 +266,198 @@ async fn handle_binary(
     Ok(())
 }
 
-async fn select_data(name: &str, config: &Config, pool: &MySqlPool) -> anyhow::Result<Vec<String>> {
-    match config.mariadb().output_table() {
-        OutputTableName::Output => output_data(name, pool).await,
-        OutputTableName::OutputTest => output_test_data(name, pool).await,
-    }
+async fn garuda_update_data(
+    name: &str,
+    config: &Config,
+    pool: &MySqlPool,
+) -> anyhow::Result<Vec<Garuda>> {
+    Ok(match config.mariadb().output_table() {
+        OutputTableName::Output => garuda_filter(output_data(name, pool).await?),
+        OutputTableName::OutputTest => garuda_filter(output_test_data(name, pool).await?),
+    })
+}
+
+async fn pacman_update_data(
+    name: &str,
+    config: &Config,
+    pool: &MySqlPool,
+) -> anyhow::Result<Pacman> {
+    Ok(match config.mariadb().output_table() {
+        OutputTableName::Output => pacman_filter(&output_data(name, pool).await?),
+        OutputTableName::OutputTest => pacman_filter(&output_test_data(name, pool).await?),
+    })
+}
+
+async fn cachyos_update_data(
+    name: &str,
+    config: &Config,
+    pool: &MySqlPool,
+) -> anyhow::Result<Pacman> {
+    Ok(match config.mariadb().output_table() {
+        OutputTableName::Output => cachyos_filter(&output_data(name, pool).await?),
+        OutputTableName::OutputTest => cachyos_filter(&output_test_data(name, pool).await?),
+    })
+}
+
+fn garuda_filter(data: Vec<String>) -> Vec<Garuda> {
+    let mut results = data
+        .into_iter()
+        .filter_map(|s| {
+            GARUDA_UPDATE_RE.captures(&s).map(|caps| {
+                Garuda::builder()
+                    .channel(caps.get(1).map_or("", |m| m.as_str()))
+                    .package(caps.get(2).map_or("", |m| m.as_str()))
+                    .old_version(caps.get(3).map_or("", |m| m.as_str()))
+                    .new_version(caps.get(4).map_or("", |m| m.as_str()))
+                    .size_change(caps.get(5).map_or("", |m| m.as_str()))
+                    .download_size(caps.get(6).map_or("", |m| m.as_str()))
+                    .build()
+            })
+        })
+        .collect::<Vec<Garuda>>();
+    results.sort();
+    results
+}
+
+fn cachyos_filter(data: &[String]) -> Pacman {
+    let packages = data
+        .iter()
+        .filter_map(|s| {
+            CACHYOS_UPDATE_RE.captures(s).map(|caps| {
+                caps.get(2)
+                    .map_or("", |m| m.as_str())
+                    .split_whitespace()
+                    .map(ToString::to_string)
+                    .collect::<Vec<String>>()
+            })
+        })
+        .fold(vec![], |mut acc, packages| {
+            acc.extend(packages);
+            acc
+        });
+
+    let total_download_size = data
+        .iter()
+        .filter_map(|s| {
+            PACMAN_DOWNLOAD_SIZE_RE.captures(s).map(|caps| {
+                caps.get(1)
+                    .map_or(0.0, |m| m.as_str().parse::<f64>().unwrap_or(0.0))
+            })
+        })
+        .sum::<f64>();
+
+    let total_install_size = data
+        .iter()
+        .filter_map(|s| {
+            PACMAN_INSTALL_SIZE_RE.captures(s).map(|caps| {
+                caps.get(1)
+                    .map_or(0.0, |m| m.as_str().parse::<f64>().unwrap_or(0.0))
+            })
+        })
+        .sum::<f64>();
+
+    let net_install_size = data
+        .iter()
+        .filter_map(|s| {
+            NET_UPGRADE_SIZE_RE.captures(s).map(|caps| {
+                caps.get(1)
+                    .map_or(0.0, |m| m.as_str().parse::<f64>().unwrap_or(0.0))
+            })
+        })
+        .sum::<f64>();
+
+    Pacman::builder()
+        .update_count(packages.len())
+        .packages(packages)
+        .install_size(total_install_size)
+        .net_size(net_install_size)
+        .download_size(total_download_size)
+        .build()
+}
+
+fn pacman_filter(data: &[String]) -> Pacman {
+    let (package_count, packages) = data
+        .iter()
+        .filter_map(|s| {
+            PACMAN_PACKAGES_RE.captures(s).map(|caps| {
+                (
+                    caps.get(1)
+                        .map_or(0, |m| m.as_str().parse::<usize>().unwrap_or(0)),
+                    caps.get(2)
+                        .map_or("", |m| m.as_str())
+                        .split_whitespace()
+                        .map(ToString::to_string)
+                        .collect::<Vec<String>>(),
+                )
+            })
+        })
+        .fold((0, vec![]), |mut acc, (count, packages)| {
+            acc.0 += count;
+            acc.1.extend(packages);
+            acc
+        });
+
+    let total_download_size = data
+        .iter()
+        .filter_map(|s| {
+            PACMAN_DOWNLOAD_SIZE_RE.captures(s).map(|caps| {
+                caps.get(1)
+                    .map_or(0.0, |m| m.as_str().parse::<f64>().unwrap_or(0.0))
+            })
+        })
+        .sum::<f64>();
+
+    let total_install_size = data
+        .iter()
+        .filter_map(|s| {
+            PACMAN_INSTALL_SIZE_RE.captures(s).map(|caps| {
+                caps.get(1)
+                    .map_or(0.0, |m| m.as_str().parse::<f64>().unwrap_or(0.0))
+            })
+        })
+        .sum::<f64>();
+
+    let net_install_size = data
+        .iter()
+        .filter_map(|s| {
+            NET_UPGRADE_SIZE_RE.captures(s).map(|caps| {
+                caps.get(1)
+                    .map_or(0.0, |m| m.as_str().parse::<f64>().unwrap_or(0.0))
+            })
+        })
+        .sum::<f64>();
+
+    Pacman::builder()
+        .update_count(package_count)
+        .packages(packages)
+        .install_size(total_install_size)
+        .net_size(net_install_size)
+        .download_size(total_download_size)
+        .build()
 }
 
 async fn output_data(name: &str, pool: &MySqlPool) -> anyhow::Result<Vec<String>> {
-    let records = sqlx::query!(
+    Ok(sqlx::query!(
         r#"SELECT output.data FROM output WHERE output.bartoc_name = ? order by timestamp"#,
         name,
     )
     .fetch_all(pool)
-    .await?;
-
-    let mut results = records
-        .into_iter()
-        .map(|r| r.data)
-        .filter_map(|s| {
-            GARUDA_UPDATE_RE
-                .captures(&s)
-                .and_then(|caps| caps.get(1))
-                .map(|m| m.as_str().to_string())
-        })
-        .collect::<Vec<String>>();
-    results.sort();
-    Ok(results)
+    .await?
+    .into_iter()
+    .map(|r| r.data)
+    .collect::<Vec<String>>())
 }
 
 async fn output_test_data(name: &str, pool: &MySqlPool) -> anyhow::Result<Vec<String>> {
-    let records = sqlx::query!(
+    Ok(sqlx::query!(
         r#"SELECT output_test.data FROM output_test WHERE output_test.bartoc_name = ? order by timestamp"#,
         name,
     )
     .fetch_all(pool)
-    .await?;
-
-    let mut results = records
-        .into_iter()
-        .map(|r| r.data)
-        .filter_map(|s| {
-            GARUDA_UPDATE_RE
-                .captures(&s)
-                .and_then(|caps| caps.get(1))
-                .map(|m| m.as_str().to_string())
-        })
-        .collect::<Vec<String>>();
-    results.sort();
-    Ok(results)
+    .await?
+    .into_iter()
+    .map(|r| r.data)
+    .collect::<Vec<String>>())
 }
 
 async fn delete_data(config: &Config, pool: &MySqlPool) -> anyhow::Result<(u64, u64)> {
@@ -280,23 +503,30 @@ fn midnight() -> anyhow::Result<OffsetDateTime> {
 
 #[cfg(test)]
 mod test {
-    use super::GARUDA_UPDATE_RE;
+    use crate::endpoints::insecure::cli::GARUDA_UPDATE_RE;
 
-    #[test]
-    fn test_garuda_update_re() {
-        let text = "(1/1) upgrading something blah de dah";
-        assert!(GARUDA_UPDATE_RE.is_match(text));
-        GARUDA_UPDATE_RE
-            .captures(text)
-            .and_then(|caps| caps.get(1))
-            .map(|m| m.as_str())
-            .map(|s| assert_eq!(s, "something"))
-            .expect("failed to capture");
-    }
+    use anyhow::Result;
+
+    const NO_MATCH: &str = "this is not a match";
 
     #[test]
     fn test_garuda_update_re_no_match() {
-        let text = "this is not a match";
-        assert!(!GARUDA_UPDATE_RE.is_match(text));
+        assert!(!GARUDA_UPDATE_RE.is_match(NO_MATCH));
+    }
+
+    #[test]
+    fn test_package_update_re() -> Result<()> {
+        let text = "extra/kio    6.19.0-1     6.19.0-2       0.00 MiB       3.59 MiB";
+        assert!(GARUDA_UPDATE_RE.is_match(text));
+        let caps = GARUDA_UPDATE_RE
+            .captures(text)
+            .ok_or(anyhow::anyhow!("failed to capture"))?;
+        assert_eq!(caps.get(1).map(|m| m.as_str()), Some("extra"));
+        assert_eq!(caps.get(2).map(|m| m.as_str()), Some("kio"));
+        assert_eq!(caps.get(3).map(|m| m.as_str()), Some("6.19.0-1"));
+        assert_eq!(caps.get(4).map(|m| m.as_str()), Some("6.19.0-2"));
+        assert_eq!(caps.get(5).map(|m| m.as_str()), Some("0.00 MiB"));
+        assert_eq!(caps.get(6).map(|m| m.as_str()), Some("3.59 MiB"));
+        Ok(())
     }
 }

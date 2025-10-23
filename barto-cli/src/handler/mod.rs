@@ -13,7 +13,7 @@ use bincode::{config::standard, decode_from_slice};
 use bon::Builder;
 use console::Style;
 use futures_util::{StreamExt as _, stream::SplitStream};
-use libbarto::{BartosToBartoCli, ClientData};
+use libbarto::{BartosToBartoCli, ClientData, Garuda, UpdateKind};
 use tokio::{net::TcpStream, select, time::sleep};
 use tokio_tungstenite::{MaybeTlsStream, WebSocketStream, tungstenite::Message};
 use tracing::trace;
@@ -69,14 +69,20 @@ impl Handler {
                 BartosToBartoCli::InfoJson(json) => {
                     print!("{json}");
                 }
-                BartosToBartoCli::Updates(updates) => {
-                    for update in updates {
-                        println!("{update}");
-                    }
-                }
+                BartosToBartoCli::Updates(updates) => Self::handle_updates(updates),
                 BartosToBartoCli::Cleanup(deleted) => {
-                    println!("deleted {} output rows", deleted.0);
-                    println!("deleted {} exit status rows", deleted.1);
+                    println!(
+                        "{} {} {}",
+                        BOLD_GREEN.apply_to("deleted"),
+                        BOLD_YELLOW.apply_to(deleted.0),
+                        BOLD_GREEN.apply_to("output rows")
+                    );
+                    println!(
+                        "{} {} {}",
+                        BOLD_GREEN.apply_to("deleted"),
+                        BOLD_YELLOW.apply_to(deleted.1),
+                        BOLD_GREEN.apply_to("exit status rows")
+                    );
                 }
                 BartosToBartoCli::Clients(clients) => {
                     let mut client_datas = clients.values().cloned().collect::<Vec<ClientData>>();
@@ -118,6 +124,98 @@ impl Handler {
                 }
             },
         }
+    }
+
+    fn handle_updates(updates: UpdateKind) {
+        match updates {
+            UpdateKind::Garuda(garudas) => {
+                let (
+                    max_channel,
+                    max_package,
+                    max_old_version,
+                    max_new_version,
+                    max_size_change,
+                    max_download_size,
+                ) = Self::maxes_garuda(&garudas);
+                for garuda in &garudas {
+                    println!(
+                        "{:<max_channel$} ({:<max_package$}): {:<max_old_version$} -> {:<max_new_version$} ({:>max_size_change$}, {:>max_download_size$})",
+                        BOLD_BLUE.apply_to(garuda.package()),
+                        BOLD_BLUE.apply_to(garuda.channel()),
+                        BOLD_GREEN.apply_to(garuda.old_version()),
+                        BOLD_GREEN.apply_to(garuda.new_version()),
+                        BOLD_GREEN.apply_to(garuda.size_change()),
+                        BOLD_GREEN.apply_to(garuda.download_size())
+                    );
+                }
+            }
+            UpdateKind::Pacman(pacman) | UpdateKind::Cachyos(pacman) => {
+                let packages = pacman.packages().join(", ");
+                println!(
+                    "{} ({}) {}",
+                    BOLD_GREEN.apply_to("Packages"),
+                    BOLD_GREEN.apply_to(pacman.update_count()),
+                    BOLD_BLUE.apply_to(packages)
+                );
+                println!();
+                println!(
+                    "{}   {:<4.2} {}",
+                    BOLD_GREEN.apply_to("Total Download Size:"),
+                    BOLD_BLUE.apply_to(pacman.download_size()),
+                    BOLD_BLUE.apply_to("MiB")
+                );
+                println!(
+                    "{}  {:<4.2} {}",
+                    BOLD_GREEN.apply_to("Total Installed Size:"),
+                    BOLD_BLUE.apply_to(pacman.install_size()),
+                    BOLD_BLUE.apply_to("MiB")
+                );
+                println!(
+                    "{}      {:<4.2} {}",
+                    BOLD_GREEN.apply_to("Net Upgrade Size:"),
+                    BOLD_BLUE.apply_to(pacman.net_size()),
+                    BOLD_BLUE.apply_to("MiB")
+                );
+            }
+            UpdateKind::Other => {}
+        }
+    }
+
+    fn maxes_garuda(garudas: &[Garuda]) -> (usize, usize, usize, usize, usize, usize) {
+        let mut max_package_label = 0;
+        let mut max_channel_label = 0;
+        let mut max_old_version_label = 0;
+        let mut max_new_version_label = 0;
+        let mut max_size_change_label = 0;
+        let mut max_download_size_label = 0;
+        for garuda in garudas {
+            if garuda.package().len() > max_package_label {
+                max_package_label = garuda.package().len();
+            }
+            if garuda.channel().len() > max_channel_label {
+                max_channel_label = garuda.channel().len();
+            }
+            if garuda.old_version().len() > max_old_version_label {
+                max_old_version_label = garuda.old_version().len();
+            }
+            if garuda.new_version().len() > max_new_version_label {
+                max_new_version_label = garuda.new_version().len();
+            }
+            if garuda.size_change().len() > max_size_change_label {
+                max_size_change_label = garuda.size_change().len();
+            }
+            if garuda.download_size().len() > max_download_size_label {
+                max_download_size_label = garuda.download_size().len();
+            }
+        }
+        (
+            max_package_label,
+            max_channel_label,
+            max_old_version_label,
+            max_new_version_label,
+            max_size_change_label,
+            max_download_size_label,
+        )
     }
 
     fn maxes_query(map: &BTreeMap<usize, BTreeMap<String, String>>) -> (usize, usize) {

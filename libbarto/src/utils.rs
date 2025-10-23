@@ -58,11 +58,3 @@ pub(crate) fn until_err<T>(err: &mut &mut Result<()>, item: Result<T>) -> Option
         }
     }
 }
-
-pub(crate) fn as_two_digit(values: &[u8]) -> String {
-    let two_digit_values = values
-        .iter()
-        .map(|s| format!("{s:02}"))
-        .collect::<Vec<String>>();
-    two_digit_values.join(",")
-}
