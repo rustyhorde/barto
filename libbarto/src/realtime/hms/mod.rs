@@ -58,11 +58,25 @@ impl FromStr for HourMinuteSecond {
 
 #[cfg(test)]
 mod test {
-    use proptest::{prelude::proptest, prop_compose};
+    use proptest::{prelude::proptest, prop_assume, prop_compose};
 
-    use crate::realtime::hms::{
-        HourMinuteSecond, hour::test::hour_strategy, minute::test::minute_strategy,
-        second::test::second_strategy,
+    use crate::realtime::{
+        cv::ConstrainedValueParser as _,
+        hms::{
+            HourMinuteSecond,
+            hour::{
+                HOUR_RANGE_RE, HOUR_REPETITION_RE, Hour,
+                test::{VALID_HOUR_RE, hour_strategy},
+            },
+            minute::{
+                MINUTE_RANGE_RE, MINUTE_REPETITION_RE, Minute,
+                test::{VALID_MINUTE_RE, minute_strategy},
+            },
+            second::{
+                SECOND_RANGE_RE, SECOND_REPETITION_RE, Second,
+                test::{VALID_SECOND_RE, second_strategy},
+            },
+        },
     };
 
     // Valid strategies
@@ -83,5 +97,38 @@ mod test {
             let (hms_str, _, _, _) = s;
             assert!(HourMinuteSecond::try_from(hms_str.as_str()).is_ok());
         }
+    }
+
+    // Invalid inputs
+    proptest! {
+        #[test]
+        fn random_input_errors(hour in "\\PC*", minute in "\\PC*", second in "\\PC*") {
+            prop_assume!(!VALID_HOUR_RE.is_match(hour.as_str()));
+            prop_assume!(!HOUR_REPETITION_RE.is_match(hour.as_str()));
+            prop_assume!(!HOUR_RANGE_RE.is_match(hour.as_str()));
+            prop_assume!(hour.as_str() != "*");
+            prop_assume!(!VALID_MINUTE_RE.is_match(minute.as_str()));
+            prop_assume!(!MINUTE_REPETITION_RE.is_match(minute.as_str()));
+            prop_assume!(!MINUTE_RANGE_RE.is_match(minute.as_str()));
+            prop_assume!(minute.as_str() != "*");
+            prop_assume!(minute.as_str() != "R");
+            prop_assume!(!VALID_SECOND_RE.is_match(second.as_str()));
+            prop_assume!(!SECOND_REPETITION_RE.is_match(second.as_str()));
+            prop_assume!(!SECOND_RANGE_RE.is_match(second.as_str()));
+            prop_assume!(second.as_str() != "*");
+            prop_assume!(second.as_str() != "R");
+            let hms = format!("{hour}:{minute}:{second}");
+            assert!(HourMinuteSecond::try_from(hms.as_str()).is_err());
+            assert!(hms.as_str().parse::<HourMinuteSecond>().is_err());
+        }
+    }
+
+    #[test]
+    fn take_works() {
+        let hms = HourMinuteSecond(Hour::all(), Minute::all(), Second::all());
+        let (hour, minute, second) = hms.take();
+        assert_eq!(hour, Hour::all());
+        assert_eq!(minute, Minute::all());
+        assert_eq!(second, Second::all());
     }
 }
