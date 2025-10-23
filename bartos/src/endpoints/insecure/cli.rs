@@ -82,11 +82,15 @@ static NET_UPGRADE_SIZE_RE: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(r"Net Upgrade Size:[ ]+(\d+\.\d+) MiB")
         .expect("failed to create net upgrade size regex")
 });
+static CACHYOS_UPDATE_RE: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"(core|extra|multilib)\/([^ ]+)\s+([^ ]+)\s+([^ ]+)\s+(.+ MiB)\s+(.+ MiB)")
+        .expect("failed to create cachyos-update regex")
+});
 static GARUDA_UPDATE_RE: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(
         r"(chaotic-aur|core|extra|multilib)\/([^ ]+)\s+([^ ]+)\s+([^ ]+)\s+(.+ MiB)\s+(.+ MiB)",
     )
-    .expect("failed to garuda-update regex")
+    .expect("failed to create garuda-update regex")
 });
 
 pub(crate) async fn cli(
@@ -190,6 +194,11 @@ async fn handle_binary(
                         let updates = pacman_update_data(&name, config, pool).await?;
                         BartosToBartoCli::Updates(UpdateKind::Pacman(updates))
                     }
+                    CliUpdateKind::Cachyos => {
+                        info!("received updates message for '{name}' (cachyos)");
+                        let updates = cachyos_update_data(&name, config, pool).await?;
+                        BartosToBartoCli::Updates(UpdateKind::Cachyos(updates))
+                    }
                     CliUpdateKind::Other => {
                         info!("received updates message for '{name}' (other)");
                         BartosToBartoCli::Updates(UpdateKind::Other)
@@ -271,6 +280,17 @@ async fn pacman_update_data(
     })
 }
 
+async fn cachyos_update_data(
+    name: &str,
+    config: &Config,
+    pool: &MySqlPool,
+) -> anyhow::Result<Pacman> {
+    Ok(match config.mariadb().output_table() {
+        OutputTableName::Output => cachyos_filter(&output_data(name, pool).await?),
+        OutputTableName::OutputTest => cachyos_filter(&output_test_data(name, pool).await?),
+    })
+}
+
 fn garuda_filter(data: Vec<String>) -> Vec<Garuda> {
     let mut results = data
         .into_iter()
@@ -289,6 +309,62 @@ fn garuda_filter(data: Vec<String>) -> Vec<Garuda> {
         .collect::<Vec<Garuda>>();
     results.sort();
     results
+}
+
+fn cachyos_filter(data: &[String]) -> Pacman {
+    let packages = data
+        .iter()
+        .filter_map(|s| {
+            CACHYOS_UPDATE_RE.captures(s).map(|caps| {
+                caps.get(2)
+                    .map_or("", |m| m.as_str())
+                    .split_whitespace()
+                    .map(ToString::to_string)
+                    .collect::<Vec<String>>()
+            })
+        })
+        .fold(vec![], |mut acc, packages| {
+            acc.extend(packages);
+            acc
+        });
+
+    let total_download_size = data
+        .iter()
+        .filter_map(|s| {
+            PACMAN_DOWNLOAD_SIZE_RE.captures(s).map(|caps| {
+                caps.get(1)
+                    .map_or(0.0, |m| m.as_str().parse::<f64>().unwrap_or(0.0))
+            })
+        })
+        .sum::<f64>();
+
+    let total_install_size = data
+        .iter()
+        .filter_map(|s| {
+            PACMAN_INSTALL_SIZE_RE.captures(s).map(|caps| {
+                caps.get(1)
+                    .map_or(0.0, |m| m.as_str().parse::<f64>().unwrap_or(0.0))
+            })
+        })
+        .sum::<f64>();
+
+    let net_install_size = data
+        .iter()
+        .filter_map(|s| {
+            NET_UPGRADE_SIZE_RE.captures(s).map(|caps| {
+                caps.get(1)
+                    .map_or(0.0, |m| m.as_str().parse::<f64>().unwrap_or(0.0))
+            })
+        })
+        .sum::<f64>();
+
+    Pacman::builder()
+        .update_count(packages.len())
+        .packages(packages)
+        .install_size(total_install_size)
+        .net_size(net_install_size)
+        .download_size(total_download_size)
+        .build()
 }
 
 fn pacman_filter(data: &[String]) -> Pacman {

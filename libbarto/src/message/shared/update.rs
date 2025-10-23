@@ -19,6 +19,8 @@ pub enum UpdateKind {
     Garuda(Vec<Garuda>),
     /// An Archlinux pacman update message
     Pacman(Pacman),
+    /// A `CachyOS` update message
+    Cachyos(Pacman),
     /// An other update message
     Other,
 }

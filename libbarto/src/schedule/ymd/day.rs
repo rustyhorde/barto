@@ -122,8 +122,8 @@ mod test {
     use rand::{Rng as _, rng};
     use regex::Regex;
 
-    static VALID_DAY_RE: LazyLock<Regex> =
-        LazyLock::new(|| Regex::new(r"^([1-9]|[12][0-9]|3[01])$").unwrap());
+    pub(crate) static VALID_DAY_RE: LazyLock<Regex> =
+        LazyLock::new(|| Regex::new(r"^\+?(0?[1-9]|[12][0-9]|3[01])$").unwrap());
 
     prop_compose! {
         pub fn day_strategy()(num in any::<u8>()) -> (String, u8) {

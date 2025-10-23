@@ -42,6 +42,8 @@ pub enum UpdateKind {
     Garuda,
     /// An Archlinux pacman update message
     Pacman,
+    /// A `CachyOS` update message
+    Cachyos,
     /// An other update message
     Other,
 }

@@ -149,7 +149,7 @@ impl Handler {
                     );
                 }
             }
-            UpdateKind::Pacman(pacman) => {
+            UpdateKind::Pacman(pacman) | UpdateKind::Cachyos(pacman) => {
                 let packages = pacman.packages().join(", ");
                 println!(
                     "{} ({}) {}",
