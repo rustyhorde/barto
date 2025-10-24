@@ -123,6 +123,20 @@ impl Handler {
                     }
                 }
                 BartosToBartoCli::List(list) => {
+                    if !list.is_empty() {
+                        println!(
+                            "{} {}",
+                            BOLD_GREEN.apply_to("Total outputs:"),
+                            BOLD_YELLOW.apply_to(list.len())
+                        );
+                        println!(
+                            "{}: {}\n{}: {}",
+                            BOLD_GREEN.apply_to("Exit Status"),
+                            BOLD_BLUE.apply_to(list[0].exit_code()),
+                            BOLD_GREEN.apply_to("Success"),
+                            BOLD_BLUE.apply_to(list[0].success())
+                        );
+                    }
                     for output in &list {
                         let blah = output.timestamp().zip(output.data().clone()).map_or_else(
                             String::new,
