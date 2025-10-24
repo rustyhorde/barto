@@ -16,9 +16,19 @@ use bincode::{
 };
 use time::{OffsetDateTime, error::Format, format_description::well_known::Rfc3339};
 
+#[cfg(test)]
+use crate::utils::Mock;
+
 /// An `OffsetDateTime` wrapper that implements `bincode::Encode` and `bincode::Decode`
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct OffsetDataTimeWrapper(pub OffsetDateTime);
+
+#[cfg(test)]
+impl Mock for OffsetDataTimeWrapper {
+    fn mock() -> Self {
+        Self(OffsetDateTime::now_utc())
+    }
+}
 
 impl OffsetDataTimeWrapper {
     /// Get the inner `OffsetDateTime`

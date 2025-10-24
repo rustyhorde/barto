@@ -58,3 +58,8 @@ pub(crate) fn until_err<T>(err: &mut &mut Result<()>, item: Result<T>) -> Option
         }
     }
 }
+
+#[cfg(test)]
+pub(crate) trait Mock {
+    fn mock() -> Self;
+}

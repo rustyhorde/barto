@@ -16,9 +16,19 @@ use bincode::{
 };
 use uuid::Uuid;
 
+#[cfg(test)]
+use crate::utils::Mock;
+
 /// A `Uuid` wrapper that implements `bincode::Encode` and `bincode::Decode`
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct UuidWrapper(pub Uuid);
+
+#[cfg(test)]
+impl Mock for UuidWrapper {
+    fn mock() -> Self {
+        Self(Uuid::new_v4())
+    }
+}
 
 impl Display for UuidWrapper {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {

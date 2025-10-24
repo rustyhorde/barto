@@ -19,6 +19,8 @@ use serde::{Deserialize, Serialize};
 use tracing::Level;
 use tracing_subscriber_init::{TracingConfig, get_effective_level};
 
+#[cfg(test)]
+use crate::utils::Mock;
 use crate::{TlsConfig, TracingConfigExt, error::Error, utils::to_path_buf};
 
 /// Trait to allow default paths to be supplied to [`load`]
@@ -321,6 +323,15 @@ pub struct Schedules {
     schedules: Vec<Schedule>,
 }
 
+#[cfg(test)]
+impl Mock for Schedules {
+    fn mock() -> Self {
+        Self::builder()
+            .schedules(vec![Schedule::mock(), Schedule::mock()])
+            .build()
+    }
+}
+
 /// A schedule
 #[derive(Clone, Debug, Decode, Default, Deserialize, Encode, Eq, Getters, PartialEq, Serialize)]
 #[cfg_attr(test, derive(Builder))]
@@ -332,6 +343,17 @@ pub struct Schedule {
     on_calendar: String,
     /// The commands to run
     cmds: Vec<String>,
+}
+
+#[cfg(test)]
+impl Mock for Schedule {
+    fn mock() -> Self {
+        Self::builder()
+            .name("mock_schedule".to_string())
+            .on_calendar("* * * * *".to_string())
+            .cmds(vec!["echo 'Hello, World!'".to_string()])
+            .build()
+    }
 }
 
 /// Load the configuration
