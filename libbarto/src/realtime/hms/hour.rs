@@ -25,9 +25,10 @@ use crate::{
 };
 
 pub(crate) static HOUR_RANGE_RE: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r"^(\d+)\.\.(\d+)$").expect("invalid hour range regex"));
-pub(crate) static HOUR_REPETITION_RE: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r"^(\d+)(\.\.(\d+))?/(\d+)$").expect("invalid repetition regex"));
+    LazyLock::new(|| Regex::new(r"^(\+?\d+)\.\.(\+?\d+)$").expect("invalid hour range regex"));
+pub(crate) static HOUR_REPETITION_RE: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"^(\+?\d+)(\.\.(\+?\d+))?/(\+?\d+)$").expect("invalid hour repetition regex")
+});
 
 /// Represents a constrained value matcher for hours of the day
 pub type Hour = ConstrainedValue<HourOfDay>;
@@ -279,13 +280,18 @@ pub(crate) mod test {
     use super::{HOUR_RANGE_RE, HOUR_REPETITION_RE, Hour, HourOfDay};
 
     pub(crate) static VALID_HOUR_RE: LazyLock<Regex> =
-        LazyLock::new(|| Regex::new(r"^\+?(0?|0?[1-9]|1[0-9]|2[0-3])$").unwrap());
+        LazyLock::new(|| Regex::new(r"^\+?(0|0?[1-9]|1[0-9]|2[0-3])$").unwrap());
 
     // Valid strategy generators
     prop_compose! {
-        pub(crate) fn hour_strategy()(num in any::<u8>()) -> (String, u8) {
+        pub(crate) fn hour_strategy()(num in any::<u8>(), sign in any::<bool>()) -> (String, u8) {
             let hour = num % 24;
-            (hour.to_string(), hour)
+            let hour_str = if sign {
+                format!("+{hour}")
+            } else {
+                hour.to_string()
+            };
+            (hour_str, hour)
         }
     }
 
@@ -302,10 +308,15 @@ pub(crate) mod test {
     }
 
     prop_compose! {
-        fn arb_valid_repetition()(s in arb_valid_range(), rep in any::<u8>()) -> (String, u8, u8, u8) {
+        fn arb_valid_repetition()(s in arb_valid_range(), rep in any::<u8>(), sign in any::<bool>()) -> (String, u8, u8, u8) {
             let (mut prefix, min, max) = s;
             let rep = if rep == 0 { 1 } else { rep };
-            write!(prefix, "/{rep}").unwrap();
+            let rep_str = if sign {
+                format!("+{rep}")
+            } else {
+                rep.to_string()
+            };
+            write!(prefix, "/{rep_str}").unwrap();
             (prefix, min, max, rep)
         }
     }

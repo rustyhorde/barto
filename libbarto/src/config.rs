@@ -10,6 +10,8 @@ use std::path::PathBuf;
 
 use anyhow::{Context, Result};
 use bincode::{Decode, Encode};
+#[cfg(test)]
+use bon::Builder;
 use config::{Config, Environment, File, FileFormat, Source};
 use dirs2::config_dir;
 use getset::{CopyGetters, Getters, Setters};
@@ -17,6 +19,8 @@ use serde::{Deserialize, Serialize};
 use tracing::Level;
 use tracing_subscriber_init::{TracingConfig, get_effective_level};
 
+#[cfg(test)]
+use crate::utils::Mock;
 use crate::{TlsConfig, TracingConfigExt, error::Error, utils::to_path_buf};
 
 /// Trait to allow default paths to be supplied to [`load`]
@@ -312,14 +316,25 @@ pub enum MissedTick {
 
 /// The schedule to run commands on a given worker client
 #[derive(Clone, Debug, Decode, Deserialize, Encode, Eq, Getters, PartialEq, Serialize)]
+#[cfg_attr(test, derive(Builder))]
 #[getset(get = "pub")]
 pub struct Schedules {
     /// All of the schedules for a worker client
     schedules: Vec<Schedule>,
 }
 
+#[cfg(test)]
+impl Mock for Schedules {
+    fn mock() -> Self {
+        Self::builder()
+            .schedules(vec![Schedule::mock(), Schedule::mock()])
+            .build()
+    }
+}
+
 /// A schedule
 #[derive(Clone, Debug, Decode, Default, Deserialize, Encode, Eq, Getters, PartialEq, Serialize)]
+#[cfg_attr(test, derive(Builder))]
 #[getset(get = "pub")]
 pub struct Schedule {
     /// The name of the schedule
@@ -328,6 +343,17 @@ pub struct Schedule {
     on_calendar: String,
     /// The commands to run
     cmds: Vec<String>,
+}
+
+#[cfg(test)]
+impl Mock for Schedule {
+    fn mock() -> Self {
+        Self::builder()
+            .name("mock_schedule".to_string())
+            .on_calendar("* * * * *".to_string())
+            .cmds(vec!["echo 'Hello, World!'".to_string()])
+            .build()
+    }
 }
 
 /// Load the configuration

@@ -25,9 +25,10 @@ use crate::{
 };
 
 pub(crate) static DAY_RANGE_RE: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r"^(\d+)\.\.(\d+)$").expect("invalid day range regex"));
-pub(crate) static DAY_REPETITION_RE: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r"^(\d+)(\.\.(\d+))?/(\d+)$").expect("invalid repetition regex"));
+    LazyLock::new(|| Regex::new(r"^(\+?\d+)\.\.(\+?\d+)$").expect("invalid day range regex"));
+pub(crate) static DAY_REPETITION_RE: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"^(\+?\d+)(\.\.(\+?\d+))?/(\+?\d+)$").expect("invalid day repetition regex")
+});
 
 /// Represents a constrained value for the day of the month (1-31)
 pub type Day = ConstrainedValue<DayOfMonth>;
@@ -275,9 +276,14 @@ pub(crate) mod test {
 
     // Valid strategy generators
     prop_compose! {
-        pub(crate) fn day_strategy()(num in any::<u8>()) -> (String, u8) {
+        pub(crate) fn day_strategy()(num in any::<u8>(), sign in any::<bool>()) -> (String, u8) {
             let day = (num % 31) + 1;
-            (day.to_string(), day)
+            let day_str = if sign {
+                format!("+{day}")
+            } else {
+                day.to_string()
+            };
+            (day_str, day)
         }
     }
 
@@ -294,10 +300,15 @@ pub(crate) mod test {
     }
 
     prop_compose! {
-        fn arb_valid_repetition()(s in arb_valid_range(), rep in any::<u8>()) -> (String, u8, u8, u8) {
+        fn arb_valid_repetition()(s in arb_valid_range(), rep in any::<u8>(), sign in any::<bool>()) -> (String, u8, u8, u8) {
             let (mut prefix, min, max) = s;
             let rep = if rep == 0 { 1 } else { rep };
-            write!(prefix, "/{rep}").unwrap();
+            let rep_str = if sign {
+                format!("+{rep}")
+            } else {
+                rep.to_string()
+            };
+            write!(prefix, "/{rep_str}").unwrap();
             (prefix, min, max, rep)
         }
     }

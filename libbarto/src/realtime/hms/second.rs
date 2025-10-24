@@ -25,9 +25,10 @@ use crate::{
 };
 
 pub(crate) static SECOND_RANGE_RE: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r"^(\d+)\.\.(\d+)$").expect("invalid second range regex"));
-pub(crate) static SECOND_REPETITION_RE: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r"^(\d+)(\.\.(\d+))?/(\d+)$").expect("invalid repetition regex"));
+    LazyLock::new(|| Regex::new(r"^(\+?\d+)\.\.(\+?\d+)$").expect("invalid second range regex"));
+pub(crate) static SECOND_REPETITION_RE: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"^(\+?\d+)(\.\.(\+?\d+))?/(\+?\d+)$").expect("invalid second repetition regex")
+});
 
 /// Represents a constrained value matcher for seconds of the minute
 pub type Second = ConstrainedValue<SecondOfMinute>;
@@ -279,13 +280,18 @@ pub(crate) mod test {
     use super::{SECOND_RANGE_RE, SECOND_REPETITION_RE, Second, SecondOfMinute};
 
     pub(crate) static VALID_SECOND_RE: LazyLock<regex::Regex> =
-        LazyLock::new(|| regex::Regex::new(r"^\+?(0?|0?[1-9]|[1-5][0-9])$").unwrap());
+        LazyLock::new(|| regex::Regex::new(r"^\+?(0|0?[1-9]|[1-5][0-9])$").unwrap());
 
     // Valid strategy generators
     prop_compose! {
-        pub(crate) fn second_strategy()(num in any::<u8>()) -> (String, u8) {
+        pub(crate) fn second_strategy()(num in any::<u8>(), sign in any::<bool>()) -> (String, u8) {
             let second = num % 60;
-            (second.to_string(), second)
+            let second_str = if sign {
+                format!("+{second}")
+            } else {
+                second.to_string()
+            };
+            (second_str, second)
         }
     }
 
@@ -302,10 +308,15 @@ pub(crate) mod test {
     }
 
     prop_compose! {
-        fn arb_valid_repetition()(s in arb_valid_range(), rep in any::<u8>()) -> (String, u8, u8, u8) {
+        fn arb_valid_repetition()(s in arb_valid_range(), rep in any::<u8>(), sign in any::<bool>()) -> (String, u8, u8, u8) {
             let (mut prefix, min, max) = s;
             let rep = if rep == 0 { 1 } else { rep };
-            write!(prefix, "/{rep}").unwrap();
+            let rep_str = if sign {
+                format!("+{rep}")
+            } else {
+                rep.to_string()
+            };
+            write!(prefix, "/{rep_str}").unwrap();
             (prefix, min, max, rep)
         }
     }

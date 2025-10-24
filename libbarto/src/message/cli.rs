@@ -33,6 +33,13 @@ pub enum BartoCli {
         /// The query to run on bartos
         query: String,
     },
+    /// A request to list the output for a given command
+    List {
+        /// The name of the bartoc client to check for recent updates
+        name: String,
+        /// The name of the command to list the output for
+        cmd_name: String,
+    },
 }
 
 /// The update kind we are requesting

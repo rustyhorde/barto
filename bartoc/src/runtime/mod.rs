@@ -107,6 +107,9 @@ where
             trace!("connecting to bartos at {url}");
             let (ws_stream, _) = connect_async(&url).await?;
             trace!("websocket connected");
+            retry_count = *config.retry_count(); // reset retry count on successful connection
+            error_count = 0; // reset error count on successful connection
+            trace!("retry and error counts reset");
             let (sink, mut stream) = ws_stream.split();
             let mut handler = Handler::builder()
                 .sink(sink)
