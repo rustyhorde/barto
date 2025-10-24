@@ -13,7 +13,7 @@ use getset::{CopyGetters, Getters};
 use crate::{Schedules, UuidWrapper};
 
 /// An initialization message from bartos to a named bartoc client.
-#[derive(Builder, Clone, CopyGetters, Debug, Decode, Encode, Getters)]
+#[derive(Builder, Clone, CopyGetters, Debug, Decode, Encode, Eq, Getters, PartialEq)]
 pub struct Initialize {
     /// The unique identifier for the bartoc client
     #[get_copy = "pub"]
@@ -21,4 +21,39 @@ pub struct Initialize {
     /// The schedules to initialize the bartoc client with
     #[get = "pub"]
     schedules: Schedules,
+}
+
+#[cfg(test)]
+mod test {
+    use super::Initialize;
+
+    use anyhow::Result;
+    use bincode::{config::standard, decode_from_slice, encode_to_vec};
+    use uuid::Uuid;
+
+    use crate::{Schedule, Schedules, UuidWrapper};
+
+    #[test]
+    fn test_initialize_encode_decode() -> Result<()> {
+        let uuid_wrapper = UuidWrapper(Uuid::new_v4());
+        let schedule = Schedule::builder()
+            .name("test_schedule".to_string())
+            .on_calendar("*,*,* 10:10:R".to_string())
+            .cmds(vec!["echo 'Hello, World!'".to_string()])
+            .build();
+        let schedules = Schedules::builder().schedules(vec![schedule]).build();
+        let initialize = Initialize::builder()
+            .id(uuid_wrapper)
+            .schedules(schedules)
+            .build();
+
+        let encoded = encode_to_vec(initialize.clone(), standard())?;
+        let (decoded_wrapper, _): (Initialize, _) = decode_from_slice(&encoded, standard())?;
+
+        assert_eq!(initialize, decoded_wrapper);
+        assert_eq!(initialize.id(), decoded_wrapper.id());
+        assert_eq!(initialize.schedules(), decoded_wrapper.schedules());
+        assert!(!format!("{initialize:?}").is_empty());
+        Ok(())
+    }
 }

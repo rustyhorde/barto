@@ -10,6 +10,8 @@ use std::path::PathBuf;
 
 use anyhow::{Context, Result};
 use bincode::{Decode, Encode};
+#[cfg(test)]
+use bon::Builder;
 use config::{Config, Environment, File, FileFormat, Source};
 use dirs2::config_dir;
 use getset::{CopyGetters, Getters, Setters};
@@ -312,6 +314,7 @@ pub enum MissedTick {
 
 /// The schedule to run commands on a given worker client
 #[derive(Clone, Debug, Decode, Deserialize, Encode, Eq, Getters, PartialEq, Serialize)]
+#[cfg_attr(test, derive(Builder))]
 #[getset(get = "pub")]
 pub struct Schedules {
     /// All of the schedules for a worker client
@@ -320,6 +323,7 @@ pub struct Schedules {
 
 /// A schedule
 #[derive(Clone, Debug, Decode, Default, Deserialize, Encode, Eq, Getters, PartialEq, Serialize)]
+#[cfg_attr(test, derive(Builder))]
 #[getset(get = "pub")]
 pub struct Schedule {
     /// The name of the schedule
