@@ -1,0 +1,64 @@
+{
+  "db_name": "MySQL",
+  "query": "SELECT\n  output.timestamp,\n  output.cmd_name,\n  output.data,\n  exit_status.exit_code,\n  exit_status.success\nFROM\n  output\nRIGHT JOIN\n  exit_status ON exit_status.cmd_uuid = output.cmd_uuid\nWHERE\n  output.bartoc_name = ?\nAND\n  output.cmd_name = ?\nORDER BY\n  output.timestamp",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "timestamp",
+        "type_info": {
+          "type": "Timestamp",
+          "flags": "UNSIGNED | BINARY | NO_DEFAULT_VALUE",
+          "max_size": 19
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "cmd_name",
+        "type_info": {
+          "type": "VarString",
+          "flags": "",
+          "max_size": 1024
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "data",
+        "type_info": {
+          "type": "Blob",
+          "flags": "BLOB | NO_DEFAULT_VALUE",
+          "max_size": 262140
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "exit_code",
+        "type_info": {
+          "type": "Tiny",
+          "flags": "NOT_NULL | UNSIGNED | NO_DEFAULT_VALUE",
+          "max_size": 3
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "success",
+        "type_info": {
+          "type": "Tiny",
+          "flags": "NOT_NULL | NO_DEFAULT_VALUE",
+          "max_size": 1
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": [
+      true,
+      true,
+      true,
+      false,
+      false
+    ]
+  },
+  "hash": "5535e75fc2509fa704d28c5107303c3d0a93bf21bc26c3914e4ad04c6ba92c65"
+}
