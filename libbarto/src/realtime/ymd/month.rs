@@ -294,14 +294,18 @@ pub(crate) mod tests {
     use super::{MONTH_RANGE_RE, MONTH_REPETITION_RE, Month, MonthOfYear};
 
     pub(crate) static VALID_MONTH_RE: LazyLock<Regex> =
-        LazyLock::new(|| Regex::new(r"^\+?(1[0-2]|[1-9])$").unwrap());
+        LazyLock::new(|| Regex::new(r"^\+?(1[0-2]|0?[1-9])$").unwrap());
 
     // Valid strategy generators
     prop_compose! {
-        pub(crate) fn month_strategy()(num in any::<u8>(), sign in any::<bool>()) -> (String, u8) {
+        pub(crate) fn month_strategy()(num in any::<u8>(), sign in any::<bool>(), zero_pad in any::<bool>()) -> (String, u8) {
             let month = (num % 12) + 1;
-            let month_str = if sign {
+            let month_str = if sign && zero_pad {
+                format!("+{month:02}")
+            } else if sign {
                 format!("+{month}")
+            } else if zero_pad{
+                format!("{month:02}")
             } else {
                 month.to_string()
             };

@@ -6,3 +6,4 @@
 # everyone who runs the test benefits from these saved cases.
 cc 665a8ac9ddf1e0d060b4a48f9ba2424136115cb1e500624608d88eca7c85fee6 # shrinks to s = "0/1"
 cc 40d5646f104dbaa565325cc9db9d98bd72d8ca33c941f1d2fc32ab37fd00528d # shrinks to s = ("1..1", 1, 1)
+cc 371ba09198f3b51a0599594fcd8b3d0a49e80b27e30866d22d7027aace854552 # shrinks to s = "01"
