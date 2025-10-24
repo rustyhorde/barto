@@ -147,7 +147,7 @@ pub(crate) mod test {
             prop_assume!(!DAY_RANGE_RE.is_match(day.as_str()));
             prop_assume!(day.as_str() != "*");
             prop_assume!(day.as_str() != "R");
-            let ymd = format!("{year}-{month}-{day}");
+            let ymd = format!("{year},{month},{day}");
             assert!(YearMonthDay::try_from(ymd.as_str()).is_err());
             assert!(ymd.as_str().parse::<YearMonthDay>().is_err());
         }

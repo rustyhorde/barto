@@ -26,9 +26,10 @@ use crate::{
 };
 
 pub(crate) static MONTH_RANGE_RE: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r"^(\d+)\.\.(\d+)$").expect("invalid month range regex"));
-pub(crate) static MONTH_REPETITION_RE: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r"^(\d+)(\.\.(\d+))?/(\d+)$").expect("invalid repetition regex"));
+    LazyLock::new(|| Regex::new(r"^(\+?\d+)\.\.(\+?\d+)$").expect("invalid month range regex"));
+pub(crate) static MONTH_REPETITION_RE: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"^(\+?\d+)(\.\.(\+?\d+))?/(\+?\d+)$").expect("invalid month repetition regex")
+});
 
 /// A constrained value representing a month of the year (1-12)
 pub type Month = ConstrainedValue<MonthOfYear>;
@@ -297,9 +298,14 @@ pub(crate) mod tests {
 
     // Valid strategy generators
     prop_compose! {
-        pub(crate) fn month_strategy()(num in any::<u8>()) -> (String, u8) {
+        pub(crate) fn month_strategy()(num in any::<u8>(), sign in any::<bool>()) -> (String, u8) {
             let month = (num % 12) + 1;
-            (month.to_string(), month)
+            let month_str = if sign {
+                format!("+{month}")
+            } else {
+                month.to_string()
+            };
+            (month_str, month)
         }
     }
 
@@ -316,10 +322,15 @@ pub(crate) mod tests {
     }
 
     prop_compose! {
-        fn arb_valid_repetition()(s in arb_valid_range(), rep in any::<u8>()) -> (String, u8, u8, u8) {
+        fn arb_valid_repetition()(s in arb_valid_range(), rep in any::<u8>(), sign in any::<bool>()) -> (String, u8, u8, u8) {
             let (mut prefix, min, max) = s;
             let rep = if rep == 0 { 1 } else { rep };
-            write!(prefix, "/{rep}").unwrap();
+            let rep_str = if sign {
+                format!("+{rep}")
+            } else {
+                rep.to_string()
+            };
+            write!(prefix, "/{rep_str}").unwrap();
             (prefix, min, max, rep)
         }
     }

@@ -20,10 +20,12 @@ use crate::{
     realtime::cv::{ConstrainedValue, ConstrainedValueParser},
 };
 
-static YEAR_RANGE_RE: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r"^(-?\d+)\.\.(-?\d+)$").expect("invalid year range regex"));
+static YEAR_RANGE_RE: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"^(-?\d+|\+?\d+)\.\.(-?\d+|\+?\d+)$").expect("invalid year range regex")
+});
 static YEAR_REPETITION_RE: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"^(-?\d+)(\.\.(-?\d+))?/(\d+)$").expect("invalid repetition regex")
+    Regex::new(r"^(-?\d+|\+?\d+)(\.\.(-?\d+|\+?\d+))?\/(\+?\d+)$")
+        .expect("invalid year repetition regex")
 });
 
 /// A year constraint for realtime schedules (`i32::MIN..=i32::MAX`)
@@ -130,8 +132,13 @@ pub(crate) mod test {
 
     // Valid strategies
     prop_compose! {
-        pub(crate) fn arb_year() (year in any::<i32>()) -> (String, i32) {
-            (year.to_string(), year)
+        pub(crate) fn arb_year() (year in any::<i32>(), sign in any::<bool>()) -> (String, i32) {
+            let year_str = if sign && year >= 0 {
+                format!("+{year}")
+            } else {
+                year.to_string()
+            };
+            (year_str, year)
         }
     }
 
@@ -146,10 +153,15 @@ pub(crate) mod test {
     }
 
     prop_compose! {
-        fn arb_valid_repetition()(s in arb_valid_year_range(), rep in any::<u8>()) -> (String, i32, i32, u8) {
+        fn arb_valid_repetition()(s in arb_valid_year_range(), rep in any::<u8>(), sign in any::<bool>()) -> (String, i32, i32, u8) {
             let (mut prefix, min, max) = s;
             let rep = if rep == 0 { 1 } else { rep };
-            write!(prefix, "/{rep}").unwrap();
+            let rep_str = if sign {
+                format!("+{rep}")
+            } else {
+                rep.to_string()
+            };
+            write!(prefix, "/{rep_str}").unwrap();
             (prefix, min, max, rep)
         }
     }

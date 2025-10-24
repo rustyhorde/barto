@@ -4,4 +4,4 @@
 #
 # It is recommended to check this file in to source control so that
 # everyone who runs the test benefits from these saved cases.
-cc f2496132faa903523548727d8aedafae4b5949d7d3563b991deb1ead05ff5cff # shrinks to s = "0/1"
+cc f2496132faa903523548727d8aedafae4b5949d7d3563b991deb1ead05ff5cff # shrinks to s = "0/1"cc b50af02a3af9f647d49d3a57bc3019fe4b1851163d1813812f4d45c7a7785244 # shrinks to s = ("--1", -1)
