@@ -6,6 +6,8 @@
 // option. All files in the project carrying such notice may not be copied,
 // modified, or distributed except according to those terms.
 
+use std::fmt::{Display, Formatter};
+
 use bincode::{
     BorrowDecode, Decode, Encode,
     de::{BorrowDecoder, Decoder},
@@ -46,5 +48,17 @@ impl Encode for OffsetDataTimeWrapper {
             EncodeError::OtherString(format!("failed to format OffsetDateTime to string: {e}"))
         })?;
         s.encode(encoder)
+    }
+}
+
+impl Display for OffsetDataTimeWrapper {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{}",
+            self.0
+                .format(&well_known::Rfc3339)
+                .map_err(|_| std::fmt::Error)?
+        )
     }
 }

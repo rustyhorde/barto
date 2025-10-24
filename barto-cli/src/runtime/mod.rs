@@ -111,6 +111,16 @@ where
             )?;
             Message::Binary(query.into())
         }
+        Commands::List { name, cmd_name } => {
+            let list = encode_to_vec(
+                BartoCli::List {
+                    name: name.clone(),
+                    cmd_name: cmd_name.clone(),
+                },
+                standard(),
+            )?;
+            Message::Binary(list.into())
+        }
     };
     sink.send(message).await?;
     trace!("message sent");

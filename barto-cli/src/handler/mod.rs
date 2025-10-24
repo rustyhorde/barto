@@ -122,6 +122,21 @@ impl Handler {
                         }
                     }
                 }
+                BartosToBartoCli::List(list) => {
+                    for output in &list {
+                        let blah = output.timestamp().zip(output.data().clone()).map_or_else(
+                            String::new,
+                            |(timestamp, data)| {
+                                format!(
+                                    "{}: {}",
+                                    BOLD_GREEN.apply_to(timestamp),
+                                    BOLD_BLUE.apply_to(data)
+                                )
+                            },
+                        );
+                        println!("{blah}");
+                    }
+                }
             },
         }
     }

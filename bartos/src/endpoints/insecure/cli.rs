@@ -20,8 +20,8 @@ use actix_ws::{AggregatedMessage, Session, handle};
 use bincode::{config::standard, decode_from_slice, encode_to_vec};
 use futures_util::StreamExt as _;
 use libbarto::{
-    BartoCli, BartosToBartoCli, CliUpdateKind, ClientData, Garuda, OutputTableName, Pacman,
-    UpdateKind, UuidWrapper,
+    BartoCli, BartosToBartoCli, CliUpdateKind, ClientData, Garuda, ListOutput,
+    OffsetDataTimeWrapper, OutputTableName, Pacman, UpdateKind, UuidWrapper,
 };
 use regex::Regex;
 use sqlx::{Column, MySqlPool, Row};
@@ -259,6 +259,13 @@ async fn handle_binary(
                 info!("query returned {} rows", map.len());
                 let query_result = BartosToBartoCli::Query(map);
                 let encoded = encode_to_vec(&query_result, standard())?;
+                session.binary(encoded).await?;
+            }
+            BartoCli::List { name, cmd_name } => {
+                info!("received list message for '{name}' (cmd: {cmd_name})");
+                let list_output = cmd_name_data(pool, &name, &cmd_name).await?;
+                let msg = BartosToBartoCli::List(list_output);
+                let encoded = encode_to_vec(&msg, standard())?;
                 session.binary(encoded).await?;
             }
         },
@@ -501,6 +508,46 @@ fn midnight() -> anyhow::Result<OffsetDateTime> {
     Ok(midnight)
 }
 
+async fn cmd_name_data(
+    pool: &MySqlPool,
+    name: &str,
+    cmd_name: &str,
+) -> anyhow::Result<Vec<ListOutput>> {
+    let all_output = sqlx::query!(
+        "SELECT
+  output.timestamp,
+  output.cmd_name,
+  output.data,
+  exit_status.exit_code,
+  exit_status.success
+FROM
+  output
+RIGHT JOIN
+  exit_status ON exit_status.cmd_uuid = output.cmd_uuid
+WHERE
+  output.bartoc_name = ?
+AND
+  output.cmd_name = ?
+ORDER BY
+  output.timestamp",
+        name,
+        cmd_name
+    )
+    .fetch_all(pool)
+    .await?
+    .into_iter()
+    .map(|r| {
+        ListOutput::builder()
+            .maybe_timestamp(r.timestamp.map(OffsetDataTimeWrapper))
+            .maybe_data(r.data)
+            .exit_code(r.exit_code)
+            .success(r.success)
+            .build()
+    })
+    .collect::<Vec<ListOutput>>();
+
+    Ok(all_output)
+}
 #[cfg(test)]
 mod test {
     use crate::endpoints::insecure::cli::GARUDA_UPDATE_RE;

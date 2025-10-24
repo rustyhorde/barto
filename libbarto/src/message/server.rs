@@ -11,7 +11,10 @@ use std::collections::{BTreeMap, HashMap};
 use bincode::{Decode, Encode};
 use vergen_pretty::PrettyExt;
 
-use crate::{Initialize, UpdateKind, UuidWrapper, message::shared::sys::ClientData};
+use crate::{
+    Initialize, UpdateKind, UuidWrapper,
+    message::shared::{list::ListOutput, sys::ClientData},
+};
 
 /// A message from a worker client to a worker session
 #[derive(Clone, Debug, Decode, Encode)]
@@ -35,4 +38,6 @@ pub enum BartosToBartoCli {
     Clients(HashMap<UuidWrapper, ClientData>),
     /// Result of a query operation
     Query(BTreeMap<usize, BTreeMap<String, String>>),
+    /// Result of a list operation
+    List(Vec<ListOutput>),
 }

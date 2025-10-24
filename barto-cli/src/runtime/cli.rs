@@ -170,4 +170,17 @@ pub(crate) enum Commands {
         #[clap(short, long, help = "The query to run on bartos")]
         query: String,
     },
+    #[clap(about = "List the output for the given command")]
+    List {
+        /// The name of the batoc client to check for recent updates
+        #[clap(
+            short,
+            long,
+            help = "The name of the batoc client to check for recent updates"
+        )]
+        name: String,
+        /// The name of the command to list the output for
+        #[clap(short, long, help = "The name of the command to list the output for")]
+        cmd_name: String,
+    },
 }

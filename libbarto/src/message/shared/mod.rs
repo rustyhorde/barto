@@ -7,6 +7,7 @@
 // modified, or distributed except according to those terms.
 
 pub(crate) mod init;
+pub(crate) mod list;
 pub(crate) mod odt;
 pub(crate) mod output;
 pub(crate) mod sys;
