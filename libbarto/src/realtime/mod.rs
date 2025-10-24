@@ -419,9 +419,9 @@ mod tests {
 
     #[test]
     fn random_works() {
-        let re_res = Realtime::try_from("*/*/* 10:R:R");
+        let re_res = Realtime::try_from("*,*,* 10:R:R");
         assert!(re_res.is_ok());
-        let re_res = "*/*/* 0/2:R:R".parse::<Realtime>();
+        let re_res = "*,*,* 0/2:R:R".parse::<Realtime>();
         assert!(re_res.is_ok());
     }
 }

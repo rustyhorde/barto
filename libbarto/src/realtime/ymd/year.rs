@@ -123,7 +123,7 @@ pub(crate) mod test {
 
     use crate::realtime::cv::{ConstrainedValueMatcher as _, ConstrainedValueParser};
 
-    use super::Year;
+    use super::{YEAR_RANGE_RE, YEAR_REPETITION_RE, Year};
 
     pub(crate) static VALID_I32_RE: LazyLock<Regex> =
         LazyLock::new(|| Regex::new(r"^(-?|\+?)\d+$").expect("invalid at least 4 digits regex"));
@@ -227,6 +227,8 @@ pub(crate) mod test {
         #[test]
         fn random_input_errors(s in "\\PC*") {
             prop_assume!(!VALID_I32_RE.is_match(s.as_str()));
+            prop_assume!(!YEAR_REPETITION_RE.is_match(s.as_str()));
+            prop_assume!(!YEAR_RANGE_RE.is_match(s.as_str()));
             prop_assume!(s.as_str() != "*");
             assert!(Year::try_from(s.as_str()).is_err());
             assert!(s.parse::<Year>().is_err());
