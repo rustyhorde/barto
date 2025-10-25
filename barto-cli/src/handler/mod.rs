@@ -53,6 +53,7 @@ impl Handler {
         }
     }
 
+    #[allow(clippy::too_many_lines)]
     fn handle_binary(bytes: &[u8]) {
         match decode_from_slice(bytes, standard()) {
             Err(e) => trace!("unable to decode binary message: {e}"),
@@ -149,6 +150,53 @@ impl Handler {
                             },
                         );
                         println!("{blah}");
+                    }
+                }
+                BartosToBartoCli::Failed(failed_output) => {
+                    let (max_bartoc_name, max_cmd_name) = {
+                        let mut max_bartoc_name = 0;
+                        let mut max_cmd_name = 0;
+                        for output in &failed_output {
+                            if let Some(bartoc_name) = output.bartoc_name()
+                                && bartoc_name.len() > max_bartoc_name
+                            {
+                                max_bartoc_name = bartoc_name.len();
+                            }
+                            if let Some(cmd_name) = output.cmd_name()
+                                && cmd_name.len() > max_cmd_name
+                            {
+                                max_cmd_name = cmd_name.len();
+                            }
+                        }
+                        (max_bartoc_name, max_cmd_name)
+                    };
+                    if !failed_output.is_empty() {
+                        println!(
+                            "{} {}",
+                            BOLD_GREEN.apply_to("Total failed outputs:"),
+                            BOLD_YELLOW.apply_to(failed_output.len())
+                        );
+                    }
+                    println!();
+                    for output in &failed_output {
+                        let timestamp = output
+                            .timestamp()
+                            .as_ref()
+                            .map_or("None".to_string(), |t| t.0.to_string());
+                        let bartoc_name =
+                            output.bartoc_name().as_ref().map_or("None", String::as_str);
+                        let cmd_name = output.cmd_name().as_ref().map_or("None", String::as_str);
+                        let data = output.data().as_ref().map_or("None", String::as_str);
+                        let _exit_code = output.exit_code();
+                        let _success = output.success();
+
+                        println!(
+                            "{}: {:<max_bartoc_name$} {:<max_cmd_name$} {}",
+                            BOLD_GREEN.apply_to(timestamp),
+                            BOLD_YELLOW.apply_to(bartoc_name),
+                            BOLD_YELLOW.apply_to(cmd_name),
+                            BOLD_BLUE.apply_to(data),
+                        );
                     }
                 }
             },

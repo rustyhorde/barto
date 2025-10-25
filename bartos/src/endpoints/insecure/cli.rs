@@ -20,7 +20,7 @@ use actix_ws::{AggregatedMessage, Session, handle};
 use bincode::{config::standard, decode_from_slice, encode_to_vec};
 use futures_util::StreamExt as _;
 use libbarto::{
-    BartoCli, BartosToBartoCli, CliUpdateKind, ClientData, Garuda, ListOutput,
+    BartoCli, BartosToBartoCli, CliUpdateKind, ClientData, FailedOutput, Garuda, ListOutput,
     OffsetDataTimeWrapper, OutputTableName, Pacman, UpdateKind, UuidWrapper,
 };
 use regex::Regex;
@@ -166,6 +166,7 @@ pub(crate) async fn cli(
     Ok(response)
 }
 
+#[allow(clippy::too_many_lines)]
 async fn handle_binary(
     bytes: Bytes,
     session: &mut Session,
@@ -265,6 +266,13 @@ async fn handle_binary(
                 info!("received list message for '{name}' (cmd: {cmd_name})");
                 let list_output = cmd_name_data(pool, &name, &cmd_name).await?;
                 let msg = BartosToBartoCli::List(list_output);
+                let encoded = encode_to_vec(&msg, standard())?;
+                session.binary(encoded).await?;
+            }
+            BartoCli::Failed => {
+                info!("received failed message");
+                let failed_output = failed_cmd_data(pool).await?;
+                let msg = BartosToBartoCli::Failed(failed_output);
                 let encoded = encode_to_vec(&msg, standard())?;
                 session.binary(encoded).await?;
             }
@@ -548,6 +556,42 @@ ORDER BY
 
     Ok(all_output)
 }
+
+async fn failed_cmd_data(pool: &MySqlPool) -> anyhow::Result<Vec<FailedOutput>> {
+    let all_output = sqlx::query!(
+        "
+select
+  output.timestamp,
+  output.bartoc_name,
+  output.cmd_name,
+  output.data,
+  exit_status.exit_code,
+  exit_status.success
+from
+  output
+right join
+  exit_status on output.cmd_uuid = exit_status.cmd_uuid
+where
+  exit_code != 0"
+    )
+    .fetch_all(pool)
+    .await?
+    .into_iter()
+    .map(|r| {
+        FailedOutput::builder()
+            .maybe_timestamp(r.timestamp.map(OffsetDataTimeWrapper))
+            .maybe_bartoc_name(r.bartoc_name)
+            .maybe_cmd_name(r.cmd_name)
+            .maybe_data(r.data)
+            .exit_code(r.exit_code)
+            .success(r.success)
+            .build()
+    })
+    .collect::<Vec<FailedOutput>>();
+
+    Ok(all_output)
+}
+
 #[cfg(test)]
 mod test {
     use crate::endpoints::insecure::cli::GARUDA_UPDATE_RE;

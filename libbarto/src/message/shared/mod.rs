@@ -6,6 +6,7 @@
 // option. All files in the project carrying such notice may not be copied,
 // modified, or distributed except according to those terms.
 
+pub(crate) mod failed;
 pub(crate) mod init;
 pub(crate) mod list;
 pub(crate) mod odt;

@@ -278,6 +278,7 @@ pub use self::message::client::Bartoc;
 pub use self::message::client::BartocWs;
 pub use self::message::server::BartosToBartoCli;
 pub use self::message::server::BartosToBartoc;
+pub use self::message::shared::failed::FailedOutput;
 pub use self::message::shared::init::Initialize;
 pub use self::message::shared::list::ListOutput;
 pub use self::message::shared::odt::OffsetDataTimeWrapper;
