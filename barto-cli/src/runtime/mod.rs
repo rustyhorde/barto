@@ -121,6 +121,10 @@ where
             )?;
             Message::Binary(list.into())
         }
+        Commands::Failed => {
+            let failed = encode_to_vec(BartoCli::Failed, standard())?;
+            Message::Binary(failed.into())
+        }
     };
     sink.send(message).await?;
     trace!("message sent");

@@ -17,7 +17,7 @@ use bincode::{
 use vergen_pretty::PrettyExt;
 
 use crate::{
-    Initialize, UpdateKind, UuidWrapper,
+    FailedOutput, Initialize, UpdateKind, UuidWrapper,
     message::shared::{list::ListOutput, sys::ClientData},
 };
 
@@ -92,6 +92,8 @@ pub enum BartosToBartoCli {
     Query(BTreeMap<usize, BTreeMap<String, String>>),
     /// Result of a list operation
     List(Vec<ListOutput>),
+    /// Result of a failed command operation request
+    Failed(Vec<FailedOutput>),
 }
 
 impl<Context> Decode<Context> for BartosToBartoCli {
@@ -126,6 +128,10 @@ impl<Context> Decode<Context> for BartosToBartoCli {
             6 => {
                 let list_data: Vec<ListOutput> = Decode::decode(decoder)?;
                 Ok(BartosToBartoCli::List(list_data))
+            }
+            7 => {
+                let failed_data: Vec<FailedOutput> = Decode::decode(decoder)?;
+                Ok(BartosToBartoCli::Failed(failed_data))
             }
             _ => Err(DecodeError::UnexpectedVariant {
                 type_name: "BartosToBartoCli",
@@ -172,6 +178,10 @@ impl<'de, Context> BorrowDecode<'de, Context> for BartosToBartoCli {
                 let list_data: Vec<ListOutput> = BorrowDecode::borrow_decode(decoder)?;
                 Ok(BartosToBartoCli::List(list_data))
             }
+            7 => {
+                let failed_data: Vec<FailedOutput> = BorrowDecode::borrow_decode(decoder)?;
+                Ok(BartosToBartoCli::Failed(failed_data))
+            }
             _ => Err(DecodeError::UnexpectedVariant {
                 type_name: "BartosToBartoCli",
                 allowed: &bincode::error::AllowedEnumVariants::Range { min: 0, max: 6 },
@@ -212,6 +222,10 @@ impl Encode for BartosToBartoCli {
                 6u32.encode(encoder)?;
                 list_data.encode(encoder)
             }
+            BartosToBartoCli::Failed(failed_data) => {
+                7u32.encode(encoder)?;
+                failed_data.encode(encoder)
+            }
         }
     }
 }
@@ -222,6 +236,7 @@ mod tests {
 
     use super::{BartosToBartoCli, BartosToBartoc};
 
+    use crate::FailedOutput;
     use crate::Initialize;
     use crate::UpdateKind;
     use crate::utils::Mock as _;
@@ -305,6 +320,20 @@ mod tests {
     #[test]
     fn test_bartos_to_bartocli_list_roundtrip() {
         let original = BartosToBartoCli::List(Vec::new());
+
+        let encoded = encode_to_vec(&original, standard()).unwrap();
+        let (decoded, _): (BartosToBartoCli, usize) =
+            decode_from_slice(&encoded, standard()).unwrap();
+        let (borrowed_decoded, _): (BartosToBartoCli, usize) =
+            borrow_decode_from_slice(&encoded, standard()).unwrap();
+
+        assert_eq!(original, decoded);
+        assert_eq!(original, borrowed_decoded);
+    }
+
+    #[test]
+    fn test_bartos_to_bartocli_failed_roundtrip() {
+        let original = BartosToBartoCli::Failed(vec![FailedOutput::mock()]);
 
         let encoded = encode_to_vec(&original, standard()).unwrap();
         let (decoded, _): (BartosToBartoCli, usize) =
