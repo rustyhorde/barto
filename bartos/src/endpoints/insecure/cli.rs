@@ -264,14 +264,14 @@ async fn handle_binary(
             }
             BartoCli::List { name, cmd_name } => {
                 info!("received list message for '{name}' (cmd: {cmd_name})");
-                let list_output = cmd_name_data(pool, &name, &cmd_name).await?;
+                let list_output = cmd_data_name(config, pool, &name, &cmd_name).await?;
                 let msg = BartosToBartoCli::List(list_output);
                 let encoded = encode_to_vec(&msg, standard())?;
                 session.binary(encoded).await?;
             }
             BartoCli::Failed => {
                 info!("received failed message");
-                let failed_output = failed_cmd_data(pool).await?;
+                let failed_output = failed_cmd_data(config, pool).await?;
                 let msg = BartosToBartoCli::Failed(failed_output);
                 let encoded = encode_to_vec(&msg, standard())?;
                 session.binary(encoded).await?;
@@ -516,7 +516,19 @@ fn midnight() -> anyhow::Result<OffsetDateTime> {
     Ok(midnight)
 }
 
-async fn cmd_name_data(
+async fn cmd_data_name(
+    config: &Config,
+    pool: &MySqlPool,
+    name: &str,
+    cmd_name: &str,
+) -> anyhow::Result<Vec<ListOutput>> {
+    Ok(match config.mariadb().output_table() {
+        OutputTableName::Output => cmd_data_name_output(pool, name, cmd_name).await?,
+        OutputTableName::OutputTest => cmd_data_name_output_test(pool, name, cmd_name).await?,
+    })
+}
+
+async fn cmd_data_name_output(
     pool: &MySqlPool,
     name: &str,
     cmd_name: &str,
@@ -557,7 +569,55 @@ ORDER BY
     Ok(all_output)
 }
 
-async fn failed_cmd_data(pool: &MySqlPool) -> anyhow::Result<Vec<FailedOutput>> {
+async fn cmd_data_name_output_test(
+    pool: &MySqlPool,
+    name: &str,
+    cmd_name: &str,
+) -> anyhow::Result<Vec<ListOutput>> {
+    let all_output = sqlx::query!(
+        "SELECT
+  output_test.timestamp,
+  output_test.cmd_name,
+  output_test.data,
+  exit_status_test.exit_code,
+  exit_status_test.success
+FROM
+  output_test
+RIGHT JOIN
+  exit_status_test ON exit_status_test.cmd_uuid = output_test.cmd_uuid
+WHERE
+  output_test.bartoc_name = ?
+AND
+  output_test.cmd_name = ?
+ORDER BY
+  output_test.timestamp",
+        name,
+        cmd_name
+    )
+    .fetch_all(pool)
+    .await?
+    .into_iter()
+    .map(|r| {
+        ListOutput::builder()
+            .maybe_timestamp(r.timestamp.map(OffsetDataTimeWrapper))
+            .maybe_data(r.data)
+            .exit_code(r.exit_code)
+            .success(r.success)
+            .build()
+    })
+    .collect::<Vec<ListOutput>>();
+
+    Ok(all_output)
+}
+
+async fn failed_cmd_data(config: &Config, pool: &MySqlPool) -> anyhow::Result<Vec<FailedOutput>> {
+    Ok(match config.mariadb().output_table() {
+        OutputTableName::Output => failed_cmd_output(pool).await?,
+        OutputTableName::OutputTest => failed_cmd_output_test(pool).await?,
+    })
+}
+
+async fn failed_cmd_output(pool: &MySqlPool) -> anyhow::Result<Vec<FailedOutput>> {
     let all_output = sqlx::query!(
         "
 select
@@ -571,6 +631,41 @@ from
   output
 right join
   exit_status on output.cmd_uuid = exit_status.cmd_uuid
+where
+  exit_code != 0"
+    )
+    .fetch_all(pool)
+    .await?
+    .into_iter()
+    .map(|r| {
+        FailedOutput::builder()
+            .maybe_timestamp(r.timestamp.map(OffsetDataTimeWrapper))
+            .maybe_bartoc_name(r.bartoc_name)
+            .maybe_cmd_name(r.cmd_name)
+            .maybe_data(r.data)
+            .exit_code(r.exit_code)
+            .success(r.success)
+            .build()
+    })
+    .collect::<Vec<FailedOutput>>();
+
+    Ok(all_output)
+}
+
+async fn failed_cmd_output_test(pool: &MySqlPool) -> anyhow::Result<Vec<FailedOutput>> {
+    let all_output = sqlx::query!(
+        "
+select
+  output_test.timestamp,
+  output_test.bartoc_name,
+  output_test.cmd_name,
+  output_test.data,
+  exit_status_test.exit_code,
+  exit_status_test.success
+from
+  output_test
+right join
+  exit_status_test on output_test.cmd_uuid = exit_status_test.cmd_uuid
 where
   exit_code != 0"
     )

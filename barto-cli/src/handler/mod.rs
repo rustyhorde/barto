@@ -11,7 +11,8 @@ use std::{collections::BTreeMap, sync::LazyLock, time::Duration};
 use anyhow::Result;
 use bincode::{config::standard, decode_from_slice};
 use bon::Builder;
-use console::Style;
+use console::{Style, Term};
+use count_digits::CountDigits;
 use futures_util::{StreamExt as _, stream::SplitStream};
 use libbarto::{BartosToBartoCli, ClientData, Garuda, UpdateKind};
 use tokio::{net::TcpStream, select, time::sleep};
@@ -124,7 +125,13 @@ impl Handler {
                     }
                 }
                 BartosToBartoCli::List(list) => {
-                    if !list.is_empty() {
+                    if list.is_empty() {
+                        println!(
+                            "{} {}",
+                            BOLD_GREEN.apply_to("Total outputs:"),
+                            BOLD_YELLOW.apply_to(0)
+                        );
+                    } else {
                         println!(
                             "{} {}",
                             BOLD_GREEN.apply_to("Total outputs:"),
@@ -137,19 +144,32 @@ impl Handler {
                             BOLD_GREEN.apply_to("Success"),
                             BOLD_BLUE.apply_to(list[0].success())
                         );
-                    }
-                    for output in &list {
-                        let blah = output.timestamp().zip(output.data().clone()).map_or_else(
-                            String::new,
-                            |(timestamp, data)| {
-                                format!(
-                                    "{}: {}",
-                                    BOLD_GREEN.apply_to(timestamp),
-                                    BOLD_BLUE.apply_to(data)
-                                )
-                            },
-                        );
-                        println!("{blah}");
+                        println!();
+                        let total = list.len();
+                        let digits = total.count_digits();
+                        let term = Term::stdout();
+                        for (idx, output) in list.iter().enumerate() {
+                            let output = output.timestamp().zip(output.data().clone()).map_or_else(
+                                String::new,
+                                |(timestamp, data)| {
+                                    format!(
+                                        "{:>digits$} - {}: {}",
+                                        BOLD_GREEN.apply_to(idx + 1),
+                                        BOLD_GREEN.apply_to(timestamp),
+                                        BOLD_BLUE.apply_to(data)
+                                    )
+                                },
+                            );
+                            println!("{output}");
+                            if idx > 0 && (idx + 1) % 10 == 0 {
+                                match term.read_key() {
+                                    Ok(_key) => {
+                                        let _res = term.clear_last_lines(10);
+                                    }
+                                    Err(_) => todo!(),
+                                }
+                            }
+                        }
                     }
                 }
                 BartosToBartoCli::Failed(failed_output) => {
@@ -170,33 +190,52 @@ impl Handler {
                         }
                         (max_bartoc_name, max_cmd_name)
                     };
-                    if !failed_output.is_empty() {
+                    if failed_output.is_empty() {
+                        println!(
+                            "{} {}",
+                            BOLD_GREEN.apply_to("Total failed outputs:"),
+                            BOLD_YELLOW.apply_to(0)
+                        );
+                    } else {
                         println!(
                             "{} {}",
                             BOLD_GREEN.apply_to("Total failed outputs:"),
                             BOLD_YELLOW.apply_to(failed_output.len())
                         );
-                    }
-                    println!();
-                    for output in &failed_output {
-                        let timestamp = output
-                            .timestamp()
-                            .as_ref()
-                            .map_or("None".to_string(), |t| t.0.to_string());
-                        let bartoc_name =
-                            output.bartoc_name().as_ref().map_or("None", String::as_str);
-                        let cmd_name = output.cmd_name().as_ref().map_or("None", String::as_str);
-                        let data = output.data().as_ref().map_or("None", String::as_str);
-                        let _exit_code = output.exit_code();
-                        let _success = output.success();
+                        println!();
+                        let total = failed_output.len();
+                        let digits = total.count_digits();
+                        let term = Term::stdout();
+                        for (idx, output) in failed_output.iter().enumerate() {
+                            let timestamp = output
+                                .timestamp()
+                                .as_ref()
+                                .map_or("None".to_string(), |t| t.0.to_string());
+                            let bartoc_name =
+                                output.bartoc_name().as_ref().map_or("None", String::as_str);
+                            let cmd_name =
+                                output.cmd_name().as_ref().map_or("None", String::as_str);
+                            let data = output.data().as_ref().map_or("None", String::as_str);
+                            let _exit_code = output.exit_code();
+                            let _success = output.success();
 
-                        println!(
-                            "{}: {:<max_bartoc_name$} {:<max_cmd_name$} {}",
-                            BOLD_GREEN.apply_to(timestamp),
-                            BOLD_YELLOW.apply_to(bartoc_name),
-                            BOLD_YELLOW.apply_to(cmd_name),
-                            BOLD_BLUE.apply_to(data),
-                        );
+                            println!(
+                                "{:>digits$} - {}: {:<max_bartoc_name$} {:<max_cmd_name$} {}",
+                                BOLD_GREEN.apply_to(idx + 1),
+                                BOLD_GREEN.apply_to(timestamp),
+                                BOLD_YELLOW.apply_to(bartoc_name),
+                                BOLD_YELLOW.apply_to(cmd_name),
+                                BOLD_BLUE.apply_to(data),
+                            );
+                            if idx > 0 && (idx + 1) % 10 == 0 {
+                                match term.read_key() {
+                                    Ok(_key) => {
+                                        let _res = term.clear_last_lines(10);
+                                    }
+                                    Err(_) => todo!(),
+                                }
+                            }
+                        }
                     }
                 }
             },
