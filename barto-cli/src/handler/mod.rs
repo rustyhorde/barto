@@ -18,6 +18,7 @@ use libbarto::{BartosToBartoCli, ClientData, Garuda, UpdateKind};
 use tokio::{net::TcpStream, select, time::sleep};
 use tokio_tungstenite::{MaybeTlsStream, WebSocketStream, tungstenite::Message};
 use tracing::trace;
+use unicode_width::UnicodeWidthStr;
 use vergen_pretty::PrettyExt;
 
 use crate::error::Error;
@@ -153,12 +154,15 @@ impl Handler {
                         'outer: for (idx, output) in list.iter().enumerate() {
                             let output = output.timestamp().zip(output.data().clone()).map_or_else(
                                 String::new,
-                                |(timestamp, mut data)| {
-                                    let disp_data = if data.len() <= usize::from(width - 30) {
+                                |(timestamp, data)| {
+                                    let known_width = digits + timestamp.to_string().len() + 10;
+                                    let mut data = data.replace('\t', "   ");
+                                    let data_uw = data.width();
+                                    let disp_data = if data_uw <= usize::from(width) - known_width {
                                         data
                                     } else {
-                                        data.truncate(usize::from(width - 33));
-                                        data.push_str("...");
+                                        data.truncate(usize::from(width) - known_width);
+                                        data.push_str(" ...");
                                         data
                                     };
                                     format!(
@@ -237,7 +241,7 @@ impl Handler {
                                 output.bartoc_name().as_ref().map_or("None", String::as_str);
                             let cmd_name =
                                 output.cmd_name().as_ref().map_or("None", String::as_str);
-                            let mut data = output
+                            let data = output
                                 .data()
                                 .as_ref()
                                 .map_or("None", String::as_str)
@@ -245,19 +249,15 @@ impl Handler {
                             let _exit_code = output.exit_code();
                             let _success = output.success();
 
-                            let data_width = digits
-                                + 3
-                                + timestamp.len()
-                                + 2
-                                + max_bartoc_name
-                                + 1
-                                + max_cmd_name
-                                + 1;
-                            let disp_data = if data.len() <= usize::from(width) - data_width {
+                            let known_width =
+                                digits + timestamp.len() + max_bartoc_name + max_cmd_name + 7;
+                            let mut data = data.replace('\t', "   ");
+                            let data_uw = data.width();
+                            let disp_data = if data_uw <= usize::from(width) - known_width {
                                 data
                             } else {
-                                data.truncate(usize::from(width) - data_width + 3);
-                                data.push_str("...");
+                                data.truncate(usize::from(width) - known_width);
+                                data.push_str(" ...");
                                 data
                             };
                             println!(
