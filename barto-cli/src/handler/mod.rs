@@ -11,7 +11,7 @@ use std::{collections::BTreeMap, sync::LazyLock, time::Duration};
 use anyhow::Result;
 use bincode::{config::standard, decode_from_slice};
 use bon::Builder;
-use console::{Style, Term};
+use console::{Key, Style, Term};
 use count_digits::CountDigits;
 use futures_util::{StreamExt as _, stream::SplitStream};
 use libbarto::{BartosToBartoCli, ClientData, Garuda, UpdateKind};
@@ -148,23 +148,43 @@ impl Handler {
                         let total = list.len();
                         let digits = total.count_digits();
                         let term = Term::stdout();
-                        for (idx, output) in list.iter().enumerate() {
+                        let (height, width) = term.size_checked().unwrap_or((80, 24));
+                        let print_height = usize::from(height) - 8;
+                        'outer: for (idx, output) in list.iter().enumerate() {
                             let output = output.timestamp().zip(output.data().clone()).map_or_else(
                                 String::new,
-                                |(timestamp, data)| {
+                                |(timestamp, mut data)| {
+                                    let disp_data = if data.len() <= usize::from(width - 30) {
+                                        data
+                                    } else {
+                                        data.truncate(usize::from(width - 33));
+                                        data.push_str("...");
+                                        data
+                                    };
                                     format!(
                                         "{:>digits$} - {}: {}",
                                         BOLD_GREEN.apply_to(idx + 1),
                                         BOLD_GREEN.apply_to(timestamp),
-                                        BOLD_BLUE.apply_to(data)
+                                        BOLD_BLUE.apply_to(disp_data)
                                     )
                                 },
                             );
                             println!("{output}");
-                            if idx > 0 && (idx + 1) % 10 == 0 {
+                            if idx > 0 && (idx + 1) % print_height == 0 {
+                                println!();
+                                println!(
+                                    "{}",
+                                    BOLD_YELLOW
+                                        .apply_to("Press any key to continue, 'x' to exit...")
+                                );
                                 match term.read_key() {
-                                    Ok(_key) => {
-                                        let _res = term.clear_last_lines(10);
+                                    Ok(key) => {
+                                        if key == Key::Char('x') {
+                                            let _res = term.clear_last_lines(1);
+                                            println!("{}", BOLD_YELLOW.apply_to("Exiting..."));
+                                            break 'outer;
+                                        }
+                                        let _res = term.clear_last_lines(print_height + 2);
                                     }
                                     Err(_) => todo!(),
                                 }
@@ -206,7 +226,9 @@ impl Handler {
                         let total = failed_output.len();
                         let digits = total.count_digits();
                         let term = Term::stdout();
-                        for (idx, output) in failed_output.iter().enumerate() {
+                        let (height, width) = term.size_checked().unwrap_or((80, 24));
+                        let print_height = usize::from(height) - 8;
+                        'outer: for (idx, output) in failed_output.iter().enumerate() {
                             let timestamp = output
                                 .timestamp()
                                 .as_ref()
@@ -215,22 +237,52 @@ impl Handler {
                                 output.bartoc_name().as_ref().map_or("None", String::as_str);
                             let cmd_name =
                                 output.cmd_name().as_ref().map_or("None", String::as_str);
-                            let data = output.data().as_ref().map_or("None", String::as_str);
+                            let mut data = output
+                                .data()
+                                .as_ref()
+                                .map_or("None", String::as_str)
+                                .to_string();
                             let _exit_code = output.exit_code();
                             let _success = output.success();
 
+                            let data_width = digits
+                                + 3
+                                + timestamp.len()
+                                + 2
+                                + max_bartoc_name
+                                + 1
+                                + max_cmd_name
+                                + 1;
+                            let disp_data = if data.len() <= usize::from(width) - data_width {
+                                data
+                            } else {
+                                data.truncate(usize::from(width) - data_width + 3);
+                                data.push_str("...");
+                                data
+                            };
                             println!(
                                 "{:>digits$} - {}: {:<max_bartoc_name$} {:<max_cmd_name$} {}",
                                 BOLD_GREEN.apply_to(idx + 1),
                                 BOLD_GREEN.apply_to(timestamp),
                                 BOLD_YELLOW.apply_to(bartoc_name),
                                 BOLD_YELLOW.apply_to(cmd_name),
-                                BOLD_BLUE.apply_to(data),
+                                BOLD_BLUE.apply_to(disp_data),
                             );
-                            if idx > 0 && (idx + 1) % 10 == 0 {
+                            if idx > 0 && (idx + 1) % print_height == 0 {
+                                println!();
+                                println!(
+                                    "{}",
+                                    BOLD_YELLOW
+                                        .apply_to("Press any key to continue, 'x' to exit...")
+                                );
                                 match term.read_key() {
-                                    Ok(_key) => {
-                                        let _res = term.clear_last_lines(10);
+                                    Ok(key) => {
+                                        if key == Key::Char('x') {
+                                            let _res = term.clear_last_lines(1);
+                                            println!("{}", BOLD_YELLOW.apply_to("Exiting..."));
+                                            break 'outer;
+                                        }
+                                        let _res = term.clear_last_lines(print_height + 2);
                                     }
                                     Err(_) => todo!(),
                                 }
