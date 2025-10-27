@@ -1,7 +1,7 @@
 [package]
 authors = ["Jason Ozias <jason.g.ozias@gmail.com>"]
 categories = ["web-programming::websocket", "web-programming"]
-description = "Websocket based job scheduling system"
+description = "A command line tool for requesting information from a bartos instance"
 documentation = "https://docs.rs/libbarto"
 edition = "2024"
 homepage = "https://github.com/rustyhorde/barto"

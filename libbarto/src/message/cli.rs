@@ -9,7 +9,7 @@
 use anyhow::{Error, Result};
 use bincode::{Decode, Encode};
 
-/// A message from a worker client to a worker session
+/// Messages from barto-cli to bartos
 #[derive(Clone, Debug, Decode, Encode)]
 pub enum BartoCli {
     /// An info request from barto-cli

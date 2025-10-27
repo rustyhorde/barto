@@ -10,12 +10,12 @@ use bincode::{
     BorrowDecode, Decode, Encode,
     de::{BorrowDecoder, Decoder},
     enc::Encoder,
-    error::{DecodeError, EncodeError},
+    error::{AllowedEnumVariants, DecodeError, EncodeError},
 };
 
 use crate::{BartocInfo, Data};
 
-/// A message from a worker client to a worker session
+/// A supported websocket message from bartoc to bartos
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum BartocWs {
     /// A close message from bartoc
@@ -44,7 +44,7 @@ impl<Context> Decode<Context> for BartocWs {
             }
             _ => Err(DecodeError::UnexpectedVariant {
                 type_name: "BartocWs",
-                allowed: &bincode::error::AllowedEnumVariants::Range { min: 0, max: 2 },
+                allowed: &AllowedEnumVariants::Range { min: 0, max: 2 },
                 found: variant,
             }),
         }
@@ -71,7 +71,7 @@ impl<'de, Context> BorrowDecode<'de, Context> for BartocWs {
             }
             _ => Err(DecodeError::UnexpectedVariant {
                 type_name: "BartocWs",
-                allowed: &bincode::error::AllowedEnumVariants::Range { min: 0, max: 2 },
+                allowed: &AllowedEnumVariants::Range { min: 0, max: 2 },
                 found: variant,
             }),
         }
@@ -97,7 +97,7 @@ impl Encode for BartocWs {
     }
 }
 
-/// A message from a worker client to a worker session
+/// A websocket binary message from bartoc to bartos
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum Bartoc {
     /// A close message from bartoc
@@ -120,7 +120,7 @@ impl<Context> Decode<Context> for Bartoc {
             }
             _ => Err(DecodeError::UnexpectedVariant {
                 type_name: "Bartoc",
-                allowed: &bincode::error::AllowedEnumVariants::Range { min: 0, max: 1 },
+                allowed: &AllowedEnumVariants::Range { min: 0, max: 1 },
                 found: variant,
             }),
         }
@@ -143,7 +143,7 @@ impl<'de, Context> BorrowDecode<'de, Context> for Bartoc {
             }
             _ => Err(DecodeError::UnexpectedVariant {
                 type_name: "Bartoc",
-                allowed: &bincode::error::AllowedEnumVariants::Range { min: 0, max: 1 },
+                allowed: &AllowedEnumVariants::Range { min: 0, max: 1 },
                 found: variant,
             }),
         }

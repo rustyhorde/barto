@@ -21,7 +21,7 @@ use crate::{
     message::shared::{list::ListOutput, sys::ClientData},
 };
 
-/// A message from a worker client to a worker session
+/// A message from bartos to bartoc
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum BartosToBartoc {
     /// Initialize bartoc with the given schedules
@@ -75,7 +75,7 @@ impl Encode for BartosToBartoc {
     }
 }
 
-/// An initialization message from bartos to a named bartoc client.
+/// A message from bartos to barto-cli
 #[derive(Clone, Debug, PartialEq)]
 pub enum BartosToBartoCli {
     /// Information about the bartos server
