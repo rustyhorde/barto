@@ -11,7 +11,7 @@ use std::{any::type_name, cmp::Ordering, fmt::Debug};
 use bincode::{Decode, Encode, config::standard, decode_from_slice, encode_to_vec};
 use redb::{Key, TypeName, Value};
 
-/// Wrapper type to handle keys and values using bincode serialization
+/// A generic newtype to handle redb keys and values that implement `bincode::Encode` and `bincode::Decode`
 #[derive(Debug)]
 pub struct Bincode<T>(pub T);
 

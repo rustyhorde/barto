@@ -6,7 +6,20 @@
 // option. All files in the project carrying such notice may not be copied,
 // modified, or distributed except according to those terms.
 
-//! barto library
+//! libbarto - This is the main library for barto, a job scheduling system.
+//!
+//! # Features
+//!
+//! * A redb Key and Value implementation for bincode encoded/decoded data.
+//! * Shared message data structures
+//! * Client specific message data structures
+//! * Server specific message data structures
+//! * The `Realtime` struct for handling real-time scheduling.
+//! * TLS configuration loading.
+//! * Tracing initialization and configuration.
+//! * Common header output for startup.
+//! * Utility functions for parsing and sending pings/pongs.
+//!
 
 // rustc lints
 #![cfg_attr(
