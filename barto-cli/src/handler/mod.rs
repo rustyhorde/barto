@@ -11,12 +11,14 @@ use std::{collections::BTreeMap, sync::LazyLock, time::Duration};
 use anyhow::Result;
 use bincode::{config::standard, decode_from_slice};
 use bon::Builder;
-use console::Style;
+use console::{Key, Style, Term};
+use count_digits::CountDigits;
 use futures_util::{StreamExt as _, stream::SplitStream};
 use libbarto::{BartosToBartoCli, ClientData, Garuda, UpdateKind};
 use tokio::{net::TcpStream, select, time::sleep};
 use tokio_tungstenite::{MaybeTlsStream, WebSocketStream, tungstenite::Message};
 use tracing::trace;
+use unicode_width::UnicodeWidthStr;
 use vergen_pretty::PrettyExt;
 
 use crate::error::Error;
@@ -53,6 +55,7 @@ impl Handler {
         }
     }
 
+    #[allow(clippy::too_many_lines)]
     fn handle_binary(bytes: &[u8]) {
         match decode_from_slice(bytes, standard()) {
             Err(e) => trace!("unable to decode binary message: {e}"),
@@ -106,24 +109,66 @@ impl Handler {
                 }
                 BartosToBartoCli::Query(map) => {
                     let (max_col_label, _max_val_label) = Self::maxes_query(&map);
-                    for (i, row) in map {
-                        let row_num = i + 1;
-                        println!(
-                            "{} {}",
-                            BOLD_YELLOW.apply_to("Row"),
-                            BOLD_YELLOW.apply_to(row_num)
-                        );
-                        for (col, val) in row {
+                    println!(
+                        "{} {}",
+                        BOLD_GREEN.apply_to("Total outputs:"),
+                        BOLD_YELLOW.apply_to(map.len())
+                    );
+                    println!();
+                    let total = map.len();
+                    let digits = total.count_digits();
+                    let term = Term::stdout();
+                    let (height, width) = term.size_checked().unwrap_or((80, 24));
+                    let print_height = usize::from(height) - 8;
+                    'outer: for (idx, row) in map {
+                        // let max_row = row.values().map(String::len).max().unwrap_or(0);
+                        let known_width = digits + max_col_label + 10;
+
+                        for (col, data) in row {
+                            let mut data = data.replace('\t', "   ");
+                            let data_uw = data.width();
+                            let disp_data = if data_uw <= usize::from(width) - known_width {
+                                data
+                            } else {
+                                data.truncate(usize::from(width) - known_width);
+                                data.push_str(" ...");
+                                data
+                            };
                             println!(
-                                "{:>max_col_label$}: {}",
+                                "{:>digits$} - {:>max_col_label$}: {}",
+                                BOLD_GREEN.apply_to(idx + 1),
                                 BOLD_GREEN.apply_to(col),
-                                BOLD_BLUE.apply_to(val)
+                                BOLD_BLUE.apply_to(disp_data)
                             );
+                        }
+                        if idx > 0 && (idx + 1) % print_height == 0 {
+                            println!();
+                            println!(
+                                "{}",
+                                BOLD_YELLOW.apply_to("Press any key to continue, 'x' to exit...")
+                            );
+                            match term.read_key() {
+                                Ok(key) => {
+                                    if key == Key::Char('x') {
+                                        let _res = term.clear_last_lines(1);
+                                        println!("{}", BOLD_YELLOW.apply_to("Exiting..."));
+                                        break 'outer;
+                                    }
+                                    let _res = term.clear_last_lines(print_height + 2);
+                                }
+                                Err(_) => todo!(),
+                            }
                         }
                     }
                 }
                 BartosToBartoCli::List(list) => {
-                    if !list.is_empty() {
+                    if list.is_empty() {
+                        println!(
+                            "{} {}",
+                            BOLD_GREEN.apply_to("Total outputs:"),
+                            BOLD_YELLOW.apply_to(0)
+                        );
+                    } else {
                         println!(
                             "{} {}",
                             BOLD_GREEN.apply_to("Total outputs:"),
@@ -136,19 +181,149 @@ impl Handler {
                             BOLD_GREEN.apply_to("Success"),
                             BOLD_BLUE.apply_to(list[0].success())
                         );
+                        println!();
+                        let total = list.len();
+                        let digits = total.count_digits();
+                        let term = Term::stdout();
+                        let (height, width) = term.size_checked().unwrap_or((80, 24));
+                        let print_height = usize::from(height) - 8;
+                        'outer: for (idx, output) in list.iter().enumerate() {
+                            let output = output.timestamp().zip(output.data().clone()).map_or_else(
+                                String::new,
+                                |(timestamp, data)| {
+                                    let known_width = digits + timestamp.to_string().len() + 10;
+                                    let mut data = data.replace('\t', "   ");
+                                    let data_uw = data.width();
+                                    let disp_data = if data_uw <= usize::from(width) - known_width {
+                                        data
+                                    } else {
+                                        data.truncate(usize::from(width) - known_width);
+                                        data.push_str(" ...");
+                                        data
+                                    };
+                                    format!(
+                                        "{:>digits$} - {}: {}",
+                                        BOLD_GREEN.apply_to(idx + 1),
+                                        BOLD_GREEN.apply_to(timestamp),
+                                        BOLD_BLUE.apply_to(disp_data)
+                                    )
+                                },
+                            );
+                            println!("{output}");
+                            if idx > 0 && (idx + 1) % print_height == 0 {
+                                println!();
+                                println!(
+                                    "{}",
+                                    BOLD_YELLOW
+                                        .apply_to("Press any key to continue, 'x' to exit...")
+                                );
+                                match term.read_key() {
+                                    Ok(key) => {
+                                        if key == Key::Char('x') {
+                                            let _res = term.clear_last_lines(1);
+                                            println!("{}", BOLD_YELLOW.apply_to("Exiting..."));
+                                            break 'outer;
+                                        }
+                                        let _res = term.clear_last_lines(print_height + 2);
+                                    }
+                                    Err(_) => todo!(),
+                                }
+                            }
+                        }
                     }
-                    for output in &list {
-                        let blah = output.timestamp().zip(output.data().clone()).map_or_else(
-                            String::new,
-                            |(timestamp, data)| {
-                                format!(
-                                    "{}: {}",
-                                    BOLD_GREEN.apply_to(timestamp),
-                                    BOLD_BLUE.apply_to(data)
-                                )
-                            },
+                }
+                BartosToBartoCli::Failed(failed_output) => {
+                    let (max_bartoc_name, max_cmd_name) = {
+                        let mut max_bartoc_name = 0;
+                        let mut max_cmd_name = 0;
+                        for output in &failed_output {
+                            if let Some(bartoc_name) = output.bartoc_name()
+                                && bartoc_name.len() > max_bartoc_name
+                            {
+                                max_bartoc_name = bartoc_name.len();
+                            }
+                            if let Some(cmd_name) = output.cmd_name()
+                                && cmd_name.len() > max_cmd_name
+                            {
+                                max_cmd_name = cmd_name.len();
+                            }
+                        }
+                        (max_bartoc_name, max_cmd_name)
+                    };
+                    if failed_output.is_empty() {
+                        println!(
+                            "{} {}",
+                            BOLD_GREEN.apply_to("Total failed outputs:"),
+                            BOLD_YELLOW.apply_to(0)
                         );
-                        println!("{blah}");
+                    } else {
+                        println!(
+                            "{} {}",
+                            BOLD_GREEN.apply_to("Total failed outputs:"),
+                            BOLD_YELLOW.apply_to(failed_output.len())
+                        );
+                        println!();
+                        let total = failed_output.len();
+                        let digits = total.count_digits();
+                        let term = Term::stdout();
+                        let (height, width) = term.size_checked().unwrap_or((80, 24));
+                        let print_height = usize::from(height) - 8;
+                        'outer: for (idx, output) in failed_output.iter().enumerate() {
+                            let timestamp = output
+                                .timestamp()
+                                .as_ref()
+                                .map_or("None".to_string(), |t| t.0.to_string());
+                            let bartoc_name =
+                                output.bartoc_name().as_ref().map_or("None", String::as_str);
+                            let cmd_name =
+                                output.cmd_name().as_ref().map_or("None", String::as_str);
+                            let data = output
+                                .data()
+                                .as_ref()
+                                .map_or("None", String::as_str)
+                                .to_string();
+                            let _exit_code = output.exit_code();
+                            let _success = output.success();
+
+                            let known_width =
+                                digits + timestamp.len() + max_bartoc_name + max_cmd_name + 12;
+                            let mut data = data.replace('\t', "   ");
+                            let data_uw = data.width();
+                            let disp_data = if data_uw <= usize::from(width) - known_width {
+                                data
+                            } else {
+                                data.truncate(usize::from(width) - known_width);
+                                data.push_str(" ...");
+                                data
+                            };
+                            println!(
+                                "{:>digits$} - {}: {:<max_bartoc_name$} {:<max_cmd_name$} {}",
+                                BOLD_GREEN.apply_to(idx + 1),
+                                BOLD_GREEN.apply_to(timestamp),
+                                BOLD_YELLOW.apply_to(bartoc_name),
+                                BOLD_YELLOW.apply_to(cmd_name),
+                                BOLD_BLUE.apply_to(disp_data),
+                            );
+                            if idx > 0 && (idx + 1) % print_height == 0 {
+                                println!();
+                                println!(
+                                    "{}",
+                                    BOLD_YELLOW
+                                        .apply_to("Press any key to continue, 'x' to exit...")
+                                );
+                                match term.read_key() {
+                                    Ok(key) => {
+                                        if key == Key::Char('x') {
+                                            let _res = term.clear_last_lines(1);
+                                            println!("{}", BOLD_YELLOW.apply_to("Exiting..."));
+                                            break 'outer;
+                                        }
+                                        let _res = term.clear_last_lines(print_height + 2);
+                                    }
+                                    Err(_) => todo!(),
+                                }
+                            }
+                        }
                     }
                 }
             },

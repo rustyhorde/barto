@@ -40,6 +40,8 @@ pub enum BartoCli {
         /// The name of the command to list the output for
         cmd_name: String,
     },
+    /// A request to list the jobs that failed
+    Failed,
 }
 
 /// The update kind we are requesting

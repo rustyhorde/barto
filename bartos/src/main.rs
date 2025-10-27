@@ -243,8 +243,10 @@
 
 mod common;
 mod config;
+mod db;
 mod endpoints;
 mod error;
+mod handler;
 mod runtime;
 
 use std::process::exit;
