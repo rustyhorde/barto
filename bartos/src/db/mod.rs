@@ -9,6 +9,8 @@
 pub(crate) mod mysql;
 mod utils;
 
+use std::collections::BTreeMap;
+
 use anyhow::Result;
 use libbarto::{CliUpdateKind, FailedOutput, ListOutput, UpdateKind};
 
@@ -29,4 +31,5 @@ pub(crate) trait Queryable {
         cmd_name: &str,
     ) -> Result<Vec<ListOutput>>;
     async fn failed_cmd_data(&self, config: &Config) -> Result<Vec<FailedOutput>>;
+    async fn query(&self, query: &str) -> Result<BTreeMap<usize, BTreeMap<String, String>>>;
 }

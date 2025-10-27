@@ -6,15 +6,21 @@
 // option. All files in the project carrying such notice may not be copied,
 // modified, or distributed except according to those terms.
 
+use std::collections::BTreeMap;
+
 use actix_web::web::Data;
 use anyhow::Result;
 use bon::Builder;
 use libbarto::{
     CliUpdateKind, FailedOutput, ListOutput, OffsetDataTimeWrapper, OutputTableName, UpdateKind,
 };
-use sqlx::MySqlPool;
-use time::{OffsetDateTime, macros::time};
+use sqlx::{Column, MySqlPool, Row};
+use time::{
+    OffsetDateTime,
+    macros::{offset, time},
+};
 use tracing::info;
+use uuid::Uuid;
 
 use crate::{
     config::Config,
@@ -266,6 +272,28 @@ where
         Ok(all_output)
     }
 
+    async fn query(&self, query: &str) -> Result<BTreeMap<usize, BTreeMap<String, String>>> {
+        let results = sqlx::query(query).fetch_all(self.pool.as_ref()).await?;
+        let mut map = BTreeMap::new();
+        for (i, row) in results.iter().enumerate() {
+            let mut row_map = BTreeMap::new();
+            for (j, column) in row.columns().iter().enumerate() {
+                if let Ok(value) = row.try_get::<u64, usize>(j) {
+                    let _old = row_map.insert(column.name().to_string(), value.to_string());
+                } else if let Ok(value) = row.try_get::<OffsetDateTime, usize>(j) {
+                    let value = value.to_offset(offset!(-4));
+                    let _old = row_map.insert(column.name().to_string(), value.to_string());
+                } else if let Ok(value) = row.try_get::<String, usize>(j) {
+                    let _old = row_map.insert(column.name().to_string(), value);
+                } else if let Ok(value) = row.try_get::<Uuid, usize>(j) {
+                    let _old = row_map.insert(column.name().to_string(), value.to_string());
+                }
+            }
+            let _old = map.insert(i, row_map);
+        }
+        Ok(map)
+    }
+
     fn midnight() -> Result<OffsetDateTime> {
         let now = OffsetDateTime::now_local()?;
         let midnight = now.replace_time(time!(0:0:0));
@@ -330,5 +358,9 @@ impl Queryable for MySqlHandler {
             OutputTableName::Output => self.failed_cmd_data_output().await,
             OutputTableName::OutputTest => self.failed_cmd_data_output_test().await,
         }
+    }
+
+    async fn query(&self, query: &str) -> Result<BTreeMap<usize, BTreeMap<String, String>>> {
+        self.query(query).await
     }
 }

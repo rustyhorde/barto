@@ -144,38 +144,18 @@ impl BinaryMessageHandler {
         Ok(())
     }
 
-    #[allow(clippy::unused_async)] // Future use
     async fn handle_query<T: Queryable>(
         &mut self,
-        _query: String,
-        _session: &mut Session,
-        _queryable: T,
+        query: String,
+        session: &mut Session,
+        queryable: T,
     ) -> Result<()> {
         info!("received query message");
-        // let results = sqlx::query(&query).fetch_all(pool).await?;
-        // let mut map = BTreeMap::new();
-        // for (i, row) in results.iter().enumerate() {
-        //     let mut row_map = BTreeMap::new();
-        //     for (j, column) in row.columns().iter().enumerate() {
-        //         if let Ok(value) = row.try_get::<u64, usize>(j) {
-        //             let _old = row_map.insert(column.name().to_string(), value.to_string());
-        //         } else if let Ok(value) = row.try_get::<OffsetDateTime, usize>(j) {
-        //             let value = value.to_offset(offset!(-4));
-        //             let _old = row_map.insert(column.name().to_string(), value.to_string());
-        //         } else if let Ok(value) = row.try_get::<String, usize>(j) {
-        //             let _old = row_map.insert(column.name().to_string(), value);
-        //         } else if let Ok(value) = row.try_get::<Uuid, usize>(j) {
-        //             let _old = row_map.insert(column.name().to_string(), value.to_string());
-        //         }
-        //     }
-        //     let _old = map.insert(i, row_map);
-        // }
-        // info!("query returned {} rows", map.len());
-        // let query_result = BartosToBartoCli::Query(map);
-        // let encoded = encode_to_vec(&query_result, standard())?;
-        // session.binary(encoded).await?;
-        Err(anyhow::anyhow!(
-            "received unsupported BartoCli::Query message"
-        ))
+        let map = queryable.query(&query).await?;
+        info!("query returned {} rows", map.len());
+        let query_result = BartosToBartoCli::Query(map);
+        let encoded = encode_to_vec(&query_result, standard())?;
+        session.binary(encoded).await?;
+        Ok(())
     }
 }
