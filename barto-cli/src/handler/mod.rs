@@ -286,7 +286,7 @@ impl Handler {
                             let _success = output.success();
 
                             let known_width =
-                                digits + timestamp.len() + max_bartoc_name + max_cmd_name + 7;
+                                digits + timestamp.len() + max_bartoc_name + max_cmd_name + 12;
                             let mut data = data.replace('\t', "   ");
                             let data_uw = data.width();
                             let disp_data = if data_uw <= usize::from(width) - known_width {
