@@ -109,19 +109,55 @@ impl Handler {
                 }
                 BartosToBartoCli::Query(map) => {
                     let (max_col_label, _max_val_label) = Self::maxes_query(&map);
-                    for (i, row) in map {
-                        let row_num = i + 1;
-                        println!(
-                            "{} {}",
-                            BOLD_YELLOW.apply_to("Row"),
-                            BOLD_YELLOW.apply_to(row_num)
-                        );
-                        for (col, val) in row {
+                    println!(
+                        "{} {}",
+                        BOLD_GREEN.apply_to("Total outputs:"),
+                        BOLD_YELLOW.apply_to(map.len())
+                    );
+                    println!();
+                    let total = map.len();
+                    let digits = total.count_digits();
+                    let term = Term::stdout();
+                    let (height, width) = term.size_checked().unwrap_or((80, 24));
+                    let print_height = usize::from(height) - 8;
+                    'outer: for (idx, row) in map {
+                        // let max_row = row.values().map(String::len).max().unwrap_or(0);
+                        let known_width = digits + max_col_label + 10;
+
+                        for (col, data) in row {
+                            let mut data = data.replace('\t', "   ");
+                            let data_uw = data.width();
+                            let disp_data = if data_uw <= usize::from(width) - known_width {
+                                data
+                            } else {
+                                data.truncate(usize::from(width) - known_width);
+                                data.push_str(" ...");
+                                data
+                            };
                             println!(
-                                "{:>max_col_label$}: {}",
+                                "{:>digits$} - {:>max_col_label$}: {}",
+                                BOLD_GREEN.apply_to(idx + 1),
                                 BOLD_GREEN.apply_to(col),
-                                BOLD_BLUE.apply_to(val)
+                                BOLD_BLUE.apply_to(disp_data)
                             );
+                        }
+                        if idx > 0 && (idx + 1) % print_height == 0 {
+                            println!();
+                            println!(
+                                "{}",
+                                BOLD_YELLOW.apply_to("Press any key to continue, 'x' to exit...")
+                            );
+                            match term.read_key() {
+                                Ok(key) => {
+                                    if key == Key::Char('x') {
+                                        let _res = term.clear_last_lines(1);
+                                        println!("{}", BOLD_YELLOW.apply_to("Exiting..."));
+                                        break 'outer;
+                                    }
+                                    let _res = term.clear_last_lines(print_height + 2);
+                                }
+                                Err(_) => todo!(),
+                            }
                         }
                     }
                 }
