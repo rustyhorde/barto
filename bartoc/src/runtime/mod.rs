@@ -20,18 +20,22 @@ use std::{
 
 use anyhow::{Context, Result};
 use clap::Parser;
-use futures_util::StreamExt;
-use libbarto::{header, init_tracing};
+use futures_util::{StreamExt, stream::SplitSink};
+use libbarto::{Data, header, init_tracing};
 #[cfg(not(unix))]
 use tokio::signal::ctrl_c;
 #[cfg(unix)]
 use tokio::signal::unix::{SignalKind, signal};
 use tokio::{
+    net::TcpStream,
     select, spawn,
     sync::mpsc::{UnboundedSender, unbounded_channel},
     time::sleep,
 };
-use tokio_tungstenite::{connect_async, tungstenite::protocol::frame::coding::CloseCode};
+use tokio_tungstenite::{
+    MaybeTlsStream, WebSocketStream, connect_async,
+    tungstenite::{Message, protocol::frame::coding::CloseCode},
+};
 use tokio_util::sync::CancellationToken;
 use tracing::{error, info, trace};
 
@@ -51,7 +55,6 @@ const HEADER_PREFIX: &str = r"██████╗  █████╗ ██�
 ██████╔╝██║  ██║██║  ██║   ██║   ╚██████╔╝╚██████╗
 ╚═════╝ ╚═╝  ╚═╝╚═╝  ╚═╝   ╚═╝    ╚═════╝  ╚═════╝";
 
-#[allow(clippy::too_many_lines)]
 pub(crate) async fn run<I, T>(args: Option<I>) -> Result<()>
 where
     I: IntoIterator<Item = T>,
@@ -111,16 +114,8 @@ where
             error_count = 0; // reset error count on successful connection
             trace!("retry and error counts reset");
             let (sink, mut stream) = ws_stream.split();
-            let mut handler = Handler::builder()
-                .sink(sink)
-                .tx(tx.clone())
-                .data_tx(data_tx.clone())
-                .token(heartbeat_token)
-                .bartoc_name(config.name().clone())
-                .maybe_missed_tick(config.missed_tick())
-                .build();
-            handler.heartbeat(config.client_timeout());
-            handler.bartoc_info().await?;
+            let mut handler =
+                setup_handler(sink, tx.clone(), data_tx.clone(), heartbeat_token, &config).await?;
             trace!("bartoc heartbeat started");
             let mut ws_handler = WsHandler::builder()
                 .tx(tx.clone())
@@ -182,6 +177,26 @@ where
     }
 
     Ok(())
+}
+
+async fn setup_handler(
+    sink: SplitSink<WebSocketStream<MaybeTlsStream<TcpStream>>, Message>,
+    tx: UnboundedSender<BartocMessage>,
+    data_tx: UnboundedSender<Data>,
+    heartbeat_token: CancellationToken,
+    config: &Config,
+) -> Result<Handler> {
+    let mut handler = Handler::builder()
+        .sink(sink)
+        .tx(tx.clone())
+        .data_tx(data_tx.clone())
+        .token(heartbeat_token)
+        .bartoc_name(config.name().clone())
+        .maybe_missed_tick(config.missed_tick())
+        .build();
+    handler.heartbeat(config.client_timeout());
+    handler.bartoc_info().await?;
+    Ok(handler)
 }
 
 #[cfg(unix)]
