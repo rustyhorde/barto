@@ -245,6 +245,7 @@ mod config;
 mod error;
 mod handler;
 mod runtime;
+mod utils;
 
 use std::process::exit;
 
