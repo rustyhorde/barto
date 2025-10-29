@@ -1,0 +1,24 @@
+{
+  "db_name": "MySQL",
+  "query": "SELECT \n  output.data \nFROM \n  output\nright join\n  exit_status on exit_status.cmd_uuid = output.cmd_uuid\nWHERE \n  output.bartoc_name = ?\nand\n  exit_status.exit_code = 0\norder by \n  output.timestamp",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "data",
+        "type_info": {
+          "type": "Blob",
+          "flags": "BLOB | NO_DEFAULT_VALUE",
+          "max_size": 262140
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      true
+    ]
+  },
+  "hash": "cc04c9afa85bf6f48f045462f0a66a9a151b801dd119d00f301e8ddc28bff54a"
+}

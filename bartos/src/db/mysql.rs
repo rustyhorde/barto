@@ -102,25 +102,47 @@ impl MySqlHandler {
 
     async fn output_data(&self, name: &str) -> Result<Vec<String>> {
         Ok(sqlx::query!(
-            r#"SELECT output.data FROM output WHERE output.bartoc_name = ? order by timestamp"#,
+            r#"SELECT 
+  output.data 
+FROM 
+  output
+right join
+  exit_status on exit_status.cmd_uuid = output.cmd_uuid
+WHERE 
+  output.bartoc_name = ?
+and
+  exit_status.exit_code = 0
+order by 
+  output.timestamp"#,
             name,
         )
         .fetch_all(self.pool.as_ref())
         .await?
         .into_iter()
-        .map(|r| r.data)
+        .filter_map(|r| r.data)
         .collect::<Vec<String>>())
     }
 
     async fn output_test_data(&self, name: &str) -> Result<Vec<String>> {
         Ok(sqlx::query!(
-            r#"SELECT output_test.data FROM output_test WHERE output_test.bartoc_name = ? order by timestamp"#,
+            r#"SELECT 
+  output_test.data 
+FROM 
+  output_test
+right join
+  exit_status_test on exit_status_test.cmd_uuid = output_test.cmd_uuid
+WHERE 
+  output_test.bartoc_name = ?
+and
+  exit_status_test.exit_code = 0
+order by 
+  output_test.timestamp"#,
             name,
         )
         .fetch_all(self.pool.as_ref())
         .await?
         .into_iter()
-        .map(|r| r.data)
+        .filter_map(|r| r.data)
         .collect::<Vec<String>>())
     }
 

@@ -124,7 +124,7 @@
         refining_impl_trait_internal,
         refining_impl_trait_reachable,
         renamed_and_removed_lints,
-        repr_transparent_external_private_fields,
+        repr_transparent_non_zst_fields,
         rust_2021_incompatible_closure_captures,
         rust_2021_incompatible_or_patterns,
         rust_2021_prefixes_incompatible_syntax,
@@ -245,6 +245,7 @@ mod config;
 mod error;
 mod handler;
 mod runtime;
+mod utils;
 
 use std::process::exit;
 

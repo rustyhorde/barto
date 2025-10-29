@@ -24,10 +24,9 @@ use libbarto::{
 use tokio::{net::TcpStream, select, time::sleep};
 use tokio_tungstenite::{MaybeTlsStream, WebSocketStream, tungstenite::Message};
 use tracing::trace;
-use unicode_width::UnicodeWidthStr;
 use vergen_pretty::PrettyExt;
 
-use crate::error::Error;
+use crate::{error::Error, utils::clean_output_string};
 
 pub(crate) static BOLD_BLUE: LazyLock<Style> = LazyLock::new(|| Style::new().bold().blue());
 pub(crate) static BOLD_GREEN: LazyLock<Style> = LazyLock::new(|| Style::new().bold().green());
@@ -195,14 +194,13 @@ impl Handler {
             let known_width = digits + max_col_label + 10;
 
             for (col, data) in row {
-                let mut data = data.replace('\t', "   ");
-                let data_uw = data.width();
+                let (mut final_data, data_uw) = clean_output_string(&data);
                 let disp_data = if data_uw <= usize::from(width) - known_width {
-                    data
+                    final_data
                 } else {
-                    data.truncate(usize::from(width) - known_width);
-                    data.push_str(" ...");
-                    data
+                    final_data.truncate(usize::from(width) - known_width);
+                    final_data.push_str(" ...");
+                    final_data
                 };
                 println!(
                     "{:>digits$} - {:>max_col_label$}: {}",
@@ -263,14 +261,13 @@ impl Handler {
                     String::new,
                     |(timestamp, data)| {
                         let known_width = digits + timestamp.to_string().len() + 10;
-                        let mut data = data.replace('\t', "   ");
-                        let data_uw = data.width();
+                        let (mut final_data, data_uw) = clean_output_string(&data);
                         let disp_data = if data_uw <= usize::from(width) - known_width {
-                            data
+                            final_data
                         } else {
-                            data.truncate(usize::from(width) - known_width);
-                            data.push_str(" ...");
-                            data
+                            final_data.truncate(usize::from(width) - known_width);
+                            final_data.push_str(" ...");
+                            final_data
                         };
                         format!(
                             "{:>digits$} - {}: {}",
@@ -355,14 +352,13 @@ impl Handler {
                 let _success = output.success();
 
                 let known_width = digits + timestamp.len() + max_bartoc_name + max_cmd_name + 12;
-                let mut data = data.replace('\t', "   ");
-                let data_uw = data.width();
+                let (mut final_data, data_uw) = clean_output_string(&data);
                 let disp_data = if data_uw <= usize::from(width) - known_width {
-                    data
+                    final_data
                 } else {
-                    data.truncate(usize::from(width) - known_width);
-                    data.push_str(" ...");
-                    data
+                    final_data.truncate(usize::from(width) - known_width);
+                    final_data.push_str(" ...");
+                    final_data
                 };
                 println!(
                     "{:>digits$} - {}: {:<max_bartoc_name$} {:<max_cmd_name$} {}",
