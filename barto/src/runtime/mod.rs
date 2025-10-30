@@ -13,26 +13,11 @@ use std::{
 
 use anyhow::{Context as _, Result};
 use clap::Parser as _;
-use iced::{
-    Element,
-    Length::Fill,
-    Task, Theme,
-    padding::{bottom, top},
-    widget::{PickList, button, column, container, horizontal_space, row, text},
-    window,
-};
+use iced::{Task, Theme};
 use libbarto::{header, init_tracing, load};
-use sqlx::MySqlPool;
 use tracing::{info, trace};
 
-use crate::{
-    config::Config,
-    error::Error,
-    message::Message,
-    runtime::cli::Cli,
-    screen::main::{MainScreen, MainScreenMessage},
-    state::{Screen, State},
-};
+use crate::{config::Config, error::Error, message::Message, runtime::cli::Cli, state::State};
 
 use iced_fonts::REQUIRED_FONT_BYTES;
 
@@ -75,7 +60,7 @@ where
     header::<Config, dyn Write>(&config, HEADER_PREFIX, writer)?;
     info!("{} configured!", env!("CARGO_PKG_NAME"));
 
-    iced::application("A cool application", update, view)
+    iced::application(State::title, State::update, State::view)
         .theme(theme)
         .font(REQUIRED_FONT_BYTES)
         .exit_on_close_request(false)
@@ -90,82 +75,4 @@ where
 
 fn theme(state: &State) -> Theme {
     state.theme().clone()
-}
-
-fn view(state: &State) -> Element<'_, Message> {
-    let controls = row![horizontal_space(), button("Close").on_press(Message::Close)].spacing(5);
-    let status_bar = row![
-        PickList::new(Theme::ALL, Some(state.theme()), Message::ThemeChanged),
-        horizontal_space(),
-    ]
-    .padding(5);
-
-    let curr_screen = match state.current_screen() {
-        Some(Screen::Main(main_screen)) => main_screen.render().map(Message::from),
-        _ => container(text("No screen")).into(),
-    };
-
-    container(
-        column![
-            controls.padding(bottom(10)),
-            curr_screen,
-            status_bar.padding(top(10))
-        ]
-        .height(Fill),
-    )
-    .padding(10)
-    .height(Fill)
-    .into()
-}
-
-fn update(state: &mut State, message: Message) -> Task<Message> {
-    match message {
-        Message::Initialized => Task::perform(
-            setup_database_opt(state.config().clone()),
-            Message::DatabaseInitialized,
-        ),
-        Message::DatabaseInitialized(db_init_opt) => {
-            if let Some(pool) = db_init_opt {
-                *state.db_mut() = Some(pool);
-                Task::done(Message::MainScreen(MainScreenMessage::Load))
-            } else {
-                Task::done(Message::Error("Failed to initialize database".to_string()))
-            }
-        }
-        Message::ThemeChanged(theme) => {
-            *state.theme_mut() = theme;
-            Task::none()
-        }
-        Message::Close => window::get_latest().and_then(window::close),
-        Message::Error(error) => {
-            eprintln!("An error occurred: {error:?}");
-            Task::done(Message::Close)
-        }
-        Message::MainScreen(main_screen_message) => {
-            let pool_c = state.db().clone();
-            if let Some(Screen::Main(main_screen)) = &mut state.current_screen_mut() {
-                main_screen.handle_message(pool_c, main_screen_message)
-            } else {
-                MainScreen::handle_init_message(pool_c, main_screen_message)
-            }
-        }
-        Message::LoadScreen(screen) => {
-            *state.current_screen_mut() = Some(screen);
-            Task::none()
-        }
-    }
-}
-
-async fn setup_database_opt(config: Config) -> Option<MySqlPool> {
-    setup_database(config).await.ok()
-}
-
-async fn setup_database(config: Config) -> Result<MySqlPool> {
-    // Setup the database pool
-    let url = config.mariadb().connection_string();
-    info!(
-        "connecting to database at: {}",
-        config.mariadb().disp_connection_string()
-    );
-    MySqlPool::connect(&url).await.map_err(Into::into)
 }

@@ -16,6 +16,8 @@ use tracing_subscriber_init::{TracingConfig, get_effective_level};
     Clone, CopyGetters, Debug, Default, Deserialize, Eq, Getters, PartialEq, Serialize, Setters,
 )]
 pub(crate) struct Config {
+    #[getset(get = "pub(crate)")]
+    title: String,
     #[getset(get_copy = "pub(crate)")]
     verbose: u8,
     #[getset(get_copy = "pub(crate)")]
