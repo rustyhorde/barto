@@ -26,7 +26,7 @@ use crate::{
     config::Config,
     db::{
         Queryable,
-        utils::{cachyos_filter, garuda_filter, pacman_filter},
+        utils::{apt_filter, cachyos_filter, garuda_filter, pacman_filter},
     },
 };
 
@@ -96,6 +96,16 @@ impl MySqlHandler {
 
     async fn update_output_test_data_cachyos(&self, name: &str) -> Result<UpdateKind> {
         Ok(UpdateKind::Cachyos(cachyos_filter(
+            &self.output_test_data(name).await?,
+        )))
+    }
+
+    async fn update_output_data_apt(&self, name: &str) -> Result<UpdateKind> {
+        Ok(UpdateKind::Apt(apt_filter(&self.output_data(name).await?)))
+    }
+
+    async fn update_output_test_data_apt(&self, name: &str) -> Result<UpdateKind> {
+        Ok(UpdateKind::Apt(apt_filter(
             &self.output_test_data(name).await?,
         )))
     }
@@ -348,6 +358,9 @@ impl Queryable for MySqlHandler {
             (OutputTableName::Output, CliUpdateKind::Cachyos) => {
                 self.update_output_data_cachyos(name).await
             }
+            (OutputTableName::Output, CliUpdateKind::Apt) => {
+                self.update_output_data_apt(name).await
+            }
             (OutputTableName::OutputTest, CliUpdateKind::Garuda) => {
                 self.update_output_test_data_garuda(name).await
             }
@@ -357,8 +370,8 @@ impl Queryable for MySqlHandler {
             (OutputTableName::OutputTest, CliUpdateKind::Cachyos) => {
                 self.update_output_test_data_cachyos(name).await
             }
-            (OutputTableName::Output | OutputTableName::OutputTest, CliUpdateKind::Other) => {
-                Ok(UpdateKind::Other)
+            (OutputTableName::OutputTest, CliUpdateKind::Apt) => {
+                self.update_output_test_data_apt(name).await
             }
         }
     }

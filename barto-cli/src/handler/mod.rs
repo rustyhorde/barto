@@ -138,7 +138,11 @@ impl Handler {
                     BOLD_BLUE.apply_to("MiB")
                 );
             }
-            UpdateKind::Other => {}
+            UpdateKind::Apt(apt) => {
+                for line in apt {
+                    println!("{}", BOLD_BLUE.apply_to(line));
+                }
+            }
         }
     }
 
