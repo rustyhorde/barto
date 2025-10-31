@@ -309,7 +309,7 @@ async fn get_distinct_cmd_names_opt(
 
 async fn get_distinct_cmd_names(pool_opt: Option<MySqlPool>, name: String) -> Result<Vec<String>> {
     Ok(if let Some(pool) = &pool_opt {
-        let mut cmd_names =sqlx::query!(
+        let mut cmd_names = sqlx::query!(
             "select distinct output.cmd_name from output where output.bartoc_name = ?",
             name
         )
