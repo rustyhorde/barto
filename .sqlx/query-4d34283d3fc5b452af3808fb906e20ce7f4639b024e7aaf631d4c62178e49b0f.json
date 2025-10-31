@@ -1,0 +1,24 @@
+{
+  "db_name": "MySQL",
+  "query": "select distinct output.bartoc_name from output",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "bartoc_name",
+        "type_info": {
+          "type": "Blob",
+          "flags": "NOT_NULL | BLOB | NO_DEFAULT_VALUE",
+          "max_size": 262140
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 0
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "4d34283d3fc5b452af3808fb906e20ce7f4639b024e7aaf631d4c62178e49b0f"
+}

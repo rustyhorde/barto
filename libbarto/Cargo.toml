@@ -32,6 +32,7 @@ redb = { workspace = true }
 regex = "1.12.2"
 rustls = { workspace = true }
 serde = { workspace = true }
+strip-ansi-escapes = "0.2.1"
 sysinfo = { workspace = true }
 thiserror = { workspace = true }
 time = { workspace = true, features = [
@@ -44,6 +45,7 @@ tracing = { workspace = true }
 tracing-appender = "0.2.3"
 tracing-subscriber = { version = "=0.3.19", features = ["env-filter", "fmt", "time"] }
 tracing-subscriber-init = { workspace = true }
+unicode-width = "0.2.2"
 uuid = { workspace = true }
 vergen-pretty = { workspace = true, features = [ "color", "header", "trace" ]}
 

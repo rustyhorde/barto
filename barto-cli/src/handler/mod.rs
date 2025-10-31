@@ -20,13 +20,14 @@ use count_digits::CountDigits;
 use futures_util::{StreamExt as _, stream::SplitStream};
 use libbarto::{
     BartosToBartoCli, ClientData, FailedOutput, Garuda, ListOutput, UpdateKind, UuidWrapper,
+    clean_output_string,
 };
 use tokio::{net::TcpStream, select, time::sleep};
 use tokio_tungstenite::{MaybeTlsStream, WebSocketStream, tungstenite::Message};
 use tracing::trace;
 use vergen_pretty::PrettyExt;
 
-use crate::{error::Error, utils::clean_output_string};
+use crate::error::Error;
 
 pub(crate) static BOLD_BLUE: LazyLock<Style> = LazyLock::new(|| Style::new().bold().blue());
 pub(crate) static BOLD_GREEN: LazyLock<Style> = LazyLock::new(|| Style::new().bold().green());

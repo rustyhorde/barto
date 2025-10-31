@@ -1,0 +1,24 @@
+{
+  "db_name": "MySQL",
+  "query": "select distinct output.cmd_name from output where output.bartoc_name = ?",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "cmd_name",
+        "type_info": {
+          "type": "VarString",
+          "flags": "NOT_NULL",
+          "max_size": 1024
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "d15dc6b1c3583b6449fcefc1b443048cc924d464eb6b7ac9163cf4ac6b61ad7a"
+}

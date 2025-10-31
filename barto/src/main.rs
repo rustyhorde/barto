@@ -6,20 +6,7 @@
 // option. All files in the project carrying such notice may not be copied,
 // modified, or distributed except according to those terms.
 
-//! libbarto - This is the main library for barto, a job scheduling system.
-//!
-//! # Features
-//!
-//! * A redb Key and Value implementation for bincode encoded/decoded data.
-//! * Shared message data structures
-//! * Client specific message data structures
-//! * Server specific message data structures
-//! * The `Realtime` struct for handling real-time scheduling.
-//! * TLS configuration loading.
-//! * Tracing initialization and configuration.
-//! * Common header output for startup.
-//! * Utility functions for parsing and sending pings/pongs.
-//!
+//! bartos - barto server
 
 // rustc lints
 #![cfg_attr(
@@ -254,79 +241,20 @@
 #![cfg_attr(all(docsrs), feature(doc_cfg))]
 #![cfg_attr(coverage_nightly, feature(coverage_attribute))]
 
-mod config;
-mod db;
-mod error;
-mod header;
-mod message;
-mod realtime;
-// mod schedule;
-mod tls;
-mod tracing;
-mod utils;
+use std::process::exit;
 
-pub use self::config::Actix;
-pub use self::config::Bartos;
-pub use self::config::Command;
-pub use self::config::FileLayer;
-pub use self::config::Layer;
-pub use self::config::Mariadb;
-pub use self::config::MissedTick;
-pub use self::config::OutputTableName;
-pub use self::config::PathDefaults;
-pub use self::config::Schedule;
-pub use self::config::Schedules;
-pub use self::config::StatusTableName;
-pub use self::config::Tls;
-pub use self::config::Tracing;
-pub use self::config::load;
-pub use self::db::bincode::Bincode;
-pub use self::error::Error;
-pub use self::error::clap_or_error;
-pub use self::error::success;
-pub use self::header::header;
-pub use self::message::cli::BartoCli;
-pub use self::message::cli::UpdateKind as CliUpdateKind;
-pub use self::message::client::Bartoc;
-pub use self::message::client::BartocWs;
-pub use self::message::server::BartosToBartoCli;
-pub use self::message::server::BartosToBartoc;
-pub use self::message::shared::failed::FailedOutput;
-pub use self::message::shared::init::Initialize;
-pub use self::message::shared::list::ListOutput;
-pub use self::message::shared::odt::OffsetDataTimeWrapper;
-pub use self::message::shared::output::Data;
-pub use self::message::shared::output::Output;
-pub use self::message::shared::output::OutputKind;
-pub use self::message::shared::output::Status;
-pub use self::message::shared::sys::BartocInfo;
-pub use self::message::shared::sys::ClientData;
-pub use self::message::shared::update::Garuda;
-pub use self::message::shared::update::Pacman;
-pub use self::message::shared::update::UpdateKind;
-pub use self::message::shared::uuid::UuidWrapper;
-pub use self::realtime::Realtime;
-pub use self::realtime::cv::Constrainable;
-pub use self::realtime::cv::ConstrainedValue;
-pub use self::realtime::cv::ConstrainedValueMatcher;
-pub use self::realtime::cv::ConstrainedValueParser;
-pub use self::realtime::dow::Dow;
-pub use self::realtime::hms::hour::Hour;
-pub use self::realtime::hms::hour::HourOfDay;
-pub use self::realtime::hms::minute::Minute;
-pub use self::realtime::hms::minute::MinuteOfHour;
-pub use self::realtime::hms::second::Second;
-pub use self::realtime::hms::second::SecondOfMinute;
-pub use self::realtime::ymd::day::Day;
-pub use self::realtime::ymd::day::DayOfMonth;
-pub use self::realtime::ymd::month::Month;
-pub use self::realtime::ymd::month::MonthOfYear;
-pub use self::realtime::ymd::year::Year;
-pub use self::tls::TlsConfig;
-pub use self::tls::load_tls_config;
-pub use self::tracing::TracingConfigExt;
-pub use self::tracing::init_tracing;
-pub use self::utils::clean_output_string;
-pub use self::utils::parse_ts_ping;
-pub use self::utils::send_ts_ping;
-pub use self::utils::to_path_buf;
+use anyhow::Result;
+use libbarto::{clap_or_error, success};
+
+use crate::runtime::run;
+
+mod config;
+mod error;
+mod message;
+mod runtime;
+mod screen;
+mod state;
+
+fn main() -> Result<()> {
+    exit(run::<Vec<&str>, &str>(None).map_or_else(clap_or_error, success))
+}

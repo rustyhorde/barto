@@ -1,7 +1,7 @@
 [workspace]
 resolver = "3"
 
-members = ["barto-cli","bartoc", "bartos", "libbarto"]
+members = ["barto", "barto-cli", "bartoc", "bartos", "libbarto"]
 
 [workspace.dependencies]
 actix-web = "4.11.0"
@@ -21,11 +21,11 @@ rustls = { version = "0.23.34" }
 rustversion = "1.0.22"
 serde = { version = "1.0.228", features = ["derive"] }
 sqlx = { version = "0.8.6", features = [
-    "mysql",
-    "runtime-tokio",
-    "time",
-    "tls-rustls-aws-lc-rs",
-    "uuid",
+  "mysql",
+  "runtime-tokio",
+  "time",
+  "tls-rustls-aws-lc-rs",
+  "uuid",
 ] }
 sysinfo = { version = "0.37.2", features = ["serde", "windows"] }
 thiserror = "2.0.17"
@@ -47,4 +47,4 @@ vergen-gix = { version = "2.1.0-beta.6", features = [
   "rustc",
   "si",
 ] }
-vergen-pretty = { version = "2.1.1", features = [ "bincode", "serde" ] }
+vergen-pretty = { version = "2.1.1", features = ["bincode", "serde"] }
