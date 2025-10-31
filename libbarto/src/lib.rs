@@ -326,6 +326,7 @@ pub use self::tls::TlsConfig;
 pub use self::tls::load_tls_config;
 pub use self::tracing::TracingConfigExt;
 pub use self::tracing::init_tracing;
+pub use self::utils::clean_output_string;
 pub use self::utils::parse_ts_ping;
 pub use self::utils::send_ts_ping;
 pub use self::utils::to_path_buf;

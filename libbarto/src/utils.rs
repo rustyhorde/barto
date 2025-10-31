@@ -13,6 +13,8 @@ use std::{
 
 use anyhow::Result;
 use bytes::Bytes;
+use strip_ansi_escapes::strip;
+use unicode_width::UnicodeWidthStr as _;
 
 /// Convert a string to a `PathBuf`
 ///
@@ -57,6 +59,17 @@ pub(crate) fn until_err<T>(err: &mut &mut Result<()>, item: Result<T>) -> Option
             None
         }
     }
+}
+
+/// Clean an output string by removing tabs, new lines, carriage returns, and ANSI escape codes.
+#[must_use]
+pub fn clean_output_string(data: &str) -> (String, usize) {
+    let data = data.replace('\t', "   ");
+    let data = data.replace('\n', " ");
+    let data = data.replace('\r', " ");
+    let final_data = String::from_utf8_lossy(&strip(data)).to_string();
+    let data_uw = final_data.width();
+    (final_data, data_uw)
 }
 
 #[cfg(test)]
