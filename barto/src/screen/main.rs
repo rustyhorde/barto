@@ -196,6 +196,10 @@ impl MainScreen {
     ) -> Task<Message> {
         match message {
             MainScreenMessage::TabSelected(tab_key) => {
+                if let Some((_key, active_tab)) = &mut self.active_tab_opt {
+                    active_tab.selected_cmd = None;
+                    active_tab.body = None;
+                }
                 if let Some(active_tab) = self.tabs.get(&tab_key) {
                     let name = tab_key.label.clone();
                     let pool = pool_opt.clone();
@@ -218,6 +222,10 @@ impl MainScreen {
                 Task::none()
             }
             MainScreenMessage::CommandSelected(name) => {
+                if let Some((_key, active_tab)) = &mut self.active_tab_opt {
+                    active_tab.selected_cmd = None;
+                    active_tab.body = None;
+                }
                 if let Some((key, active_tab)) = &mut self.active_tab_opt {
                     let bartoc_name = key.label.clone();
                     active_tab.selected_cmd = Some(name.clone());
