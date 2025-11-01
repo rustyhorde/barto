@@ -120,17 +120,66 @@ pub fn clap_or_error(err: anyhow::Error) -> i32 {
             | ErrorKind::DisplayHelpOnMissingArgumentOrSubcommand
             | ErrorKind::Io
             | ErrorKind::Format => disp_err(),
-            _ => {
-                eprintln!("Unknown ErrorKind");
-                disp_err()
-            }
+            _ => unknown_err_kind(),
         },
         None => disp_err(),
     }
+}
+
+// Coverage ignore start: this is a catch-all for future ErrorKinds
+#[cfg_attr(coverage_nightly, coverage(off))]
+fn unknown_err_kind() -> i32 {
+    eprintln!("Unknown ErrorKind");
+    1
 }
 
 /// Indicates successful execution of a function, returning exit code 0.
 #[must_use]
 pub fn success((): ()) -> i32 {
     0
+}
+
+#[cfg(test)]
+mod test {
+    use super::{clap_or_error, success};
+
+    use anyhow::{Error, anyhow};
+    use clap::{
+        Command,
+        error::ErrorKind::{self, DisplayHelp, DisplayVersion},
+    };
+
+    #[test]
+    fn test_success() {
+        assert_eq!(success(()), 0);
+    }
+
+    #[test]
+    fn clap_or_error_is_error() {
+        assert_eq!(1, clap_or_error(anyhow!("test")));
+    }
+
+    #[test]
+    fn clap_or_error_is_help() {
+        let mut cmd = Command::new("bartos");
+        let error = cmd.error(DisplayHelp, "help");
+        let clap_error = Error::new(error);
+        assert_eq!(0, clap_or_error(clap_error));
+    }
+
+    #[test]
+    fn clap_or_error_is_version() {
+        let mut cmd = Command::new("bartos");
+        let error = cmd.error(DisplayVersion, "1.0");
+        let clap_error = Error::new(error);
+        assert_eq!(0, clap_or_error(clap_error));
+    }
+
+    #[test]
+    fn clap_or_error_is_other_clap_error() {
+        let mut cmd = Command::new("bartos");
+        let error = cmd.error(ErrorKind::InvalidValue, "Some failure case");
+        let clap_error = Error::new(error);
+        assert_eq!(1, clap_or_error(clap_error));
+    }
 }

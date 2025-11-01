@@ -82,7 +82,7 @@ mod test {
     use std::sync::LazyLock;
 
     use super::{from_u8, header};
-    use crate::TracingConfigExt;
+    use crate::{TracingConfigExt, utils::test::TestConfig};
     use console::Style;
     use regex::Regex;
     use tracing::Level;
@@ -97,46 +97,6 @@ mod test {
 
 4a61736f6e204f7a696173
 ";
-
-    struct TestConfig {
-        verbose: u8,
-        quiet: u8,
-        level: Level,
-    }
-
-    impl Default for TestConfig {
-        fn default() -> Self {
-            Self {
-                verbose: 3,
-                quiet: 0,
-                level: Level::INFO,
-            }
-        }
-    }
-
-    impl TracingConfig for TestConfig {
-        fn quiet(&self) -> u8 {
-            self.quiet
-        }
-
-        fn verbose(&self) -> u8 {
-            self.verbose
-        }
-    }
-
-    impl TracingConfigExt for TestConfig {
-        fn level(&self) -> Level {
-            self.level
-        }
-
-        fn enable_stdout(&self) -> bool {
-            true
-        }
-
-        fn directives(&self) -> Option<&String> {
-            None
-        }
-    }
 
     static BUILD_TIMESTAMP: LazyLock<Regex> =
         LazyLock::new(|| Regex::new(r"Timestamp \(  build\)").unwrap());
@@ -161,7 +121,13 @@ mod test {
     #[cfg(debug_assertions)]
     fn header_writes() {
         let mut buf = vec![];
-        assert!(header(&TestConfig::default(), HEADER_PREFIX, Some(&mut buf)).is_ok());
+        let config = TestConfig::default();
+        assert!(config.quiet() == 0);
+        assert!(config.verbose() == 3);
+        assert!(config.level() == Level::INFO);
+        assert!(config.enable_stdout());
+        assert!(config.directives().is_none());
+        assert!(header(&config, HEADER_PREFIX, Some(&mut buf)).is_ok());
         assert!(!buf.is_empty());
         let header_str = String::from_utf8_lossy(&buf);
         assert!(BUILD_TIMESTAMP.is_match(&header_str));
@@ -170,10 +136,27 @@ mod test {
     }
 
     #[test]
+    fn none_writer_skips_header() {
+        let config = TestConfig::default();
+        assert!(config.quiet() == 0);
+        assert!(config.verbose() == 3);
+        assert!(config.level() == Level::INFO);
+        assert!(config.enable_stdout());
+        assert!(config.directives().is_none());
+        assert!(header(&config, HEADER_PREFIX, None::<&mut Vec<u8>>).is_ok());
+    }
+
+    #[test]
     #[cfg(not(debug_assertions))]
     fn header_writes() {
         let mut buf = vec![];
-        assert!(header(&TestConfig::default(), HEADER_PREFIX, Some(&mut buf)).is_ok());
+        let config = TestConfig::default();
+        assert!(config.quiet() == 0);
+        assert!(config.verbose() == 3);
+        assert!(config.level() == Level::INFO);
+        assert!(config.enable_stdout());
+        assert!(config.directives().is_none());
+        assert!(header(&config, HEADER_PREFIX, Some(&mut buf)).is_ok());
         assert!(!buf.is_empty());
         let header_str = String::from_utf8_lossy(&buf);
         assert!(BUILD_TIMESTAMP.is_match(&header_str));
