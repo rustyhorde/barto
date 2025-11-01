@@ -29,8 +29,8 @@ pub enum UpdateKind {
     Pacman(Pacman),
     /// A `CachyOS` update message
     Cachyos(Pacman),
-    /// An other update message
-    Other,
+    /// An apt update message
+    Apt(Vec<String>),
 }
 
 #[cfg(test)]
@@ -56,7 +56,7 @@ impl<Context> Decode<Context> for UpdateKind {
             0 => Ok(UpdateKind::Garuda(Decode::decode(decoder)?)),
             1 => Ok(UpdateKind::Pacman(Decode::decode(decoder)?)),
             2 => Ok(UpdateKind::Cachyos(Decode::decode(decoder)?)),
-            3 => Ok(UpdateKind::Other),
+            3 => Ok(UpdateKind::Apt(Decode::decode(decoder)?)),
             _ => Err(DecodeError::UnexpectedVariant {
                 type_name: "UpdateKind",
                 allowed: &bincode::error::AllowedEnumVariants::Range { min: 0, max: 3 },
@@ -75,7 +75,7 @@ impl<'de, Context> BorrowDecode<'de, Context> for UpdateKind {
             0 => Ok(UpdateKind::Garuda(BorrowDecode::borrow_decode(decoder)?)),
             1 => Ok(UpdateKind::Pacman(BorrowDecode::borrow_decode(decoder)?)),
             2 => Ok(UpdateKind::Cachyos(BorrowDecode::borrow_decode(decoder)?)),
-            3 => Ok(UpdateKind::Other),
+            3 => Ok(UpdateKind::Apt(BorrowDecode::borrow_decode(decoder)?)),
             _ => Err(DecodeError::UnexpectedVariant {
                 type_name: "UpdateKind",
                 allowed: &bincode::error::AllowedEnumVariants::Range { min: 0, max: 3 },
@@ -100,7 +100,10 @@ impl Encode for UpdateKind {
                 2u32.encode(encoder)?;
                 v.encode(encoder)
             }
-            UpdateKind::Other => 3u32.encode(encoder),
+            UpdateKind::Apt(v) => {
+                3u32.encode(encoder)?;
+                v.encode(encoder)
+            }
         }
     }
 }
@@ -338,8 +341,8 @@ mod tests {
     }
 
     #[test]
-    fn test_update_kind_other_encode_decode() {
-        let original = UpdateKind::Other;
+    fn test_update_kind_apt_encode_decode() {
+        let original = UpdateKind::Apt(vec!["firefox".to_string(), "chromium".to_string()]);
         let encoded = encode_to_vec(&original, standard()).unwrap();
         let decoded: UpdateKind = decode_from_slice(&encoded, standard()).unwrap().0;
 
@@ -477,8 +480,8 @@ mod tests {
     }
 
     #[test]
-    fn test_update_kind_other_borrow_decode() {
-        let original = UpdateKind::Other;
+    fn test_update_kind_apt_borrow_decode() {
+        let original = UpdateKind::Apt(vec!["firefox".to_string(), "chromium".to_string()]);
         let encoded = encode_to_vec(&original, standard()).unwrap();
         let decoded: UpdateKind = bincode::borrow_decode_from_slice(&encoded, standard())
             .unwrap()

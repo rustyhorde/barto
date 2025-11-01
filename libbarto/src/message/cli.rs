@@ -53,8 +53,8 @@ pub enum UpdateKind {
     Pacman,
     /// A `CachyOS` update message
     Cachyos,
-    /// An other update message
-    Other,
+    /// An apt update message
+    Apt,
 }
 
 impl TryFrom<&str> for UpdateKind {
@@ -65,7 +65,7 @@ impl TryFrom<&str> for UpdateKind {
             "garuda" => Ok(UpdateKind::Garuda),
             "pacman" => Ok(UpdateKind::Pacman),
             "cachyos" => Ok(UpdateKind::Cachyos),
-            "other" => Ok(UpdateKind::Other),
+            "apt" => Ok(UpdateKind::Apt),
             _ => Err(crate::Error::InvalidUpdateKind {
                 kind: value.to_string(),
             }

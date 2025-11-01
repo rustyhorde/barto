@@ -11,25 +11,6 @@ use std::sync::LazyLock;
 use libbarto::{Garuda, Pacman};
 use regex::Regex;
 
-// CachyOS
-// cachyos-extra-v3/bind      9.20.13-1.1  9.20.15-1.1    0.01 MiB       2.21 MiB
-// cachyos-core-v3/gc         8.2.10-1.1   8.2.10-2.1     0.00 MiB       0.24 MiB
-// cachyos-extra-v3/libdecor  0.2.3-1.1    0.2.4-1.1      0.00 MiB       0.05 MiB
-// cachyos-extra-v3/pcsclite  2.4.0-2.1    2.4.0-3.1      0.00 MiB       0.10 MiB
-
-// pacman
-// Packages (5) git-2.51.1-1  libarchive-3.8.2-1  linux-6.17.3.arch1-1  python-charset-normalizer-3.4.4-1  python-cryptography-46.0.3-1
-// Packages (2) dhcpcd-10.2.4-1  libxml2-2.15.1-1
-//
-// Total Download Size:   0.96 MiB
-// Total Installed Size:  3.45 MiB
-// Net Upgrade Size:      0.00 MiB
-
-// apt
-// The following packages will be upgraded:
-//   libtdb-dev libtdb1"
-// 2 upgraded, 0 newly installed, 0 to remove and 0 not upgraded.
-
 // homebrew
 // ==> Upgrading 2 outdated packages:
 // protobuf 32.1 -> 33.0
@@ -49,7 +30,7 @@ use regex::Regex;
 
 static GARUDA_UPDATE_RE: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(
-        r"(chaotic-aur|core|extra|multilib)\/([^ ]+)\s+([^ ]+)\s+([^ ]+)\s+(.+ MiB)\s+(.+ MiB)",
+        r"(chaotic-aur|core|extra|garuda|multilib)\/([^ ]+)\s+([^ ]+)\s+([^ ]+)\s+(.+ MiB)\s+(.+ MiB)",
     )
     .expect("failed to create garuda-update regex")
 });
@@ -70,9 +51,13 @@ static NET_UPGRADE_SIZE_RE: LazyLock<Regex> = LazyLock::new(|| {
 });
 static CACHYOS_UPDATE_RE: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(
-        r"(cachyos-.*|core|extra|multilib)\/([^ ]+)\s+([^ ]+)\s+([^ ]+)\s+(.+ MiB)\s+(.+ MiB)",
+        r"(cachyos|cachyos-.*|core|extra|multilib)\/([^ ]+)\s+([^ ]+)\s+([^ ]+)\s+(.+ MiB)\s+(.+ MiB)",
     )
     .expect("failed to create cachyos-update regex")
+});
+static APT_UPDATE_RE: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"^The following packages will be upgraded:$")
+        .expect("failed to create apt update regex")
 });
 
 pub(crate) fn garuda_filter(data: Vec<String>) -> Vec<Garuda> {
@@ -212,9 +197,40 @@ pub(crate) fn cachyos_filter(data: &[String]) -> Pacman {
         .build()
 }
 
+pub(crate) fn apt_filter(data: &[String]) -> Vec<String> {
+    let initial_indices = data
+        .iter()
+        .enumerate()
+        .filter_map(|(idx, s)| {
+            if APT_UPDATE_RE.is_match(s) {
+                Some(idx)
+            } else {
+                None
+            }
+        })
+        .fold(vec![], |mut acc, idx| {
+            acc.push(idx);
+            acc
+        });
+
+    let next_indices = initial_indices
+        .into_iter()
+        .map(|idx| idx + 1)
+        .collect::<Vec<usize>>();
+    next_indices
+        .into_iter()
+        .filter_map(|idx| data.get(idx).cloned())
+        .flat_map(|s| {
+            s.split_whitespace()
+                .map(ToString::to_string)
+                .collect::<Vec<String>>()
+        })
+        .collect()
+}
+
 #[cfg(test)]
 mod test {
-    use super::GARUDA_UPDATE_RE;
+    use super::{GARUDA_UPDATE_RE, apt_filter};
 
     use anyhow::Result;
 
@@ -239,5 +255,35 @@ mod test {
         assert_eq!(caps.get(5).map(|m| m.as_str()), Some("0.00 MiB"));
         assert_eq!(caps.get(6).map(|m| m.as_str()), Some("3.59 MiB"));
         Ok(())
+    }
+
+    #[test]
+    fn test_apt_update_filter() {
+        let data = vec![
+            "The following packages will be upgraded:",
+            "  libtdb-dev libtdb1",
+            "2 upgraded, 0 newly installed, 0 to remove and 0 not upgraded.",
+            "",
+            "",
+            "The following packages will be upgraded:",
+            "  libssh-4 libxml2 libxml2-dev",
+            "3 upgraded, 0 newly installed, 0 to remove and 0 not upgraded.",
+        ];
+        let indices = apt_filter(
+            &data
+                .into_iter()
+                .map(str::to_string)
+                .collect::<Vec<String>>(),
+        );
+        assert_eq!(
+            indices,
+            vec![
+                "libtdb-dev",
+                "libtdb1",
+                "libssh-4",
+                "libxml2",
+                "libxml2-dev"
+            ]
+        );
     }
 }
