@@ -126,3 +126,79 @@ where
     let _ = config_file_path.set_extension("log");
     Ok(config_file_path)
 }
+
+#[cfg(test)]
+mod test {
+    use tracing::level_filters::LevelFilter;
+
+    use crate::{PathDefaults, utils::test::TestConfig};
+
+    use super::{directives, init_tracing};
+
+    impl PathDefaults for TestConfig {
+        fn default_tracing_path(&self) -> String {
+            "barto/tests/logs".to_string()
+        }
+
+        fn default_tracing_file_name(&self) -> String {
+            "barto_test".to_string()
+        }
+
+        fn env_prefix(&self) -> String {
+            "BARTO_TEST".to_string()
+        }
+
+        fn config_absolute_path(&self) -> Option<String> {
+            None
+        }
+
+        fn default_file_path(&self) -> String {
+            "BARTO_TEST".to_string()
+        }
+
+        fn default_file_name(&self) -> String {
+            "BARTO_TEST".to_string()
+        }
+
+        fn tracing_absolute_path(&self) -> Option<String> {
+            None
+        }
+    }
+
+    #[test]
+    fn init_tracing_works() {
+        let config = TestConfig::default();
+        assert_eq!(config.env_prefix(), "BARTO_TEST");
+        assert!(config.config_absolute_path().is_none());
+        assert_eq!(config.default_file_path(), "BARTO_TEST");
+        assert_eq!(config.default_file_name(), "BARTO_TEST");
+        assert!(init_tracing(&config, &config, &config, None).is_ok());
+    }
+
+    #[test]
+    fn init_tracing_works_with_directives() {
+        let config = TestConfig::with_directives();
+        assert_eq!(config.env_prefix(), "BARTO_TEST");
+        assert!(config.config_absolute_path().is_none());
+        assert_eq!(config.default_file_path(), "BARTO_TEST");
+        assert_eq!(config.default_file_name(), "BARTO_TEST");
+        assert!(init_tracing(&config, &config, &config, None).is_ok());
+    }
+
+    #[test]
+    fn test_directives() {
+        let config = TestConfig::default();
+        let level_filter = LevelFilter::OFF;
+        let dirs = directives(&config, level_filter);
+        assert_eq!(dirs, "info");
+        let level_filter = LevelFilter::DEBUG;
+        let dirs = directives(&config, level_filter);
+        assert_eq!(dirs, "debug");
+        let level_filter = LevelFilter::WARN;
+        let dirs = directives(&config, level_filter);
+        assert_eq!(dirs, "warn");
+        let level_filter = LevelFilter::ERROR;
+        let dirs = directives(&config, level_filter);
+        assert_eq!(dirs, "error");
+    }
+}

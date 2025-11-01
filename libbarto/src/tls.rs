@@ -13,7 +13,7 @@ use rustls::{
     ServerConfig,
     pki_types::{CertificateDer, PrivateKeyDer, pem::PemObject},
 };
-use tracing::{error, trace};
+use tracing::trace;
 
 use crate::Error;
 
@@ -50,10 +50,6 @@ where
     let key_file = &mut BufReader::new(File::open(key_file_path).with_context(|| Error::KeyRead)?);
 
     let mut private_keys: Vec<PrivateKeyDer<'_>> = PrivateKeyDer::pem_reader_iter(key_file)
-        .inspect(|v| match v {
-            Ok(_) => trace!("valid key file: {key_file_path}"),
-            Err(e) => error!("invalid key file: {e}"),
-        })
         .filter_map(Result::ok)
         .collect();
 
@@ -65,4 +61,47 @@ where
         .with_single_cert(cert_chain, private_keys.remove(0))?;
 
     Ok(config)
+}
+
+#[cfg(test)]
+mod test {
+    use super::{TlsConfig, load_tls_config};
+
+    struct MockTlsConfig;
+
+    impl TlsConfig for MockTlsConfig {
+        fn cert_file_path(&self) -> &'static str {
+            "./testtls/onlytests.pem"
+        }
+
+        fn key_file_path(&self) -> &'static str {
+            "./testtls/onlytests-key.pem"
+        }
+    }
+
+    struct MockEmptyKeysTlsConfig;
+
+    impl TlsConfig for MockEmptyKeysTlsConfig {
+        fn cert_file_path(&self) -> &'static str {
+            "./testtls/onlytests.pem"
+        }
+
+        fn key_file_path(&self) -> &'static str {
+            "./testtls/empty-key.pem"
+        }
+    }
+
+    #[test]
+    fn test_load_tls_config() {
+        let config = MockTlsConfig;
+        let tls_config = load_tls_config(&config);
+        assert!(tls_config.is_ok());
+    }
+
+    #[test]
+    fn test_load_tls_config_empty_keys() {
+        let config = MockEmptyKeysTlsConfig;
+        let tls_config = load_tls_config(&config);
+        assert!(tls_config.is_err());
+    }
 }
