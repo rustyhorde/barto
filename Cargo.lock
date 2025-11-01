@@ -624,7 +624,7 @@ dependencies = [
 
 [[package]]
 name = "barto"
-version = "0.1.0"
+version = "0.6.0"
 dependencies = [
  "anyhow",
  "bon",
@@ -647,7 +647,7 @@ dependencies = [
 
 [[package]]
 name = "barto-cli"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "anyhow",
  "bincode",
@@ -672,7 +672,7 @@ dependencies = [
 
 [[package]]
 name = "bartoc"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "anyhow",
  "bincode",
@@ -698,7 +698,7 @@ dependencies = [
 
 [[package]]
 name = "bartos"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "actix-web",
  "actix-ws",
@@ -3988,7 +3988,7 @@ dependencies = [
 
 [[package]]
 name = "libbarto"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "anyhow",
  "bincode",
