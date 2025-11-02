@@ -184,7 +184,9 @@ mod test {
         assert!(config.config_absolute_path().is_none());
         assert_eq!(config.default_file_path(), "BARTO_TEST");
         assert_eq!(config.default_file_name(), "BARTO_TEST");
-        assert!(init_tracing(&config, &config, &config, None).is_ok());
+        let res = init_tracing(&config, &config, &config, None);
+        eprintln!("Result: {:?}", res);
+        assert!(res.is_ok());
     }
 
     #[test]
