@@ -129,6 +129,7 @@ where
 
 #[cfg(test)]
 mod test {
+    use tempfile::NamedTempFile;
     use tracing::level_filters::LevelFilter;
 
     use crate::{PathDefaults, utils::test::TestConfig};
@@ -137,7 +138,8 @@ mod test {
 
     impl PathDefaults for TestConfig {
         fn default_tracing_path(&self) -> String {
-            "barto/tests/logs".to_string()
+            let blah = NamedTempFile::new().unwrap();
+            blah.path().display().to_string() 
         }
 
         fn default_tracing_file_name(&self) -> String {
