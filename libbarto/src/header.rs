@@ -125,7 +125,7 @@ mod test {
         assert!(config.quiet() == 0);
         assert!(config.verbose() == 3);
         assert!(config.level() == Level::INFO);
-        assert!(config.enable_stdout());
+        assert!(!config.enable_stdout());
         assert!(config.directives().is_none());
         assert!(header(&config, HEADER_PREFIX, Some(&mut buf)).is_ok());
         assert!(!buf.is_empty());
@@ -141,7 +141,7 @@ mod test {
         assert!(config.quiet() == 0);
         assert!(config.verbose() == 3);
         assert!(config.level() == Level::INFO);
-        assert!(config.enable_stdout());
+        assert!(!config.enable_stdout());
         assert!(config.directives().is_none());
         assert!(header(&config, HEADER_PREFIX, None::<&mut Vec<u8>>).is_ok());
     }
@@ -154,7 +154,7 @@ mod test {
         assert!(config.quiet() == 0);
         assert!(config.verbose() == 3);
         assert!(config.level() == Level::INFO);
-        assert!(config.enable_stdout());
+        assert!(!config.enable_stdout());
         assert!(config.directives().is_none());
         assert!(header(&config, HEADER_PREFIX, Some(&mut buf)).is_ok());
         assert!(!buf.is_empty());

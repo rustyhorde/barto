@@ -10,10 +10,12 @@ use std::path::PathBuf;
 
 use anyhow::Result;
 use dirs2::data_dir;
-use tracing::{Level, level_filters::LevelFilter};
+use tracing::{Level, level_filters::LevelFilter, subscriber::DefaultGuard};
 use tracing_appender::rolling::{RollingFileAppender, Rotation};
 use tracing_subscriber::{EnvFilter, Layer, Registry, fmt::time::UtcTime};
-use tracing_subscriber_init::{Iso8601, TracingConfig, compact, try_init};
+#[cfg(not(test))]
+use tracing_subscriber_init::try_init;
+use tracing_subscriber_init::{Iso8601, TracingConfig, compact};
 
 use crate::{Error, PathDefaults, utils::to_path_buf};
 
@@ -74,8 +76,26 @@ where
         .with_filter(filter);
     layers.push(file_layer.boxed());
 
-    try_init(layers)?;
+    let _guard_opt = try_initialize(layers)?;
     Ok(())
+}
+
+#[cfg(not(test))]
+#[cfg_attr(coverage_nightly, coverage(off))]
+fn try_initialize(
+    layers: Vec<Box<dyn Layer<Registry> + Send + Sync + 'static>>,
+) -> Result<Option<DefaultGuard>> {
+    try_init(layers).map(|()| None)
+}
+
+#[cfg(test)]
+#[cfg_attr(coverage_nightly, coverage(off))]
+#[allow(clippy::unnecessary_wraps)]
+fn try_initialize(
+    layers: Vec<Box<dyn Layer<Registry> + Send + Sync + 'static>>,
+) -> Result<Option<DefaultGuard>> {
+    use tracing_subscriber_init::set_default;
+    Ok(Some(set_default(layers)))
 }
 
 fn directives<T>(config: &T, level_filter: LevelFilter) -> String

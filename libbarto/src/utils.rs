@@ -135,7 +135,7 @@ pub(crate) mod test {
         }
 
         fn enable_stdout(&self) -> bool {
-            true
+            false
         }
 
         fn directives(&self) -> Option<&String> {
