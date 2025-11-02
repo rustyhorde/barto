@@ -139,7 +139,7 @@ mod test {
     impl PathDefaults for TestConfig {
         fn default_tracing_path(&self) -> String {
             let blah = NamedTempFile::new().unwrap();
-            blah.path().display().to_string() 
+            blah.path().display().to_string()
         }
 
         fn default_tracing_file_name(&self) -> String {
