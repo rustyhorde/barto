@@ -10,10 +10,12 @@ use std::path::PathBuf;
 
 use anyhow::Result;
 use dirs2::data_dir;
-use tracing::{Level, level_filters::LevelFilter};
+use tracing::{Level, level_filters::LevelFilter, subscriber::DefaultGuard};
 use tracing_appender::rolling::{RollingFileAppender, Rotation};
 use tracing_subscriber::{EnvFilter, Layer, Registry, fmt::time::UtcTime};
-use tracing_subscriber_init::{Iso8601, TracingConfig, compact, try_init};
+#[cfg(not(test))]
+use tracing_subscriber_init::try_init;
+use tracing_subscriber_init::{Iso8601, TracingConfig, compact};
 
 use crate::{Error, PathDefaults, utils::to_path_buf};
 
@@ -74,8 +76,26 @@ where
         .with_filter(filter);
     layers.push(file_layer.boxed());
 
-    try_init(layers)?;
+    let _guard_opt = try_initialize(layers)?;
     Ok(())
+}
+
+#[cfg(not(test))]
+#[cfg_attr(coverage_nightly, coverage(off))]
+fn try_initialize(
+    layers: Vec<Box<dyn Layer<Registry> + Send + Sync + 'static>>,
+) -> Result<Option<DefaultGuard>> {
+    try_init(layers).map(|()| None)
+}
+
+#[cfg(test)]
+#[cfg_attr(coverage_nightly, coverage(off))]
+#[allow(clippy::unnecessary_wraps)]
+fn try_initialize(
+    layers: Vec<Box<dyn Layer<Registry> + Send + Sync + 'static>>,
+) -> Result<Option<DefaultGuard>> {
+    use tracing_subscriber_init::set_default;
+    Ok(Some(set_default(layers)))
 }
 
 fn directives<T>(config: &T, level_filter: LevelFilter) -> String
@@ -125,4 +145,84 @@ where
     config_file_path.push(defaults.default_tracing_file_name());
     let _ = config_file_path.set_extension("log");
     Ok(config_file_path)
+}
+
+#[cfg(test)]
+mod test {
+    use tempfile::NamedTempFile;
+    use tracing::level_filters::LevelFilter;
+
+    use crate::{PathDefaults, utils::test::TestConfig};
+
+    use super::{directives, init_tracing};
+
+    impl PathDefaults for TestConfig {
+        fn default_tracing_path(&self) -> String {
+            let blah = NamedTempFile::new().unwrap();
+            blah.path().display().to_string()
+        }
+
+        fn default_tracing_file_name(&self) -> String {
+            "barto_test".to_string()
+        }
+
+        fn env_prefix(&self) -> String {
+            "BARTO_TEST".to_string()
+        }
+
+        fn config_absolute_path(&self) -> Option<String> {
+            None
+        }
+
+        fn default_file_path(&self) -> String {
+            "BARTO_TEST".to_string()
+        }
+
+        fn default_file_name(&self) -> String {
+            "BARTO_TEST".to_string()
+        }
+
+        fn tracing_absolute_path(&self) -> Option<String> {
+            None
+        }
+    }
+
+    #[test]
+    fn init_tracing_works() {
+        let config = TestConfig::default();
+        assert_eq!(config.env_prefix(), "BARTO_TEST");
+        assert!(config.config_absolute_path().is_none());
+        assert_eq!(config.default_file_path(), "BARTO_TEST");
+        assert_eq!(config.default_file_name(), "BARTO_TEST");
+        assert!(init_tracing(&config, &config, &config, None).is_ok());
+    }
+
+    #[test]
+    fn init_tracing_works_with_directives() {
+        let config = TestConfig::with_directives();
+        assert_eq!(config.env_prefix(), "BARTO_TEST");
+        assert!(config.config_absolute_path().is_none());
+        assert_eq!(config.default_file_path(), "BARTO_TEST");
+        assert_eq!(config.default_file_name(), "BARTO_TEST");
+        let res = init_tracing(&config, &config, &config, None);
+        eprintln!("Result: {res:?}");
+        assert!(res.is_ok());
+    }
+
+    #[test]
+    fn test_directives() {
+        let config = TestConfig::default();
+        let level_filter = LevelFilter::OFF;
+        let dirs = directives(&config, level_filter);
+        assert_eq!(dirs, "info");
+        let level_filter = LevelFilter::DEBUG;
+        let dirs = directives(&config, level_filter);
+        assert_eq!(dirs, "debug");
+        let level_filter = LevelFilter::WARN;
+        let dirs = directives(&config, level_filter);
+        assert_eq!(dirs, "warn");
+        let level_filter = LevelFilter::ERROR;
+        let dirs = directives(&config, level_filter);
+        assert_eq!(dirs, "error");
+    }
 }

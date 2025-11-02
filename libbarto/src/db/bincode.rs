@@ -61,3 +61,61 @@ where
         Self::from_bytes(data1).cmp(&Self::from_bytes(data2))
     }
 }
+
+#[cfg(test)]
+#[cfg_attr(coverage_nightly, coverage(off))]
+mod tests {
+    use super::Bincode;
+    use bincode::{Decode, Encode};
+    use redb::{Database, ReadableDatabase as _, TableDefinition};
+    use tempfile::NamedTempFile;
+
+    #[derive(Clone, Debug, Decode, Encode, Eq, Hash, Ord, PartialEq, PartialOrd)]
+    struct TestKey {
+        id: u32,
+    }
+
+    #[derive(Clone, Debug, Decode, Encode, Eq, Hash, Ord, PartialEq, PartialOrd)]
+    struct TestValue {
+        id: u32,
+        name: String,
+    }
+    static TEST_TABLE: TableDefinition<'_, Bincode<TestKey>, Bincode<TestValue>> =
+        TableDefinition::new("test_table");
+
+    #[test]
+    fn test_bincode_key_value() {
+        let file = NamedTempFile::new().unwrap();
+        let path = file.path();
+        let key = TestKey { id: 42u32 };
+        let value = TestValue {
+            id: 1,
+            name: "Test".to_string(),
+        };
+        let db = Database::create(path).unwrap();
+
+        {
+            let write_txn = db.begin_write().unwrap();
+            {
+                let mut table = write_txn.open_table(TEST_TABLE).unwrap();
+                let _old = table.insert(&key, &value).unwrap();
+            }
+            write_txn.commit().unwrap();
+        }
+        {
+            let read_txn = db.begin_read().unwrap();
+            let table = read_txn.open_table(TEST_TABLE).unwrap();
+
+            let key = TestKey { id: 42u32 };
+            let retrieved_value = table.get(&key).unwrap().unwrap();
+
+            assert_eq!(
+                retrieved_value.value(),
+                TestValue {
+                    id: 1,
+                    name: "Test".to_string(),
+                }
+            );
+        }
+    }
+}

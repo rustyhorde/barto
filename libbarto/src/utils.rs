@@ -76,3 +76,101 @@ pub fn clean_output_string(data: &str) -> (String, usize) {
 pub(crate) trait Mock {
     fn mock() -> Self;
 }
+
+#[cfg(test)]
+pub(crate) mod test {
+    use std::time::Instant;
+
+    use bytes::Bytes;
+    use tracing::Level;
+    use tracing_subscriber_init::TracingConfig;
+    use unicode_width::UnicodeWidthStr as _;
+
+    use crate::TracingConfigExt;
+
+    use super::{clean_output_string, parse_ts_ping, send_ts_ping, to_path_buf};
+
+    pub(crate) struct TestConfig {
+        verbose: u8,
+        quiet: u8,
+        level: Level,
+        directives: Option<String>,
+    }
+
+    impl TestConfig {
+        pub(crate) fn with_directives() -> Self {
+            Self {
+                verbose: 3,
+                quiet: 0,
+                level: Level::INFO,
+                directives: Some("actix_web=error".to_string()),
+            }
+        }
+    }
+
+    impl Default for TestConfig {
+        fn default() -> Self {
+            Self {
+                verbose: 3,
+                quiet: 0,
+                level: Level::INFO,
+                directives: None,
+            }
+        }
+    }
+
+    impl TracingConfig for TestConfig {
+        fn quiet(&self) -> u8 {
+            self.quiet
+        }
+
+        fn verbose(&self) -> u8 {
+            self.verbose
+        }
+    }
+
+    impl TracingConfigExt for TestConfig {
+        fn level(&self) -> Level {
+            self.level
+        }
+
+        fn enable_stdout(&self) -> bool {
+            false
+        }
+
+        fn directives(&self) -> Option<&String> {
+            self.directives.as_ref()
+        }
+    }
+
+    #[test]
+    fn test_to_path_buf() {
+        let path_str = String::from("/some/test/path");
+        let path_buf = to_path_buf(&path_str).unwrap();
+        assert_eq!(path_buf.to_str().unwrap(), "/some/test/path");
+    }
+
+    #[test]
+    fn test_clean_output_string() {
+        let input = "Hello,\tWorld!\nThis is a test.\r\x1b[31mRed Text\x1b[0m";
+        let (cleaned, width) = clean_output_string(input);
+        assert_eq!(cleaned, "Hello,   World! This is a test. Red Text");
+        assert_eq!(width, cleaned.width()); // Ensure width matches cleaned string
+    }
+
+    #[test]
+    fn test_send_parse_ts_ping() {
+        let origin = Instant::now();
+        let ping = send_ts_ping(origin);
+        let bytes = Bytes::from(ping.to_vec());
+        let duration = parse_ts_ping(&bytes);
+        assert!(duration.is_some());
+    }
+
+    #[test]
+    fn test_parse_ts_ping_invalid() {
+        let bytes = Bytes::from(vec![0u8; 10]); // Invalid length
+        let duration = parse_ts_ping(&bytes);
+        assert!(duration.is_none());
+    }
+}
