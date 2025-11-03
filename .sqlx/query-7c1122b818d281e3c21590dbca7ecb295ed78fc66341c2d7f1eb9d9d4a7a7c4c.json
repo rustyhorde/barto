@@ -1,0 +1,24 @@
+{
+  "db_name": "MySQL",
+  "query": "SELECT DISTINCT cmd_name FROM output_test WHERE bartoc_name = ? ORDER BY cmd_name",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "cmd_name",
+        "type_info": {
+          "type": "VarString",
+          "flags": "NOT_NULL",
+          "max_size": 1024
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "7c1122b818d281e3c21590dbca7ecb295ed78fc66341c2d7f1eb9d9d4a7a7c4c"
+}
