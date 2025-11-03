@@ -10,7 +10,7 @@ license = "MIT OR Apache-2.0"
 name = "barto"
 readme = "../README.md"
 repository = "https://github.com/rustyhorde/barto"
-version = "0.6.0"
+version = "0.6.1"
 rust-version = "1.89.0"
 
 [features]
@@ -25,7 +25,7 @@ getset = { workspace = true }
 iced = { version = "0.13.1", features = ["tokio"] }
 iced_aw = "0.12.2"
 iced_fonts = { version = "0.2.1", features = ["full"] }
-libbarto = { version = "0.6.0", path = "../libbarto" }
+libbarto = { version = "0.6.1", path = "../libbarto" }
 serde = { workspace = true }
 sqlx = { workspace = true, features = ["uuid"] }
 thiserror.workspace = true
