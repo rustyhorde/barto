@@ -298,6 +298,9 @@ mod test {
                 cmd_name: "list".to_string(),
             },
             BartoCli::Failed,
+            BartoCli::ListCommands {
+                name: "test_client".to_string(),
+            },
         ];
 
         for command in &commands {
