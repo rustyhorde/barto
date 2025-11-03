@@ -156,6 +156,30 @@ order by
         .collect::<Vec<String>>())
     }
 
+    async fn cmd_name_output(&self, name: &str) -> Result<Vec<String>> {
+        Ok(sqlx::query!(
+            "SELECT DISTINCT cmd_name FROM output WHERE bartoc_name = ? ORDER BY cmd_name",
+            name
+        )
+        .fetch_all(self.pool.as_ref())
+        .await?
+        .into_iter()
+        .map(|r| r.cmd_name)
+        .collect::<Vec<String>>())
+    }
+
+    async fn cmd_name_output_test(&self, name: &str) -> Result<Vec<String>> {
+        Ok(sqlx::query!(
+            "SELECT DISTINCT cmd_name FROM output_test WHERE bartoc_name = ? ORDER BY cmd_name",
+            name
+        )
+        .fetch_all(self.pool.as_ref())
+        .await?
+        .into_iter()
+        .map(|r| r.cmd_name)
+        .collect::<Vec<String>>())
+    }
+
     async fn cmd_name_data_output(&self, name: &str, cmd_name: &str) -> Result<Vec<ListOutput>> {
         let all_output = sqlx::query!(
             "SELECT
@@ -397,5 +421,12 @@ impl Queryable for MySqlHandler {
 
     async fn query(&self, query: &str) -> Result<BTreeMap<usize, BTreeMap<String, String>>> {
         self.query(query).await
+    }
+
+    async fn cmd_data(&self, config: &Config, name: &str) -> Result<Vec<String>> {
+        match config.mariadb().output_table() {
+            OutputTableName::Output => self.cmd_name_output(name).await,
+            OutputTableName::OutputTest => self.cmd_name_output_test(name).await,
+        }
     }
 }

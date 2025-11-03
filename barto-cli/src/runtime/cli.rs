@@ -181,7 +181,7 @@ pub(crate) enum Commands {
         name: String,
         /// The name of the command to list the output for
         #[clap(short, long, help = "The name of the command to list the output for")]
-        cmd_name: String,
+        cmd_name_opt: Option<String>,
     },
     #[clap(about = "List the jobs that failed")]
     Failed,

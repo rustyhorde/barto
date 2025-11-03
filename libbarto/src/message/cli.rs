@@ -45,6 +45,11 @@ pub enum BartoCli {
         /// The name of the command to list the output for
         cmd_name: String,
     },
+    /// List the commands for a given bartoc client
+    ListCommands {
+        /// The name of the bartoc client to list the commands for
+        name: String,
+    },
     /// A request to list the jobs that failed
     Failed,
 }
@@ -73,10 +78,14 @@ impl<Context> Decode<Context> for BartoCli {
                 let cmd_name: String = Decode::decode(decoder)?;
                 Ok(BartoCli::List { name, cmd_name })
             }
-            6 => Ok(BartoCli::Failed),
+            6 => {
+                let name: String = Decode::decode(decoder)?;
+                Ok(BartoCli::ListCommands { name })
+            }
+            7 => Ok(BartoCli::Failed),
             _ => Err(DecodeError::UnexpectedVariant {
                 type_name: "BartoCli",
-                allowed: &AllowedEnumVariants::Range { min: 0, max: 6 },
+                allowed: &AllowedEnumVariants::Range { min: 0, max: 7 },
                 found: variant,
             }),
         }
@@ -109,10 +118,14 @@ impl<'de, Context> BorrowDecode<'de, Context> for BartoCli {
                 let cmd_name: String = BorrowDecode::borrow_decode(decoder)?;
                 Ok(BartoCli::List { name, cmd_name })
             }
-            6 => Ok(BartoCli::Failed),
+            6 => {
+                let name: String = BorrowDecode::borrow_decode(decoder)?;
+                Ok(BartoCli::ListCommands { name })
+            }
+            7 => Ok(BartoCli::Failed),
             _ => Err(DecodeError::UnexpectedVariant {
                 type_name: "BartoCli",
-                allowed: &AllowedEnumVariants::Range { min: 0, max: 6 },
+                allowed: &AllowedEnumVariants::Range { min: 0, max: 7 },
                 found: variant,
             }),
         }
@@ -142,7 +155,11 @@ impl Encode for BartoCli {
                 name.encode(encoder)?;
                 cmd_name.encode(encoder)
             }
-            BartoCli::Failed => 6u32.encode(encoder),
+            BartoCli::ListCommands { name } => {
+                6u32.encode(encoder)?;
+                name.encode(encoder)
+            }
+            BartoCli::Failed => 7u32.encode(encoder),
         }
     }
 }

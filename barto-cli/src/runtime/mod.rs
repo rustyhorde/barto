@@ -111,14 +111,18 @@ where
             )?;
             Message::Binary(query.into())
         }
-        Commands::List { name, cmd_name } => {
-            let list = encode_to_vec(
-                BartoCli::List {
-                    name: name.clone(),
-                    cmd_name: cmd_name.clone(),
-                },
-                standard(),
-            )?;
+        Commands::List { name, cmd_name_opt } => {
+            let list = if let Some(cmd_name) = cmd_name_opt {
+                encode_to_vec(
+                    BartoCli::List {
+                        name: name.clone(),
+                        cmd_name: cmd_name.clone(),
+                    },
+                    standard(),
+                )?
+            } else {
+                encode_to_vec(BartoCli::ListCommands { name: name.clone() }, standard())?
+            };
             Message::Binary(list.into())
         }
         Commands::Failed => {

@@ -51,6 +51,9 @@ impl BinaryMessageHandler {
             BartoCli::List { name, cmd_name } => {
                 self.handle_list(&name, &cmd_name, session, queryable).await
             }
+            BartoCli::ListCommands { name } => {
+                self.handle_list_command(&name, session, queryable).await
+            }
             BartoCli::Failed => self.handle_failed(session, queryable).await,
         }
     }
@@ -110,6 +113,20 @@ impl BinaryMessageHandler {
             .collect::<HashMap<UuidWrapper, ClientData>>();
         let clients = BartosToBartoCli::Clients(mapped_clients);
         let encoded = encode_to_vec(&clients, standard())?;
+        session.binary(encoded).await?;
+        Ok(())
+    }
+
+    async fn handle_list_command<T: Queryable>(
+        &mut self,
+        name: &str,
+        session: &mut Session,
+        queryable: T,
+    ) -> Result<()> {
+        info!("received list commands for '{name}'");
+        let cmds: Vec<String> = queryable.cmd_data(self.config(), name).await?;
+        let msg = BartosToBartoCli::ListCommands(cmds);
+        let encoded = encode_to_vec(&msg, standard())?;
         session.binary(encoded).await?;
         Ok(())
     }

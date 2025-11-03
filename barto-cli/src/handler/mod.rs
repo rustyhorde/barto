@@ -73,6 +73,7 @@ impl Handler {
                 BartosToBartoCli::Query(map) => Self::handle_query(map),
                 BartosToBartoCli::List(list) => Self::handle_list(&list),
                 BartosToBartoCli::Failed(failed_output) => Self::handle_failed(&failed_output),
+                BartosToBartoCli::ListCommands(cmds) => Self::handle_list_commands(&cmds),
             },
         }
     }
@@ -391,6 +392,26 @@ impl Handler {
                         Err(_) => todo!(),
                     }
                 }
+            }
+        }
+    }
+
+    fn handle_list_commands(cmds: &[String]) {
+        if cmds.is_empty() {
+            println!(
+                "{} {}",
+                BOLD_GREEN.apply_to("Total commands:"),
+                BOLD_YELLOW.apply_to(0)
+            );
+        } else {
+            println!(
+                "{} {}",
+                BOLD_GREEN.apply_to("Total commands:"),
+                BOLD_YELLOW.apply_to(cmds.len())
+            );
+            println!();
+            for cmd in cmds {
+                println!("{}", BOLD_BLUE.apply_to(cmd));
             }
         }
     }

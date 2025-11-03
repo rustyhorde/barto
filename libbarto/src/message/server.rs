@@ -94,6 +94,8 @@ pub enum BartosToBartoCli {
     List(Vec<ListOutput>),
     /// Result of a failed command operation request
     Failed(Vec<FailedOutput>),
+    /// Result of a list commands operation
+    ListCommands(Vec<String>),
 }
 
 impl<Context> Decode<Context> for BartosToBartoCli {
@@ -133,9 +135,13 @@ impl<Context> Decode<Context> for BartosToBartoCli {
                 let failed_data: Vec<FailedOutput> = Decode::decode(decoder)?;
                 Ok(BartosToBartoCli::Failed(failed_data))
             }
+            8 => {
+                let list_commands_data: Vec<String> = Decode::decode(decoder)?;
+                Ok(BartosToBartoCli::ListCommands(list_commands_data))
+            }
             _ => Err(DecodeError::UnexpectedVariant {
                 type_name: "BartosToBartoCli",
-                allowed: &bincode::error::AllowedEnumVariants::Range { min: 0, max: 6 },
+                allowed: &bincode::error::AllowedEnumVariants::Range { min: 0, max: 8 },
                 found: variant,
             }),
         }
@@ -182,9 +188,13 @@ impl<'de, Context> BorrowDecode<'de, Context> for BartosToBartoCli {
                 let failed_data: Vec<FailedOutput> = BorrowDecode::borrow_decode(decoder)?;
                 Ok(BartosToBartoCli::Failed(failed_data))
             }
+            8 => {
+                let list_commands_data: Vec<String> = BorrowDecode::borrow_decode(decoder)?;
+                Ok(BartosToBartoCli::ListCommands(list_commands_data))
+            }
             _ => Err(DecodeError::UnexpectedVariant {
                 type_name: "BartosToBartoCli",
-                allowed: &bincode::error::AllowedEnumVariants::Range { min: 0, max: 6 },
+                allowed: &bincode::error::AllowedEnumVariants::Range { min: 0, max: 8 },
                 found: variant,
             }),
         }
@@ -225,6 +235,10 @@ impl Encode for BartosToBartoCli {
             BartosToBartoCli::Failed(failed_data) => {
                 7u32.encode(encoder)?;
                 failed_data.encode(encoder)
+            }
+            BartosToBartoCli::ListCommands(list_commands_data) => {
+                8u32.encode(encoder)?;
+                list_commands_data.encode(encoder)
             }
         }
     }
@@ -334,6 +348,21 @@ mod tests {
     #[test]
     fn test_bartos_to_bartocli_failed_roundtrip() {
         let original = BartosToBartoCli::Failed(vec![FailedOutput::mock()]);
+
+        let encoded = encode_to_vec(&original, standard()).unwrap();
+        let (decoded, _): (BartosToBartoCli, usize) =
+            decode_from_slice(&encoded, standard()).unwrap();
+        let (borrowed_decoded, _): (BartosToBartoCli, usize) =
+            borrow_decode_from_slice(&encoded, standard()).unwrap();
+
+        assert_eq!(original, decoded);
+        assert_eq!(original, borrowed_decoded);
+    }
+
+    #[test]
+    fn test_bartos_to_bartocli_list_commands_roundtrip() {
+        let original =
+            BartosToBartoCli::ListCommands(vec!["command1".to_string(), "command2".to_string()]);
 
         let encoded = encode_to_vec(&original, standard()).unwrap();
         let (decoded, _): (BartosToBartoCli, usize) =
