@@ -460,7 +460,8 @@ impl Handler {
                 let _res = term.clear_last_lines(1);
                 println!(
                     "{}",
-                    BOLD_YELLOW.apply_to("Press any key to continue, 'x' to exit...")
+                    BOLD_YELLOW
+                        .apply_to("Press any key to continue to next client, 'x' to exit...")
                 );
                 match term.read_key() {
                     Ok(key) => {
