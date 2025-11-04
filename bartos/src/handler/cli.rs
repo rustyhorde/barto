@@ -6,14 +6,14 @@
 // option. All files in the project carrying such notice may not be copied,
 // modified, or distributed except according to those terms.
 
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 
 use actix_web::web::{Bytes, Data};
 use actix_ws::Session;
 use anyhow::Result;
 use bincode::{config::standard, decode_from_slice, encode_to_vec};
 use bon::Builder;
-use libbarto::{BartoCli, BartosToBartoCli, CliUpdateKind, ClientData, UuidWrapper};
+use libbarto::{BartoCli, BartosToBartoCli, CliUpdateKind, ClientData, ListOutput, UuidWrapper};
 use tokio::sync::Mutex;
 use tracing::{info, trace};
 use vergen_pretty::{Pretty, PrettyExt, vergen_pretty_env};
@@ -55,6 +55,9 @@ impl BinaryMessageHandler {
                 self.handle_list_command(&name, session, queryable).await
             }
             BartoCli::Failed => self.handle_failed(session, queryable).await,
+            BartoCli::Cmd { cmd_name } => {
+                self.handle_command_all(&cmd_name, session, queryable).await
+            }
         }
     }
 
@@ -172,6 +175,21 @@ impl BinaryMessageHandler {
         info!("query returned {} rows", map.len());
         let query_result = BartosToBartoCli::Query(map);
         let encoded = encode_to_vec(&query_result, standard())?;
+        session.binary(encoded).await?;
+        Ok(())
+    }
+
+    async fn handle_command_all<T: Queryable>(
+        &mut self,
+        cmd_name: &str,
+        session: &mut Session,
+        queryable: T,
+    ) -> Result<()> {
+        info!("received list commands for '{cmd_name}'");
+        let cmds: BTreeMap<String, Vec<ListOutput>> =
+            queryable.cmd_data_by_name(self.config(), cmd_name).await?;
+        let msg = BartosToBartoCli::Cmd(cmds);
+        let encoded = encode_to_vec(&msg, standard())?;
         session.binary(encoded).await?;
         Ok(())
     }

@@ -71,9 +71,10 @@ impl Handler {
                 BartosToBartoCli::Cleanup(deleted) => Self::handle_cleanup(deleted),
                 BartosToBartoCli::Clients(clients) => Self::handle_clients(&clients),
                 BartosToBartoCli::Query(map) => Self::handle_query(map),
-                BartosToBartoCli::List(list) => Self::handle_list(&list),
+                BartosToBartoCli::List(list) => Self::handle_list(&list, false),
                 BartosToBartoCli::Failed(failed_output) => Self::handle_failed(&failed_output),
                 BartosToBartoCli::ListCommands(cmds) => Self::handle_list_commands(&cmds),
+                BartosToBartoCli::Cmd(cmd_output) => Self::handle_cmd_output(&cmd_output),
             },
         }
     }
@@ -236,7 +237,7 @@ impl Handler {
         }
     }
 
-    fn handle_list(list: &[ListOutput]) {
+    fn handle_list(list: &[ListOutput], extra: bool) {
         if list.is_empty() {
             println!(
                 "{} {}",
@@ -261,7 +262,11 @@ impl Handler {
             let digits = total.count_digits();
             let term = Term::stdout();
             let (height, width) = term.size_checked().unwrap_or((80, 24));
-            let print_height = usize::from(height) - 8;
+            let print_height = if extra {
+                usize::from(height) - 13
+            } else {
+                usize::from(height) - 8
+            };
             'outer: for (idx, output) in list.iter().enumerate() {
                 let output = output.timestamp().zip(output.data().clone()).map_or_else(
                     String::new,
@@ -412,6 +417,53 @@ impl Handler {
             println!();
             for cmd in cmds {
                 println!("{}", BOLD_BLUE.apply_to(cmd));
+            }
+        }
+    }
+
+    fn handle_cmd_output(cmd_output: &BTreeMap<String, Vec<ListOutput>>) {
+        if cmd_output.is_empty() {
+            println!(
+                "{} {}",
+                BOLD_GREEN.apply_to("Total outputs:"),
+                BOLD_YELLOW.apply_to(0)
+            );
+        } else {
+            for (bartoc_name, list) in cmd_output {
+                println!("{}",
+                    BOLD_BLUE.apply_to("################################################################################")
+                );
+                println!("{}", BOLD_BLUE.apply_to("#"));
+                println!(
+                    "#  {} {}",
+                    BOLD_GREEN.apply_to("Bartoc Name:"),
+                    BOLD_YELLOW.apply_to(bartoc_name)
+                );
+                println!("{}", BOLD_BLUE.apply_to("#"));
+                println!("{}",
+                    BOLD_BLUE.apply_to("################################################################################")
+                );
+                println!();
+                Self::handle_list(list, true);
+                println!();
+                println!(
+                    "{}",
+                    BOLD_YELLOW.apply_to("Press any key to continue, 'x' to exit...")
+                );
+                let term = Term::stdout();
+                let (height, _width) = term.size_checked().unwrap_or((80, 24));
+                let print_height = usize::from(height) - 13;
+                match term.read_key() {
+                    Ok(key) => {
+                        if key == Key::Char('x') {
+                            let _res = term.clear_last_lines(1);
+                            println!("{}", BOLD_YELLOW.apply_to("Exiting..."));
+                            break;
+                        }
+                        let _res = term.clear_last_lines(print_height + 2);
+                    }
+                    Err(_) => todo!(),
+                }
             }
         }
     }

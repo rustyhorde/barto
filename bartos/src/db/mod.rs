@@ -25,6 +25,11 @@ pub(crate) trait Queryable {
         name: &str,
     ) -> Result<UpdateKind>;
     async fn cmd_data(&self, config: &Config, name: &str) -> Result<Vec<String>>;
+    async fn cmd_data_by_name(
+        &self,
+        config: &Config,
+        cmd_name: &str,
+    ) -> Result<BTreeMap<String, Vec<ListOutput>>>;
     async fn cmd_name_data(
         &self,
         config: &Config,

@@ -356,6 +356,108 @@ where
         info!("deleting records older than: {midnight}");
         Ok(midnight)
     }
+
+    async fn cmd_output_by_name(
+        &self,
+        cmd_name: &str,
+    ) -> Result<BTreeMap<String, Vec<ListOutput>>> {
+        let all_output = sqlx::query!(
+            "SELECT
+  output.timestamp,
+  output.bartoc_name,
+  output.cmd_name,
+  output.data,
+  exit_status.exit_code,
+  exit_status.success
+FROM
+  output
+RIGHT JOIN
+  exit_status ON exit_status.cmd_uuid = output.cmd_uuid
+WHERE
+  output.cmd_name = ?
+ORDER BY
+  output.timestamp",
+            cmd_name
+        )
+        .fetch_all(self.pool.as_ref())
+        .await?
+        .into_iter()
+        .map(|r| {
+            (
+                r.bartoc_name.clone(),
+                ListOutput::builder()
+                    .maybe_timestamp(r.timestamp.map(OffsetDataTimeWrapper))
+                    .maybe_data(r.data)
+                    .exit_code(r.exit_code)
+                    .success(r.success)
+                    .build(),
+            )
+        })
+        .fold(
+            BTreeMap::new(),
+            |mut acc, (bartoc_name_opt, list_output)| {
+                if let Some(bartoc_name) = bartoc_name_opt {
+                    acc.entry(bartoc_name)
+                        .or_insert_with(Vec::new)
+                        .push(list_output);
+                }
+                acc
+            },
+        );
+
+        Ok(all_output)
+    }
+
+    async fn cmd_output_test_by_name(
+        &self,
+        cmd_name: &str,
+    ) -> Result<BTreeMap<String, Vec<ListOutput>>> {
+        let all_output = sqlx::query!(
+            "SELECT
+  output.timestamp,
+  output.bartoc_name,
+  output.cmd_name,
+  output.data,
+  exit_status.exit_code,
+  exit_status.success
+FROM
+  output
+RIGHT JOIN
+  exit_status ON exit_status.cmd_uuid = output.cmd_uuid
+WHERE
+  output.cmd_name = ?
+ORDER BY
+  output.timestamp",
+            cmd_name
+        )
+        .fetch_all(self.pool.as_ref())
+        .await?
+        .into_iter()
+        .map(|r| {
+            (
+                r.bartoc_name.clone(),
+                ListOutput::builder()
+                    .maybe_timestamp(r.timestamp.map(OffsetDataTimeWrapper))
+                    .maybe_data(r.data)
+                    .exit_code(r.exit_code)
+                    .success(r.success)
+                    .build(),
+            )
+        })
+        .fold(
+            BTreeMap::new(),
+            |mut acc, (bartoc_name_opt, list_output)| {
+                if let Some(bartoc_name) = bartoc_name_opt {
+                    acc.entry(bartoc_name)
+                        .or_insert_with(Vec::new)
+                        .push(list_output);
+                }
+                acc
+            },
+        );
+
+        Ok(all_output)
+    }
 }
 
 impl Queryable for MySqlHandler {
@@ -427,6 +529,17 @@ impl Queryable for MySqlHandler {
         match config.mariadb().output_table() {
             OutputTableName::Output => self.cmd_name_output(name).await,
             OutputTableName::OutputTest => self.cmd_name_output_test(name).await,
+        }
+    }
+
+    async fn cmd_data_by_name(
+        &self,
+        config: &Config,
+        cmd_name: &str,
+    ) -> Result<BTreeMap<String, Vec<ListOutput>>> {
+        match config.mariadb().output_table() {
+            OutputTableName::Output => self.cmd_output_by_name(cmd_name).await,
+            OutputTableName::OutputTest => self.cmd_output_test_by_name(cmd_name).await,
         }
     }
 }

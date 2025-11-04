@@ -129,6 +129,15 @@ where
             let failed = encode_to_vec(BartoCli::Failed, standard())?;
             Message::Binary(failed.into())
         }
+        Commands::Cmd { cmd_name } => {
+            let info = encode_to_vec(
+                BartoCli::Cmd {
+                    cmd_name: cmd_name.clone(),
+                },
+                standard(),
+            )?;
+            Message::Binary(info.into())
+        }
     };
     sink.send(message).await?;
     trace!("message sent");
