@@ -291,10 +291,19 @@ impl Handler {
                 println!("{output}");
                 if idx > 0 && (idx + 1) % print_height == 0 {
                     println!();
-                    println!(
-                        "{}",
-                        BOLD_YELLOW.apply_to("Press any key to continue, 'x' to exit...")
-                    );
+                    if extra {
+                        println!(
+                            "{}",
+                            BOLD_YELLOW.apply_to(
+                                "Press any key to continue, 'x' to move to next client..."
+                            )
+                        );
+                    } else {
+                        println!(
+                            "{}",
+                            BOLD_YELLOW.apply_to("Press any key to continue, 'x' to exit...")
+                        );
+                    }
                     match term.read_key() {
                         Ok(key) => {
                             if key == Key::Char('x') {
@@ -445,14 +454,14 @@ impl Handler {
                 );
                 println!();
                 Self::handle_list(list, true);
-                println!();
+                let term = Term::stdout();
+                let (height, _width) = term.size_checked().unwrap_or((80, 24));
+                let print_height = usize::from(height) - 13;
+                let _res = term.clear_last_lines(1);
                 println!(
                     "{}",
                     BOLD_YELLOW.apply_to("Press any key to continue, 'x' to exit...")
                 );
-                let term = Term::stdout();
-                let (height, _width) = term.size_checked().unwrap_or((80, 24));
-                let print_height = usize::from(height) - 13;
                 match term.read_key() {
                     Ok(key) => {
                         if key == Key::Char('x') {
