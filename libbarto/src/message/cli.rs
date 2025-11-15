@@ -45,8 +45,18 @@ pub enum BartoCli {
         /// The name of the command to list the output for
         cmd_name: String,
     },
+    /// List the commands for a given bartoc client
+    ListCommands {
+        /// The name of the bartoc client to list the commands for
+        name: String,
+    },
     /// A request to list the jobs that failed
     Failed,
+    /// A request to display output for the given command name across all clients
+    Cmd {
+        /// The name of the command to display output for
+        cmd_name: String,
+    },
 }
 
 impl<Context> Decode<Context> for BartoCli {
@@ -73,10 +83,18 @@ impl<Context> Decode<Context> for BartoCli {
                 let cmd_name: String = Decode::decode(decoder)?;
                 Ok(BartoCli::List { name, cmd_name })
             }
-            6 => Ok(BartoCli::Failed),
+            6 => {
+                let name: String = Decode::decode(decoder)?;
+                Ok(BartoCli::ListCommands { name })
+            }
+            7 => Ok(BartoCli::Failed),
+            8 => {
+                let cmd_name: String = Decode::decode(decoder)?;
+                Ok(BartoCli::Cmd { cmd_name })
+            }
             _ => Err(DecodeError::UnexpectedVariant {
                 type_name: "BartoCli",
-                allowed: &AllowedEnumVariants::Range { min: 0, max: 6 },
+                allowed: &AllowedEnumVariants::Range { min: 0, max: 8 },
                 found: variant,
             }),
         }
@@ -109,10 +127,18 @@ impl<'de, Context> BorrowDecode<'de, Context> for BartoCli {
                 let cmd_name: String = BorrowDecode::borrow_decode(decoder)?;
                 Ok(BartoCli::List { name, cmd_name })
             }
-            6 => Ok(BartoCli::Failed),
+            6 => {
+                let name: String = BorrowDecode::borrow_decode(decoder)?;
+                Ok(BartoCli::ListCommands { name })
+            }
+            7 => Ok(BartoCli::Failed),
+            8 => {
+                let cmd_name: String = BorrowDecode::borrow_decode(decoder)?;
+                Ok(BartoCli::Cmd { cmd_name })
+            }
             _ => Err(DecodeError::UnexpectedVariant {
                 type_name: "BartoCli",
-                allowed: &AllowedEnumVariants::Range { min: 0, max: 6 },
+                allowed: &AllowedEnumVariants::Range { min: 0, max: 8 },
                 found: variant,
             }),
         }
@@ -142,7 +168,15 @@ impl Encode for BartoCli {
                 name.encode(encoder)?;
                 cmd_name.encode(encoder)
             }
-            BartoCli::Failed => 6u32.encode(encoder),
+            BartoCli::ListCommands { name } => {
+                6u32.encode(encoder)?;
+                name.encode(encoder)
+            }
+            BartoCli::Failed => 7u32.encode(encoder),
+            BartoCli::Cmd { cmd_name } => {
+                8u32.encode(encoder)?;
+                cmd_name.encode(encoder)
+            }
         }
     }
 }
@@ -281,6 +315,12 @@ mod test {
                 cmd_name: "list".to_string(),
             },
             BartoCli::Failed,
+            BartoCli::ListCommands {
+                name: "test_client".to_string(),
+            },
+            BartoCli::Cmd {
+                cmd_name: "status".to_string(),
+            },
         ];
 
         for command in &commands {
