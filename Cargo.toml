@@ -35,7 +35,7 @@ tokio-tungstenite = { version = "0.28.0", features = [
   "rustls-tls-webpki-roots",
 ] }
 tokio-util = "0.7.16"
-tracing = { version = "0.1.41", features = [
+tracing = { version = "0.1.43", features = [
   "max_level_trace",
   "release_max_level_trace",
 ] }
