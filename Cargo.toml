@@ -4,12 +4,12 @@ resolver = "3"
 members = ["barto", "barto-cli", "bartoc", "bartos", "libbarto"]
 
 [workspace.dependencies]
-actix-web = "4.12.0"
+actix-web = "4.12.1"
 anyhow = "1.0.100"
 bincode = "2.0.1"
 bon = "3.8.1"
 bytes = "1.11.0"
-clap = { version = "4.5.52", features = ["derive"] }
+clap = { version = "4.5.53", features = ["derive"] }
 config = { version = "0.15.19", features = ["toml"] }
 dirs2 = "3.0.1"
 futures-util = { version = "0.3.31", default-features = false, features = [
@@ -35,12 +35,12 @@ tokio-tungstenite = { version = "0.28.0", features = [
   "rustls-tls-webpki-roots",
 ] }
 tokio-util = "0.7.17"
-tracing = { version = "0.1.41", features = [
+tracing = { version = "0.1.43", features = [
   "max_level_trace",
   "release_max_level_trace",
 ] }
 tracing-subscriber-init = { version = "0.2.3", features = ["tstime"] }
-uuid = { version = "1.18.1", features = ["v4"] }
+uuid = { version = "1.19.0", features = ["v4"] }
 vergen-gix = { version = "2.1.0-beta.6", features = [
   "build",
   "cargo",
