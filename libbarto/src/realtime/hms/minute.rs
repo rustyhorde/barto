@@ -280,7 +280,7 @@ pub(crate) mod test {
     use super::{MINUTE_RANGE_RE, MINUTE_REPETITION_RE, Minute, MinuteOfHour};
 
     pub(crate) static VALID_MINUTE_RE: LazyLock<regex::Regex> =
-        LazyLock::new(|| regex::Regex::new(r"^\+?(0|0?[1-9]|[1-5][0-9])$").unwrap());
+        LazyLock::new(|| regex::Regex::new(r"^\+?(0|0?[0-9]|[1-5][0-9])$").unwrap());
 
     // Valid strategy generators
     prop_compose! {
