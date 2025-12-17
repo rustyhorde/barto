@@ -23,7 +23,7 @@ bon = { workspace = true }
 bytes = { workspace = true }
 clap = { workspace = true }
 config = { workspace = true }
-console = "0.16.1"
+console = "0.16.2"
 dirs2 = { workspace = true }
 getset = { workspace = true }
 num-traits = "0.2.19"
