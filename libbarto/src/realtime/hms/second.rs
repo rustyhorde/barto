@@ -280,7 +280,7 @@ pub(crate) mod test {
     use super::{SECOND_RANGE_RE, SECOND_REPETITION_RE, Second, SecondOfMinute};
 
     pub(crate) static VALID_SECOND_RE: LazyLock<regex::Regex> =
-        LazyLock::new(|| regex::Regex::new(r"^\+?(0|0?[1-9]|[1-5][0-9])$").unwrap());
+        LazyLock::new(|| regex::Regex::new(r"^\+?(0|0?[0-9]|[1-5][0-9])$").unwrap());
 
     // Valid strategy generators
     prop_compose! {
