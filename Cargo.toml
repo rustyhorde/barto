@@ -6,7 +6,7 @@ members = ["barto", "barto-cli", "bartoc", "bartos", "libbarto"]
 [workspace.dependencies]
 actix-web = "4.12.1"
 anyhow = "1.0.100"
-bincode = "=2.0.1"
+bincode = "=3.0.0"
 bon = "3.8.1"
 bytes = "1.11.0"
 clap = { version = "4.5.54", features = ["derive"] }
