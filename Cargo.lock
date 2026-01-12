@@ -652,7 +652,7 @@ name = "barto-cli"
 version = "1.0.0"
 dependencies = [
  "anyhow",
- "bincode",
+ "bincode 3.0.0",
  "bon",
  "clap",
  "config",
@@ -677,7 +677,7 @@ name = "bartoc"
 version = "1.0.0"
 dependencies = [
  "anyhow",
- "bincode",
+ "bincode 3.0.0",
  "bon",
  "clap",
  "config",
@@ -705,7 +705,7 @@ dependencies = [
  "actix-web",
  "actix-ws",
  "anyhow",
- "bincode",
+ "bincode 3.0.0",
  "bon",
  "clap",
  "config",
@@ -751,6 +751,12 @@ dependencies = [
  "serde",
  "unty",
 ]
+
+[[package]]
+name = "bincode"
+version = "3.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fd6a120d2e16b3e1b4a24bd70f23b12d3e16b81f113364a26935f8db7245452d"
 
 [[package]]
 name = "bincode_derive"
@@ -3926,7 +3932,7 @@ name = "libbarto"
 version = "1.0.0"
 dependencies = [
  "anyhow",
- "bincode",
+ "bincode 3.0.0",
  "bon",
  "bytes",
  "clap",
@@ -7061,7 +7067,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5e4cff9c31e91649c2cf912972ff1ab66e6d77cbdb0278376b58b56becaeaee9"
 dependencies = [
  "anyhow",
- "bincode",
+ "bincode 2.0.1",
  "bon",
  "console",
  "convert_case 0.10.0",
