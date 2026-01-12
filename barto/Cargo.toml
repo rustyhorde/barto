@@ -24,7 +24,7 @@ config = { workspace = true }
 getset = { workspace = true }
 iced = { version = "0.13.1", features = ["tokio"] }
 iced_aw = "0.12.2"
-iced_fonts = { version = "0.2.1", features = ["full"] }
+iced_fonts = { version = "0.3.0", features = ["full"] }
 libbarto = { version = "1.0.0", path = "../libbarto" }
 serde = { workspace = true }
 sqlx = { workspace = true, features = ["uuid"] }
