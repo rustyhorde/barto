@@ -29,7 +29,7 @@ sqlx = { version = "0.8.6", features = [
 ] }
 sysinfo = { version = "0.37.2", features = ["serde", "windows"] }
 thiserror = "2.0.17"
-time = "0.3.44"
+time = "0.3.45"
 tokio = { version = "1.49.0", features = ["macros", "rt-multi-thread"] }
 tokio-tungstenite = { version = "0.28.0", features = [
   "rustls-tls-webpki-roots",
