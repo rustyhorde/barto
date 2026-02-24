@@ -16,7 +16,7 @@ use std::{
 
 use anyhow::{Error, Result};
 use num_traits::{Bounded, FromPrimitive, One, ToPrimitive, Zero};
-use rand::{Rng as _, rng};
+use rand::{RngExt as _, rng};
 use regex::Regex;
 
 use crate::{
@@ -272,7 +272,7 @@ pub(crate) mod test {
         prelude::{any, proptest},
         prop_assume, prop_compose,
     };
-    use rand::{Rng as _, rng};
+    use rand::{RngExt as _, rng};
     use regex::Regex;
 
     use crate::realtime::cv::ConstrainedValueMatcher as _;

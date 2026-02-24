@@ -11,7 +11,7 @@
 use crate::TracingConfigExt;
 use anyhow::Result;
 use console::Style;
-use rand::Rng;
+use rand::RngExt as _;
 use std::io::Write;
 use tracing::Level;
 use vergen_pretty::{Prefix, Pretty, vergen_pretty_env};
