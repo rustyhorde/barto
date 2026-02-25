@@ -4,20 +4,20 @@ resolver = "3"
 members = ["barto", "barto-cli", "bartoc", "bartos", "libbarto"]
 
 [workspace.dependencies]
-actix-web = "4.12.1"
-anyhow = "1.0.100"
+actix-web = "4.13.0"
+anyhow = "1.0.102"
 bincode = "=2.0.1"
-bon = "3.8.1"
-bytes = "1.11.0"
-clap = { version = "4.5.54", features = ["derive"] }
+bon = "3.9.0"
+bytes = "1.11.1"
+clap = { version = "4.5.60", features = ["derive"] }
 config = { version = "0.15.19", features = ["toml"] }
 dirs2 = "3.0.1"
-futures-util = { version = "0.3.31", default-features = false, features = [
+futures-util = { version = "0.3.32", default-features = false, features = [
   "std",
 ] }
 getset = "0.1.6"
 redb = "3.1.0"
-rustls = { version = "0.23.36" }
+rustls = { version = "0.23.37" }
 rustversion = "1.0.22"
 serde = { version = "1.0.228", features = ["derive"] }
 sqlx = { version = "0.8.6", features = [
@@ -27,9 +27,9 @@ sqlx = { version = "0.8.6", features = [
   "tls-rustls-aws-lc-rs",
   "uuid",
 ] }
-sysinfo = { version = "0.37.2", features = ["serde", "windows"] }
-thiserror = "2.0.17"
-time = "0.3.44"
+sysinfo = { version = "0.38.2", features = ["serde", "windows"] }
+thiserror = "2.0.18"
+time = "0.3.47"
 tokio = { version = "1.49.0", features = ["macros", "rt-multi-thread"] }
 tokio-tungstenite = { version = "0.28.0", features = [
   "rustls-tls-webpki-roots",
@@ -40,7 +40,7 @@ tracing = { version = "0.1.44", features = [
   "release_max_level_trace",
 ] }
 tracing-subscriber-init = { version = "0.2.3", features = ["tstime"] }
-uuid = { version = "1.19.0", features = ["v4"] }
+uuid = { version = "1.21.0", features = ["v4"] }
 vergen-gix = { version = "10.0.0-beta.5", features = [
   "build",
   "cargo",

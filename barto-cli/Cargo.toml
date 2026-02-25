@@ -22,7 +22,7 @@ bincode = { workspace = true }
 bon = { workspace = true }
 clap = { workspace = true }
 config = { workspace = true }
-console = "0.16.1"
+console = "0.16.2"
 count-digits = "0.5.1"
 futures-util = { workspace = true }
 getset = { workspace = true }
