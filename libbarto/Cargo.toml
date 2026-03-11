@@ -60,7 +60,7 @@ unexpected_cfgs = { level = "warn", check-cfg = ['cfg(coverage,coverage_nightly)
 [dev-dependencies]
 proptest = "1.10.0"
 rand = "0.10.0"
-tempfile = "3.26.0"
+tempfile = "3.27.0"
 
 [package.metadata.docs.rs]
 all-features = true
