@@ -58,7 +58,7 @@ vergen-gix = { workspace = true }
 unexpected_cfgs = { level = "warn", check-cfg = ['cfg(coverage,coverage_nightly)'] }
 
 [dev-dependencies]
-proptest = "1.10.0"
+proptest = "1.11.0"
 rand = "0.10.0"
 tempfile = "3.27.0"
 
