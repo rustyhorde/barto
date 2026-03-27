@@ -51,6 +51,24 @@ impl Handler {
         Ok(())
     }
 
+    pub(crate) async fn wait_for_close(&mut self) {
+        select! {
+            () = sleep(Duration::from_millis(200)) => {
+                trace!("close ack timeout");
+            }
+            () = async {
+                while let Some(msg) = self.stream.next().await {
+                    match msg {
+                        Ok(Message::Close(_)) | Err(_) => break,
+                        _ => {}
+                    }
+                }
+            } => {
+                trace!("close acknowledged");
+            }
+        }
+    }
+
     fn handle_message(msg_opt_res: WsMessage) -> Result<()> {
         let msg = msg_opt_res.ok_or(Error::InvalidMessage)??;
         if let Message::Binary(bytes) = &msg {

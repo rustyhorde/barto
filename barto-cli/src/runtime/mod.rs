@@ -11,7 +11,6 @@ mod cli;
 use std::{
     ffi::OsString,
     io::{Write, stdout},
-    time::Duration,
 };
 
 use anyhow::{Context as _, Result};
@@ -19,7 +18,6 @@ use bincode::{config::standard, encode_to_vec};
 use clap::Parser as _;
 use futures_util::{SinkExt as _, StreamExt as _};
 use libbarto::{BartoCli, CliUpdateKind, header, init_tracing, load};
-use tokio::time::sleep;
 use tokio_tungstenite::{connect_async, tungstenite::Message};
 use tracing::trace;
 
@@ -144,9 +142,8 @@ where
 
     handler.handle().await?;
 
-    sleep(Duration::from_secs(1)).await;
     sink.send(Message::Close(None)).await?;
-    trace!("connection closed");
-    sleep(Duration::from_secs(1)).await;
+    trace!("close sent");
+    handler.wait_for_close().await;
     Ok(())
 }

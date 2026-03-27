@@ -53,28 +53,38 @@ pub(crate) async fn cli(
                     break;
                 }
                 res_opt = agms.next() => {
-                    if let Some(Ok(msg)) = res_opt {
-                        match msg {
-                            AggregatedMessage::Text(_byte_string) => error!("unexpected text message"),
-                            AggregatedMessage::Binary(bytes) => if let Err(e) = handler.handle(bytes, &mut ws_session, queryable.clone()).await {
-                                error!("{e}");
-                            },
-                            AggregatedMessage::Ping(_bytes) => error!("unexpected ping message"),
-                            AggregatedMessage::Pong(_bytes) => error!("unexpected pong message"),
-                            AggregatedMessage::Close(close_reason) => {
-                                trace!("handling close message");
-                                if let Some(cr) = &close_reason {
-                                    let code = u16::from(cr.code);
-                                    if let Some(desc) = &cr.description {
-                                        trace!("close reason: code={code} reason={desc}");
+                    match res_opt {
+                        Some(Ok(msg)) => {
+                            match msg {
+                                AggregatedMessage::Text(_byte_string) => error!("unexpected text message"),
+                                AggregatedMessage::Binary(bytes) => if let Err(e) = handler.handle(bytes, &mut ws_session, queryable.clone()).await {
+                                    error!("{e}");
+                                },
+                                AggregatedMessage::Ping(_bytes) => error!("unexpected ping message"),
+                                AggregatedMessage::Pong(_bytes) => error!("unexpected pong message"),
+                                AggregatedMessage::Close(close_reason) => {
+                                    trace!("handling close message");
+                                    if let Some(cr) = &close_reason {
+                                        let code = u16::from(cr.code);
+                                        if let Some(desc) = &cr.description {
+                                            trace!("close reason: code={code} reason={desc}");
+                                        } else {
+                                            trace!("close reason: code={code} no reason given");
+                                        }
                                     } else {
-                                        trace!("close reason: code={code} no reason given");
+                                        trace!("close reason: none");
                                     }
-                                } else {
-                                    trace!("close reason: none");
+                                    break;
                                 }
-                                break;
                             }
+                        }
+                        Some(Err(e)) => {
+                            error!("websocket error: {e}");
+                            break;
+                        }
+                        None => {
+                            trace!("websocket stream closed");
+                            break;
                         }
                     }
                 }
