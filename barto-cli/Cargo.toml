@@ -27,6 +27,7 @@ count-digits = "0.5.1"
 futures-util = { workspace = true }
 getset = { workspace = true }
 libbarto = { version = "1.0.0", path = "../libbarto" }
+rustls = { workspace = true }
 serde = { workspace = true }
 thiserror = { workspace = true }
 tokio = { workspace = true, features = [
@@ -40,6 +41,7 @@ tokio-tungstenite = { workspace = true }
 tracing = { workspace = true }
 tracing-subscriber-init = { workspace = true }
 vergen-pretty = { workspace = true }
+webpki-roots = { workspace = true }
 
 [build-dependencies]
 anyhow = { workspace = true }

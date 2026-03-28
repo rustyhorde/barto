@@ -356,28 +356,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c08606f8c3cbf4ce6ec8e28fb0014a2c086708fe954eaa885384a6165172e7e8"
 
 [[package]]
-name = "aws-lc-rs"
-version = "1.16.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a054912289d18629dc78375ba2c3726a3afe3ff71b4edba9dedfca0e3446d1fc"
-dependencies = [
- "aws-lc-sys",
- "zeroize",
-]
-
-[[package]]
-name = "aws-lc-sys"
-version = "0.39.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1fa7e52a4c5c547c741610a2c6f123f3881e409b714cd27e6798ef020c514f0a"
-dependencies = [
- "cc",
- "cmake",
- "dunce",
- "fs_extra",
-]
-
-[[package]]
 name = "barto-cli"
 version = "1.0.0"
 dependencies = [
@@ -391,6 +369,7 @@ dependencies = [
  "futures-util",
  "getset",
  "libbarto",
+ "rustls",
  "rustversion",
  "serde",
  "thiserror 2.0.18",
@@ -400,6 +379,7 @@ dependencies = [
  "tracing-subscriber-init",
  "vergen-gix",
  "vergen-pretty",
+ "webpki-roots 0.26.11",
 ]
 
 [[package]]
@@ -416,6 +396,7 @@ dependencies = [
  "getset",
  "libbarto",
  "redb",
+ "rustls",
  "rustversion",
  "serde",
  "thiserror 2.0.18",
@@ -426,6 +407,7 @@ dependencies = [
  "tracing",
  "tracing-subscriber-init",
  "uuid",
+ "webpki-roots 0.26.11",
 ]
 
 [[package]]
@@ -690,15 +672,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "197fd99cb113a8d5d9b6376f3aa817f32c1078f2343b714fff7d2ca44fdf67d5"
 dependencies = [
  "hashbrown 0.16.1",
-]
-
-[[package]]
-name = "cmake"
-version = "0.1.58"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c0f78a02292a74a88ac736019ab962ece0bc380e3f977bf72e376c5d78ff0678"
-dependencies = [
- "cc",
 ]
 
 [[package]]
@@ -1207,12 +1180,6 @@ checksum = "cb4cb245038516f5f85277875cdaa4f7d2c9a0fa0468de06ed190163b1581fcf"
 dependencies = [
  "percent-encoding",
 ]
-
-[[package]]
-name = "fs_extra"
-version = "1.3.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "42703706b716c37f96a77aea830392ad231f44c9e9a67872fa5548707e11b11c"
 
 [[package]]
 name = "futures-channel"
@@ -3426,9 +3393,8 @@ version = "0.23.37"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "758025cb5fccfd3bc2fd74708fd4682be41d99e5dff73c377c0646c6012c73a4"
 dependencies = [
- "aws-lc-rs",
- "log",
  "once_cell",
+ "ring",
  "rustls-pki-types",
  "rustls-webpki",
  "subtle",
@@ -3450,7 +3416,6 @@ version = "0.103.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "df33b2b81ac578cabaf06b89b0631153a3f416b0a886e8a7a1707fb51abbd1ef"
 dependencies = [
- "aws-lc-rs",
  "ring",
  "rustls-pki-types",
  "untrusted",
@@ -4214,7 +4179,6 @@ dependencies = [
  "tokio",
  "tokio-rustls",
  "tungstenite",
- "webpki-roots 0.26.11",
 ]
 
 [[package]]

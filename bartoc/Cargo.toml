@@ -27,6 +27,7 @@ futures-util = { workspace = true }
 getset = { workspace = true }
 libbarto = { version = "1.0.0", path = "../libbarto" }
 redb = { workspace = true }
+rustls = { workspace = true }
 serde = { workspace = true }
 thiserror = { workspace = true }
 time = { workspace = true }
@@ -36,6 +37,7 @@ tokio-util = { workspace = true }
 tracing = { workspace = true }
 tracing-subscriber-init = { workspace = true }
 uuid = { workspace = true }
+webpki-roots = { workspace = true }
 
 [build-dependencies]
 rustversion = { workspace = true }

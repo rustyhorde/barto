@@ -33,7 +33,7 @@ use tokio::{
     time::sleep,
 };
 use tokio_tungstenite::{
-    MaybeTlsStream, WebSocketStream, connect_async,
+    Connector, MaybeTlsStream, WebSocketStream, connect_async_tls_with_config,
     tungstenite::{Message, protocol::frame::coding::CloseCode},
 };
 use tokio_util::sync::CancellationToken;
@@ -108,7 +108,9 @@ where
                 config.name()
             );
             trace!("connecting to bartos at {url}");
-            let (ws_stream, _) = connect_async(&url).await?;
+            let (ws_stream, _) =
+                connect_async_tls_with_config(&url, None, false, Some(make_tls_connector()))
+                    .await?;
             trace!("websocket connected");
             retry_count = *config.retry_count(); // reset retry count on successful connection
             error_count = 0; // reset error count on successful connection
@@ -177,6 +179,16 @@ where
     }
 
     Ok(())
+}
+
+fn make_tls_connector() -> Connector {
+    use rustls::{ClientConfig, RootCertStore};
+    let mut root_store = RootCertStore::empty();
+    root_store.extend(webpki_roots::TLS_SERVER_ROOTS.iter().cloned());
+    let config = ClientConfig::builder()
+        .with_root_certificates(root_store)
+        .with_no_client_auth();
+    Connector::Rustls(Arc::new(config))
 }
 
 async fn setup_handler(

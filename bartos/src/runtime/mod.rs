@@ -24,7 +24,7 @@ use actix_web::{
 use anyhow::{Context, Result};
 use clap::Parser;
 use libbarto::{header, init_tracing, load, load_tls_config};
-use rustls::crypto::aws_lc_rs::default_provider;
+use rustls::crypto::ring::default_provider;
 use sqlx::MySqlPool;
 #[cfg(unix)]
 use tokio::signal::unix::{SignalKind, signal};
