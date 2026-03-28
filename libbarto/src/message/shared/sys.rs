@@ -8,7 +8,7 @@
 
 use std::fmt::{self, Display, Formatter};
 
-use bincode::{
+use bincode_next::{
     BorrowDecode, Decode, Encode,
     de::{BorrowDecoder, Decoder},
     enc::Encoder,
@@ -160,7 +160,9 @@ mod test {
     use super::{BartocInfo, ClientData};
 
     use anyhow::Result;
-    use bincode::{borrow_decode_from_slice, config::standard, decode_from_slice, encode_to_vec};
+    use bincode_next::{
+        borrow_decode_from_slice, config::standard, decode_from_slice, encode_to_vec,
+    };
 
     #[test]
     fn test_bartoc_info_encode_decode() -> Result<()> {

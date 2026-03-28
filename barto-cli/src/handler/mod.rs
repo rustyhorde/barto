@@ -13,7 +13,7 @@ use std::{
 };
 
 use anyhow::Result;
-use bincode::{config::standard, decode_from_slice};
+use bincode_next::{config::standard, decode_from_slice};
 use bon::Builder;
 use console::{Key, Style, Term};
 use count_digits::CountDigits;

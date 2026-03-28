@@ -15,7 +15,7 @@ use std::{
 };
 
 use anyhow::{Context as _, Result};
-use bincode::{config::standard, encode_to_vec};
+use bincode_next::{config::standard, encode_to_vec};
 use clap::Parser as _;
 use futures_util::{SinkExt as _, StreamExt as _};
 use libbarto::{BartoCli, CliUpdateKind, header, init_tracing, load};

@@ -7,7 +7,7 @@
 // modified, or distributed except according to those terms.
 
 use anyhow::Result;
-use bincode::{
+use bincode_next::{
     config::{Configuration, standard},
     decode_from_slice,
 };

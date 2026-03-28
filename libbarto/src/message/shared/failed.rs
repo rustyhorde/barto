@@ -6,7 +6,7 @@
 // option. All files in the project carrying such notice may not be copied,
 // modified, or distributed except according to those terms.
 
-use bincode::{
+use bincode_next::{
     BorrowDecode, Decode, Encode,
     de::{BorrowDecoder, Decoder},
     enc::Encoder,
@@ -102,7 +102,7 @@ mod test {
 
     use crate::utils::Mock;
     use anyhow::Result;
-    use bincode::{config::standard, decode_from_slice, encode_to_vec};
+    use bincode_next::{config::standard, decode_from_slice, encode_to_vec};
 
     #[test]
     fn test_failed_output_encode_decode() -> Result<()> {
@@ -112,7 +112,7 @@ mod test {
         let encoded = encode_to_vec(&original, standard())?;
         let (decoded, _): (FailedOutput, usize) = decode_from_slice(&encoded, standard())?;
         let (borrow_decoded, _): (FailedOutput, usize) =
-            bincode::borrow_decode_from_slice(&encoded, standard())?;
+            bincode_next::borrow_decode_from_slice(&encoded, standard())?;
 
         assert_eq!(original, decoded);
         assert_eq!(original, borrow_decoded);

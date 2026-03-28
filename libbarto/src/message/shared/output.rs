@@ -8,7 +8,7 @@
 
 use std::fmt::{Display, Formatter};
 
-use bincode::{
+use bincode_next::{
     BorrowDecode, Decode, Encode,
     de::{BorrowDecoder, Decoder},
     enc::Encoder,
@@ -342,7 +342,7 @@ impl Display for Status {
 #[cfg(test)]
 mod tests {
     use anyhow::Result;
-    use bincode::{
+    use bincode_next::{
         borrow_decode_from_slice, config::standard, decode_from_slice, encode_to_vec,
         error::DecodeError,
     };

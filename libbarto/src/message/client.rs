@@ -6,7 +6,7 @@
 // option. All files in the project carrying such notice may not be copied,
 // modified, or distributed except according to those terms.
 
-use bincode::{
+use bincode_next::{
     BorrowDecode, Decode, Encode,
     de::{BorrowDecoder, Decoder},
     enc::Encoder,
@@ -170,7 +170,9 @@ mod tests {
     use super::{Bartoc, BartocWs};
 
     use crate::{BartocInfo, Data, Output, utils::Mock as _};
-    use bincode::{borrow_decode_from_slice, config::standard, decode_from_slice, encode_to_vec};
+    use bincode_next::{
+        borrow_decode_from_slice, config::standard, decode_from_slice, encode_to_vec,
+    };
 
     #[test]
     fn test_bartoc_ws_encode_decode() {

@@ -8,7 +8,7 @@
 
 use std::fmt::{Display, Formatter};
 
-use bincode::{Decode, Encode};
+use bincode_next::{Decode, Encode};
 use bon::Builder;
 use getset::CopyGetters;
 use libbarto::{OffsetDataTimeWrapper, Status, UuidWrapper};

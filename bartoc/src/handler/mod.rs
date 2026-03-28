@@ -17,7 +17,7 @@ use std::{
 };
 
 use anyhow::{Result, anyhow};
-use bincode::{Decode, Encode, config::standard, encode_to_vec};
+use bincode_next::{Decode, Encode, config::standard, encode_to_vec};
 use bon::Builder;
 use futures_util::{SinkExt as _, stream::SplitSink};
 use libbarto::{

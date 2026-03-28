@@ -13,7 +13,7 @@ use actix_web::{
     web::{Bytes, Data, Payload, Query},
 };
 use actix_ws::{AggregatedMessage, Session, handle};
-use bincode::{config::standard, decode_from_slice, encode_to_vec};
+use bincode_next::{config::standard, decode_from_slice, encode_to_vec};
 use futures_util::StreamExt as _;
 use libbarto::{
     Bartoc, BartosToBartoc, Initialize, Output, OutputKind, OutputTableName, Status,
