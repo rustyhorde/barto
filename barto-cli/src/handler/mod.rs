@@ -478,8 +478,6 @@ impl Handler {
                 println!();
                 let early = Self::handle_list(list, true);
                 let term = Term::stdout();
-                let (height, _width) = term.size_checked().unwrap_or((80, 24));
-                let print_height = usize::from(height) - 13;
                 let _res = term.clear_last_lines(1);
                 if !early {
                     println!();
@@ -496,7 +494,7 @@ impl Handler {
                             println!("{}", BOLD_YELLOW.apply_to("Exiting..."));
                             break;
                         }
-                        let _res = term.clear_last_lines(print_height + 2);
+                        let _res = term.clear_screen();
                     }
                     Err(_) => todo!(),
                 }
