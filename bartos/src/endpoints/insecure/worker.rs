@@ -20,7 +20,11 @@ use libbarto::{
     StatusTableName, UuidWrapper, parse_ts_ping,
 };
 use sqlx::MySqlPool;
-use tokio::{select, sync::Mutex};
+use tokio::{
+    select,
+    sync::Mutex,
+    time::{Duration, Instant, interval},
+};
 use tokio_util::sync::CancellationToken;
 use tracing::{error, info, trace};
 use uuid::Uuid;
@@ -53,6 +57,10 @@ pub(crate) async fn worker(
     }
 
     let _handle = spawn(async move {
+        const HEARTBEAT_INTERVAL: Duration = Duration::from_secs(5);
+        const CLIENT_TIMEOUT: Duration = Duration::from_secs(15);
+        let mut last_heartbeat = Instant::now();
+        let mut hb_interval = interval(HEARTBEAT_INTERVAL);
         loop {
             select! {
                 () = ws_token.cancelled() => {
@@ -60,9 +68,16 @@ pub(crate) async fn worker(
                     let _ = ws_session.close(None).await;
                     break;
                 }
+                _ = hb_interval.tick() => {
+                    if last_heartbeat.elapsed() > CLIENT_TIMEOUT {
+                        error!("client '{describe}' heartbeat timed out, disconnecting");
+                        break;
+                    }
+                }
                 res = agms.next() => {
                     match res {
                         Some(Ok(msg)) => {
+                            last_heartbeat = Instant::now();
                             match msg {
                                 AggregatedMessage::Text(_byte_string) => error!("unexpected text message"),
                                 AggregatedMessage::Binary(bytes) => {
