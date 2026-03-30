@@ -7,7 +7,7 @@
 // modified, or distributed except according to those terms.
 
 use anyhow::{Error, Result};
-use bincode::{
+use bincode_next::{
     BorrowDecode, Decode, Encode,
     de::{BorrowDecoder, Decoder},
     enc::Encoder,
@@ -262,7 +262,9 @@ impl TryFrom<&str> for UpdateKind {
 #[cfg(test)]
 mod test {
     use anyhow::Result;
-    use bincode::{borrow_decode_from_slice, config::standard, decode_from_slice, encode_to_vec};
+    use bincode_next::{
+        borrow_decode_from_slice, config::standard, decode_from_slice, encode_to_vec,
+    };
 
     use super::{BartoCli, UpdateKind};
 

@@ -9,7 +9,7 @@
 use std::path::PathBuf;
 
 use anyhow::{Context, Result};
-use bincode::{Decode, Encode};
+use bincode_next::{Decode, Encode};
 #[cfg(test)]
 use bon::Builder;
 use config::{Config, Environment, File, FileFormat, Source};

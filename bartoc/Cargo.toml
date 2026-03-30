@@ -11,14 +11,14 @@ name = "bartoc"
 readme = "../README.md"
 repository = "https://github.com/rustyhorde/barto"
 version = "1.0.0"
-rust-version = "1.89.0"
+rust-version = "1.90.0"
 
 [features]
 unstable = ["libbarto/unstable"]
 
 [dependencies]
 anyhow = { workspace = true }
-bincode = { workspace = true }
+bincode-next = { workspace = true }
 bon = { workspace = true }
 clap = { workspace = true }
 config = { workspace = true }
@@ -27,6 +27,7 @@ futures-util = { workspace = true }
 getset = { workspace = true }
 libbarto = { version = "1.0.0", path = "../libbarto" }
 redb = { workspace = true }
+rustls = { workspace = true }
 serde = { workspace = true }
 thiserror = { workspace = true }
 time = { workspace = true }
@@ -36,6 +37,7 @@ tokio-util = { workspace = true }
 tracing = { workspace = true }
 tracing-subscriber-init = { workspace = true }
 uuid = { workspace = true }
+webpki-roots = { workspace = true }
 
 [build-dependencies]
 rustversion = { workspace = true }

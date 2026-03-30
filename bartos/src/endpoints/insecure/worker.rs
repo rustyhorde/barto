@@ -13,14 +13,18 @@ use actix_web::{
     web::{Bytes, Data, Payload, Query},
 };
 use actix_ws::{AggregatedMessage, Session, handle};
-use bincode::{config::standard, decode_from_slice, encode_to_vec};
+use bincode_next::{config::standard, decode_from_slice, encode_to_vec};
 use futures_util::StreamExt as _;
 use libbarto::{
     Bartoc, BartosToBartoc, Initialize, Output, OutputKind, OutputTableName, Status,
     StatusTableName, UuidWrapper, parse_ts_ping,
 };
 use sqlx::MySqlPool;
-use tokio::{select, sync::Mutex};
+use tokio::{
+    select,
+    sync::Mutex,
+    time::{Duration, Instant, interval},
+};
 use tokio_util::sync::CancellationToken;
 use tracing::{error, info, trace};
 use uuid::Uuid;
@@ -53,6 +57,10 @@ pub(crate) async fn worker(
     }
 
     let _handle = spawn(async move {
+        const HEARTBEAT_INTERVAL: Duration = Duration::from_secs(5);
+        const CLIENT_TIMEOUT: Duration = Duration::from_secs(15);
+        let mut last_heartbeat = Instant::now();
+        let mut hb_interval = interval(HEARTBEAT_INTERVAL);
         loop {
             select! {
                 () = ws_token.cancelled() => {
@@ -60,44 +68,61 @@ pub(crate) async fn worker(
                     let _ = ws_session.close(None).await;
                     break;
                 }
+                _ = hb_interval.tick() => {
+                    if last_heartbeat.elapsed() > CLIENT_TIMEOUT {
+                        error!("client '{describe}' heartbeat timed out, disconnecting");
+                        break;
+                    }
+                }
                 res = agms.next() => {
-                    if let Some(Ok(msg)) = res {
-                        match msg {
-                            AggregatedMessage::Text(_byte_string) => error!("unexpected text message"),
-                            AggregatedMessage::Binary(bytes) => {
-                                handle_binary(id, bytes, &config_c, pool.as_ref(), clients_c.clone()).await.unwrap_or_else(|e| {
-                                    error!("unable to handle binary message: {e}");
-                                });
-                            },
-                            AggregatedMessage::Ping(bytes) => {
-                                trace!("handling ping message");
-                                if let Some(dur) = parse_ts_ping(&bytes) {
-                                    trace!("ping duration: {}s", dur.as_secs_f64());
-                                }
-                                if let Err(e) = ws_session.pong(&bytes).await {
-                                    error!("unable to send pong: {e}");
-                                }
-                            }
-                            AggregatedMessage::Pong(bytes) => {
-                                trace!("handling pong message");
-                                if let Some(dur) = parse_ts_ping(&bytes) {
-                                    trace!("pong duration: {}s", dur.as_secs_f64());
-                                }
-                            }
-                            AggregatedMessage::Close(close_reason) => {
-                                trace!("handling close message");
-                                if let Some(cr) = &close_reason {
-                                    let code = u16::from(cr.code);
-                                    if let Some(desc) = &cr.description {
-                                        trace!("close reason: code={code} reason={desc}");
-                                    } else {
-                                        trace!("close reason: code={code} no reason given");
+                    match res {
+                        Some(Ok(msg)) => {
+                            last_heartbeat = Instant::now();
+                            match msg {
+                                AggregatedMessage::Text(_byte_string) => error!("unexpected text message"),
+                                AggregatedMessage::Binary(bytes) => {
+                                    handle_binary(id, bytes, &config_c, pool.as_ref(), clients_c.clone()).await.unwrap_or_else(|e| {
+                                        error!("unable to handle binary message: {e}");
+                                    });
+                                },
+                                AggregatedMessage::Ping(bytes) => {
+                                    trace!("handling ping message");
+                                    if let Some(dur) = parse_ts_ping(&bytes) {
+                                        trace!("ping duration: {}s", dur.as_secs_f64());
                                     }
-                                } else {
-                                    trace!("close reason: none");
+                                    if let Err(e) = ws_session.pong(&bytes).await {
+                                        error!("unable to send pong: {e}");
+                                    }
                                 }
-                                break;
+                                AggregatedMessage::Pong(bytes) => {
+                                    trace!("handling pong message");
+                                    if let Some(dur) = parse_ts_ping(&bytes) {
+                                        trace!("pong duration: {}s", dur.as_secs_f64());
+                                    }
+                                }
+                                AggregatedMessage::Close(close_reason) => {
+                                    trace!("handling close message");
+                                    if let Some(cr) = &close_reason {
+                                        let code = u16::from(cr.code);
+                                        if let Some(desc) = &cr.description {
+                                            trace!("close reason: code={code} reason={desc}");
+                                        } else {
+                                            trace!("close reason: code={code} no reason given");
+                                        }
+                                    } else {
+                                        trace!("close reason: none");
+                                    }
+                                    break;
+                                }
                             }
+                        }
+                        Some(Err(e)) => {
+                            error!("websocket error: {e}");
+                            break;
+                        }
+                        None => {
+                            trace!("websocket stream closed");
+                            break;
                         }
                     }
                 }

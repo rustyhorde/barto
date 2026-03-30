@@ -8,7 +8,7 @@
 
 use std::fmt::{Display, Formatter};
 
-use bincode::{
+use bincode_next::{
     BorrowDecode, Decode, Encode,
     de::{BorrowDecoder, Decoder},
     enc::Encoder,
@@ -19,7 +19,7 @@ use time::{OffsetDateTime, error::Format, format_description::well_known::Rfc333
 #[cfg(test)]
 use crate::utils::Mock;
 
-/// An `OffsetDateTime` wrapper that implements `bincode::Encode` and `bincode::Decode`
+/// An `OffsetDateTime` wrapper that implements `bincode_next::Encode` and `bincode_next::Decode`
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct OffsetDataTimeWrapper(pub OffsetDateTime);
 
@@ -81,7 +81,7 @@ mod test {
     use super::OffsetDataTimeWrapper;
 
     use anyhow::Result;
-    use bincode::{
+    use bincode_next::{
         borrow_decode_from_slice, config::standard, decode_from_slice, encode_into_slice,
         encode_to_vec,
     };

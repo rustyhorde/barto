@@ -11,7 +11,7 @@ use std::collections::{BTreeMap, HashMap};
 use actix_web::web::{Bytes, Data};
 use actix_ws::Session;
 use anyhow::Result;
-use bincode::{config::standard, decode_from_slice, encode_to_vec};
+use bincode_next::{config::standard, decode_from_slice, encode_to_vec};
 use bon::Builder;
 use libbarto::{BartoCli, BartosToBartoCli, CliUpdateKind, ClientData, ListOutput, UuidWrapper};
 use tokio::sync::Mutex;

@@ -8,10 +8,10 @@
 
 use std::{any::type_name, cmp::Ordering, fmt::Debug};
 
-use bincode::{Decode, Encode, config::standard, decode_from_slice, encode_to_vec};
+use bincode_next::{Decode, Encode, config::standard, decode_from_slice, encode_to_vec};
 use redb::{Key, TypeName, Value};
 
-/// A generic newtype to handle redb keys and values that implement `bincode::Encode` and `bincode::Decode`
+/// A generic newtype to handle redb keys and values that implement `bincode_next::Encode` and `bincode_next::Decode`
 #[derive(Debug)]
 pub struct Bincode<T>(pub T);
 
@@ -66,7 +66,7 @@ where
 #[cfg_attr(coverage_nightly, coverage(off))]
 mod tests {
     use super::Bincode;
-    use bincode::{Decode, Encode};
+    use bincode_next::{Decode, Encode};
     use redb::{Database, ReadableDatabase as _, TableDefinition};
     use tempfile::NamedTempFile;
 

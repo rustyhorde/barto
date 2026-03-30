@@ -8,11 +8,12 @@
 
 use std::collections::{BTreeMap, HashMap};
 
-use bincode::{
+use bincode_next::{
     BorrowDecode, Decode, Encode,
     de::{BorrowDecoder, Decoder},
     enc::Encoder,
     error::{DecodeError, EncodeError},
+    serde::Compat,
 };
 use vergen_pretty::PrettyExt;
 
@@ -38,7 +39,7 @@ impl<Context> Decode<Context> for BartosToBartoc {
             }
             _ => Err(DecodeError::UnexpectedVariant {
                 type_name: "BartocWs",
-                allowed: &bincode::error::AllowedEnumVariants::Range { min: 0, max: 2 },
+                allowed: &bincode_next::error::AllowedEnumVariants::Range { min: 0, max: 2 },
                 found: variant,
             }),
         }
@@ -57,7 +58,7 @@ impl<'de, Context> BorrowDecode<'de, Context> for BartosToBartoc {
             }
             _ => Err(DecodeError::UnexpectedVariant {
                 type_name: "BartocWs",
-                allowed: &bincode::error::AllowedEnumVariants::Range { min: 0, max: 2 },
+                allowed: &bincode_next::error::AllowedEnumVariants::Range { min: 0, max: 2 },
                 found: variant,
             }),
         }
@@ -105,7 +106,7 @@ impl<Context> Decode<Context> for BartosToBartoCli {
         let variant: u32 = Decode::decode(decoder)?;
         match variant {
             0 => {
-                let info_data: PrettyExt = Decode::decode(decoder)?;
+                let info_data = Compat::<PrettyExt>::decode(decoder)?.0;
                 Ok(BartosToBartoCli::Info(info_data))
             }
             1 => {
@@ -147,7 +148,7 @@ impl<Context> Decode<Context> for BartosToBartoCli {
             }
             _ => Err(DecodeError::UnexpectedVariant {
                 type_name: "BartosToBartoCli",
-                allowed: &bincode::error::AllowedEnumVariants::Range { min: 0, max: 9 },
+                allowed: &bincode_next::error::AllowedEnumVariants::Range { min: 0, max: 9 },
                 found: variant,
             }),
         }
@@ -161,7 +162,7 @@ impl<'de, Context> BorrowDecode<'de, Context> for BartosToBartoCli {
         let variant: u32 = BorrowDecode::borrow_decode(decoder)?;
         match variant {
             0 => {
-                let info_data: PrettyExt = BorrowDecode::borrow_decode(decoder)?;
+                let info_data = Compat::<PrettyExt>::borrow_decode(decoder)?.0;
                 Ok(BartosToBartoCli::Info(info_data))
             }
             1 => {
@@ -205,7 +206,7 @@ impl<'de, Context> BorrowDecode<'de, Context> for BartosToBartoCli {
             }
             _ => Err(DecodeError::UnexpectedVariant {
                 type_name: "BartosToBartoCli",
-                allowed: &bincode::error::AllowedEnumVariants::Range { min: 0, max: 9 },
+                allowed: &bincode_next::error::AllowedEnumVariants::Range { min: 0, max: 9 },
                 found: variant,
             }),
         }
@@ -217,7 +218,7 @@ impl Encode for BartosToBartoCli {
         match self {
             BartosToBartoCli::Info(info_data) => {
                 0u32.encode(encoder)?;
-                info_data.encode(encoder)
+                Compat(info_data).encode(encoder)
             }
             BartosToBartoCli::InfoJson(info_json_data) => {
                 1u32.encode(encoder)?;
@@ -269,8 +270,8 @@ mod tests {
     use crate::Initialize;
     use crate::UpdateKind;
     use crate::utils::Mock as _;
-    use bincode::{borrow_decode_from_slice, decode_from_slice};
-    use bincode::{config::standard, encode_to_vec};
+    use bincode_next::{borrow_decode_from_slice, decode_from_slice};
+    use bincode_next::{config::standard, encode_to_vec};
     use vergen_pretty::{Pretty, PrettyExt, vergen_pretty_env};
 
     #[test]

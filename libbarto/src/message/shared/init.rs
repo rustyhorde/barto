@@ -6,7 +6,7 @@
 // option. All files in the project carrying such notice may not be copied,
 // modified, or distributed except according to those terms.
 
-use bincode::{
+use bincode_next::{
     BorrowDecode, Decode, Encode,
     de::{BorrowDecoder, Decoder},
     enc::Encoder,
@@ -73,7 +73,9 @@ mod test {
     use super::Initialize;
 
     use anyhow::Result;
-    use bincode::{borrow_decode_from_slice, config::standard, decode_from_slice, encode_to_vec};
+    use bincode_next::{
+        borrow_decode_from_slice, config::standard, decode_from_slice, encode_to_vec,
+    };
     use uuid::Uuid;
 
     use crate::{Schedule, Schedules, UuidWrapper};

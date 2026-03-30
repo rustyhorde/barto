@@ -8,7 +8,7 @@
 
 use std::cmp::Ordering;
 
-use bincode::{
+use bincode_next::{
     BorrowDecode, Decode, Encode,
     de::{BorrowDecoder, Decoder},
     enc::Encoder,
@@ -59,7 +59,7 @@ impl<Context> Decode<Context> for UpdateKind {
             3 => Ok(UpdateKind::Apt(Decode::decode(decoder)?)),
             _ => Err(DecodeError::UnexpectedVariant {
                 type_name: "UpdateKind",
-                allowed: &bincode::error::AllowedEnumVariants::Range { min: 0, max: 3 },
+                allowed: &bincode_next::error::AllowedEnumVariants::Range { min: 0, max: 3 },
                 found: variant,
             }),
         }
@@ -78,7 +78,7 @@ impl<'de, Context> BorrowDecode<'de, Context> for UpdateKind {
             3 => Ok(UpdateKind::Apt(BorrowDecode::borrow_decode(decoder)?)),
             _ => Err(DecodeError::UnexpectedVariant {
                 type_name: "UpdateKind",
-                allowed: &bincode::error::AllowedEnumVariants::Range { min: 0, max: 3 },
+                allowed: &bincode_next::error::AllowedEnumVariants::Range { min: 0, max: 3 },
                 found: variant,
             }),
         }
@@ -276,7 +276,7 @@ impl Encode for Pacman {
 #[cfg(test)]
 mod tests {
     use super::{Garuda, Pacman, UpdateKind};
-    use bincode::{config::standard, decode_from_slice, encode_to_vec};
+    use bincode_next::{config::standard, decode_from_slice, encode_to_vec};
 
     #[test]
     fn test_update_kind_garuda_encode_decode() {
@@ -434,7 +434,7 @@ mod tests {
 
         let original = UpdateKind::Garuda(garuda_updates);
         let encoded = encode_to_vec(&original, standard()).unwrap();
-        let decoded: UpdateKind = bincode::borrow_decode_from_slice(&encoded, standard())
+        let decoded: UpdateKind = bincode_next::borrow_decode_from_slice(&encoded, standard())
             .unwrap()
             .0;
 
@@ -453,7 +453,7 @@ mod tests {
 
         let original = UpdateKind::Pacman(pacman);
         let encoded = encode_to_vec(&original, standard()).unwrap();
-        let decoded: UpdateKind = bincode::borrow_decode_from_slice(&encoded, standard())
+        let decoded: UpdateKind = bincode_next::borrow_decode_from_slice(&encoded, standard())
             .unwrap()
             .0;
 
@@ -472,7 +472,7 @@ mod tests {
 
         let original = UpdateKind::Cachyos(cachyos);
         let encoded = encode_to_vec(&original, standard()).unwrap();
-        let decoded: UpdateKind = bincode::borrow_decode_from_slice(&encoded, standard())
+        let decoded: UpdateKind = bincode_next::borrow_decode_from_slice(&encoded, standard())
             .unwrap()
             .0;
 
@@ -483,7 +483,7 @@ mod tests {
     fn test_update_kind_apt_borrow_decode() {
         let original = UpdateKind::Apt(vec!["firefox".to_string(), "chromium".to_string()]);
         let encoded = encode_to_vec(&original, standard()).unwrap();
-        let decoded: UpdateKind = bincode::borrow_decode_from_slice(&encoded, standard())
+        let decoded: UpdateKind = bincode_next::borrow_decode_from_slice(&encoded, standard())
             .unwrap()
             .0;
 
@@ -502,7 +502,7 @@ mod tests {
             .build();
 
         let encoded = encode_to_vec(&original, standard()).unwrap();
-        let decoded: Garuda = bincode::borrow_decode_from_slice(&encoded, standard())
+        let decoded: Garuda = bincode_next::borrow_decode_from_slice(&encoded, standard())
             .unwrap()
             .0;
 
@@ -524,7 +524,7 @@ mod tests {
             .build();
 
         let encoded = encode_to_vec(&original, standard()).unwrap();
-        let decoded: Pacman = bincode::borrow_decode_from_slice(&encoded, standard())
+        let decoded: Pacman = bincode_next::borrow_decode_from_slice(&encoded, standard())
             .unwrap()
             .0;
 
@@ -589,7 +589,7 @@ mod tests {
         invalid_data.extend_from_slice(&encode_to_vec("dummy", standard()).unwrap());
 
         let result: Result<(UpdateKind, usize), _> =
-            bincode::borrow_decode_from_slice(&invalid_data, standard());
+            bincode_next::borrow_decode_from_slice(&invalid_data, standard());
         assert!(result.is_err());
     }
 }

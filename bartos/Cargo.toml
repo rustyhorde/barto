@@ -11,7 +11,7 @@ name = "bartos"
 readme = "../README.md"
 repository = "https://github.com/rustyhorde/barto"
 version = "1.0.0"
-rust-version = "1.89.0"
+rust-version = "1.90.0"
 
 [features]
 unstable = ["libbarto/unstable"]
@@ -20,7 +20,7 @@ unstable = ["libbarto/unstable"]
 actix-web = { workspace = true, features = ["rustls-0_23"] }
 actix-ws = "0.4.0"
 anyhow = { workspace = true }
-bincode = { workspace = true }
+bincode-next = { workspace = true }
 bon = { workspace = true }
 clap = { workspace = true }
 config = { workspace = true }

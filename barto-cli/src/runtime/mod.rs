@@ -11,16 +11,15 @@ mod cli;
 use std::{
     ffi::OsString,
     io::{Write, stdout},
-    time::Duration,
+    sync::Arc,
 };
 
 use anyhow::{Context as _, Result};
-use bincode::{config::standard, encode_to_vec};
+use bincode_next::{config::standard, encode_to_vec};
 use clap::Parser as _;
 use futures_util::{SinkExt as _, StreamExt as _};
 use libbarto::{BartoCli, CliUpdateKind, header, init_tracing, load};
-use tokio::time::sleep;
-use tokio_tungstenite::{connect_async, tungstenite::Message};
+use tokio_tungstenite::{Connector, connect_async_tls_with_config, tungstenite::Message};
 use tracing::trace;
 
 use crate::{config::Config, error::Error, handler::Handler, runtime::cli::Commands};
@@ -73,7 +72,8 @@ where
         config.name()
     );
     trace!("connecting to bartos at {url}");
-    let (ws_stream, _) = connect_async(&url).await?;
+    let (ws_stream, _) =
+        connect_async_tls_with_config(&url, None, false, Some(make_tls_connector())).await?;
     trace!("websocket connected");
     let (mut sink, stream) = ws_stream.split();
     let mut handler = Handler::builder().stream(stream).build();
@@ -144,9 +144,18 @@ where
 
     handler.handle().await?;
 
-    sleep(Duration::from_secs(1)).await;
     sink.send(Message::Close(None)).await?;
-    trace!("connection closed");
-    sleep(Duration::from_secs(1)).await;
+    trace!("close sent");
+    handler.wait_for_close().await;
     Ok(())
+}
+
+fn make_tls_connector() -> Connector {
+    use rustls::{ClientConfig, RootCertStore};
+    let mut root_store = RootCertStore::empty();
+    root_store.extend(webpki_roots::TLS_SERVER_ROOTS.iter().cloned());
+    let config = ClientConfig::builder()
+        .with_root_certificates(root_store)
+        .with_no_client_auth();
+    Connector::Rustls(Arc::new(config))
 }
