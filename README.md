@@ -6,7 +6,7 @@
 
 ## MSRV
 
-1.89.0
+1.90.0
 
 ## `bartos` - The barto server
 
