@@ -16,7 +16,7 @@ futures-util = { version = "0.3.32", default-features = false, features = [
   "std",
 ] }
 getset = "0.1.6"
-redb = "3.1.1"
+redb = "4.0.0"
 rustls = { version = "0.23.37", default-features = false, features = ["std", "tls12", "ring"] }
 rustversion = "1.0.22"
 serde = { version = "1.0.228", features = ["derive"] }
