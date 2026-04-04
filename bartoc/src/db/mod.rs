@@ -49,7 +49,7 @@ impl BartocDatabase {
         mut data_rx: UnboundedReceiver<Data>,
         output_token: CancellationToken,
     ) -> Result<()> {
-        let mut interval = interval(Duration::from_secs(60));
+        let mut interval = interval(Duration::from_mins(1));
         loop {
             select! {
                 () = output_token.cancelled() => {
