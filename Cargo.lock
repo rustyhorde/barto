@@ -455,9 +455,9 @@ checksum = "2af50177e190e07a26ab74f8b1efbfe2ef87da2116221318cb1c2e82baf7de06"
 
 [[package]]
 name = "bincode-next"
-version = "3.0.0-rc.5"
+version = "3.0.0-rc.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "96a286793661cca5bdb534f7ebb929cfe2ca3f27ff8ae06985f13d776c6489d9"
+checksum = "92bb80ea87dfae9f331319a1246fbd5c7e20af4150b12ad52e713f2e756b238e"
 dependencies = [
  "bincode_derive-next",
  "pastey",
@@ -468,9 +468,9 @@ dependencies = [
 
 [[package]]
 name = "bincode_derive-next"
-version = "3.0.0-rc.5"
+version = "3.0.0-rc.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6a1ae645ae11c49d76bf87cf7f4867d4362ee5cc54b8698e17d7752589322d5a"
+checksum = "230aedfd3572d14c96e0cdbac07872aed9b496f430cd47d47641584ffc085ac2"
 dependencies = [
  "virtue-next",
 ]
@@ -3256,9 +3256,9 @@ dependencies = [
 
 [[package]]
 name = "redb"
-version = "3.1.3"
+version = "4.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4ba239c1c1693315d3cc0e601db3b3965543afbf48c41730fdca2f069f510f4a"
+checksum = "67f7f231ea7b1172b7ac00ccf96b1250f0fb5a16d5585836aa4ebc997df7cbde"
 dependencies = [
  "libc",
 ]

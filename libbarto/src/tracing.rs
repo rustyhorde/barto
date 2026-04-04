@@ -72,6 +72,7 @@ where
         .with_default_directive(level_filter.into())
         .parse_lossy(directives);
     let file_layer = layer
+        .with_ansi_sanitization(false)
         .with_timer(UtcTime::new(Iso8601::DEFAULT))
         .with_writer(tracing_file)
         .with_filter(filter);

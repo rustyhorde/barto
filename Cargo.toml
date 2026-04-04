@@ -6,7 +6,7 @@ members = ["barto-cli", "bartoc", "bartos", "libbarto"]
 [workspace.dependencies]
 actix-web = "4.13.0"
 anyhow = "1.0.102"
-bincode-next = { version = "3.0.0-rc.5", features = ["serde", "derive"] }
+bincode-next = { version = "3.0.0-rc.12", features = ["serde", "derive"] }
 bon = "3.9.1"
 bytes = "1.11.1"
 clap = { version = "4.6.0", features = ["derive"] }
@@ -16,7 +16,7 @@ futures-util = { version = "0.3.32", default-features = false, features = [
   "std",
 ] }
 getset = "0.1.6"
-redb = "3.1.1"
+redb = "4.0.0"
 rustls = { version = "0.23.37", default-features = false, features = ["std", "tls12", "ring"] }
 rustversion = "1.0.22"
 serde = { version = "1.0.228", features = ["derive"] }
@@ -30,7 +30,7 @@ sqlx = { version = "0.8.6", features = [
 sysinfo = { version = "0.38.4", features = ["serde", "windows"] }
 thiserror = "2.0.18"
 time = "0.3.47"
-tokio = { version = "1.50.0", features = ["macros", "rt-multi-thread"] }
+tokio = { version = "1.51.0", features = ["macros", "rt-multi-thread"] }
 tokio-tungstenite = { version = "0.29.0", features = [
   "__rustls-tls",
 ] }
@@ -40,7 +40,7 @@ tracing = { version = "0.1.44", features = [
   "release_max_level_trace",
 ] }
 tracing-subscriber-init = { version = "0.2.6", features = ["tstime"] }
-uuid = { version = "1.22.0", features = ["v4"] }
+uuid = { version = "1.23.0", features = ["v4"] }
 vergen-gix = { version = "10.0.0-beta.6", features = [
   "build",
   "cargo",
