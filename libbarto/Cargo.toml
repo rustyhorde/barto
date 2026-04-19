@@ -11,7 +11,7 @@ name = "libbarto"
 readme = "../README.md"
 repository = "https://github.com/rustyhorde/barto"
 version = "1.0.0"
-rust-version = "1.90.0"
+rust-version = "1.91.1"
 
 [features]
 unstable = []
@@ -27,7 +27,7 @@ console = "0.16.3"
 dirs2 = { workspace = true }
 getset = { workspace = true }
 num-traits = "0.2.19"
-rand = "0.10.0"
+rand = "0.10.1"
 redb = { workspace = true }
 regex = "1.12.3"
 rustls = { workspace = true }
@@ -42,7 +42,7 @@ time = { workspace = true, features = [
     "serde-human-readable",
 ] }
 tracing = { workspace = true }
-tracing-appender = "0.2.4"
+tracing-appender = "0.2.5"
 tracing-subscriber = { version = "0.3.23", features = ["env-filter", "fmt", "time"] }
 tracing-subscriber-init = { workspace = true }
 unicode-width = "0.2.2"
@@ -58,8 +58,8 @@ vergen-gix = { workspace = true }
 unexpected_cfgs = { level = "warn", check-cfg = ['cfg(coverage,coverage_nightly)'] }
 
 [dev-dependencies]
-proptest = "1.10.0"
-rand = "0.10.0"
+proptest = "1.11.0"
+rand = "0.10.1"
 tempfile = "3.27.0"
 
 [package.metadata.docs.rs]

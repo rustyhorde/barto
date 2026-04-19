@@ -77,7 +77,7 @@ on_calendar = "Mon *-*-01 00:00:00"  # First Monday of every month
 - **Nightly-dependent**: Uses conditional compilation for nightly-only lints via `build.rs`
 - **Git metadata**: `vergen-gix` embeds commit info at build time  
 - **Workspace dependencies**: Always add deps to workspace `Cargo.toml` first, then reference
-- **MSRV**: Rust 1.90.0 minimum, but CI tests against stable/beta/nightly
+- **MSRV**: Rust 1.91.1 minimum, but CI tests against stable/beta/nightly
 
 ## Key Files
 
