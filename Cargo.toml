@@ -47,5 +47,5 @@ vergen-gix = { version = "10.0.0-beta.6", features = [
   "rustc",
   "si",
 ] }
-vergen-pretty = { version = "10.0.0-beta.6", features = ["serde"] }
+vergen-pretty = { version = "10.0.0-beta.7", features = ["serde"] }
 webpki-roots = "1.0.7"
