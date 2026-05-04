@@ -122,9 +122,9 @@ mod test {
     fn header_writes() {
         let mut buf = vec![];
         let config = TestConfig::default();
-        assert!(config.quiet() == 0);
-        assert!(config.verbose() == 3);
-        assert!(config.level() == Level::INFO);
+        assert_eq!(config.quiet(), 0);
+        assert_eq!(config.verbose(), 3);
+        assert_eq!(config.level(), Level::INFO);
         assert!(!config.enable_stdout());
         assert!(config.directives().is_none());
         assert!(header(&config, HEADER_PREFIX, Some(&mut buf)).is_ok());
@@ -138,9 +138,9 @@ mod test {
     #[test]
     fn none_writer_skips_header() {
         let config = TestConfig::default();
-        assert!(config.quiet() == 0);
-        assert!(config.verbose() == 3);
-        assert!(config.level() == Level::INFO);
+        assert_eq!(config.quiet(), 0);
+        assert_eq!(config.verbose(), 3);
+        assert_eq!(config.level(), Level::INFO);
         assert!(!config.enable_stdout());
         assert!(config.directives().is_none());
         assert!(header(&config, HEADER_PREFIX, None::<&mut Vec<u8>>).is_ok());
@@ -151,9 +151,9 @@ mod test {
     fn header_writes() {
         let mut buf = vec![];
         let config = TestConfig::default();
-        assert!(config.quiet() == 0);
-        assert!(config.verbose() == 3);
-        assert!(config.level() == Level::INFO);
+        assert_eq!(config.quiet(), 0);
+        assert_eq!(config.verbose(), 3);
+        assert_eq!(config.level(), Level::INFO);
         assert!(!config.enable_stdout());
         assert!(config.directives().is_none());
         assert!(header(&config, HEADER_PREFIX, Some(&mut buf)).is_ok());
