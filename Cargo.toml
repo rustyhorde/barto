@@ -10,7 +10,7 @@ bincode-next = { version = "3.0.0-rc.13", features = ["serde", "derive"] }
 bon = "3.9.1"
 bytes = "1.11.1"
 clap = { version = "4.6.1", features = ["derive"] }
-config = { version = "0.15.22", features = ["toml"] }
+config = { version = "0.15.23", features = ["toml"] }
 dirs2 = "3.0.1"
 futures-util = { version = "0.3.32", default-features = false, features = [
   "std",
