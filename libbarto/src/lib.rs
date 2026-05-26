@@ -6,20 +6,51 @@
 // option. All files in the project carrying such notice may not be copied,
 // modified, or distributed except according to those terms.
 
-//! libbarto - This is the main library for barto, a job scheduling system.
+//! `libbarto` is the shared library for the [barto](https://github.com/rustyhorde/barto)
+//! distributed job scheduling system. It is consumed by all three barto components:
+//!
+//! - **`bartos`** — central WebSocket server; owns schedule definitions and persists all results to MariaDB
+//! - **`bartoc`** — remote worker client; executes scheduled commands and streams output back to `bartos`
+//! - **`barto-cli`** — command-line interface for querying and managing a running `bartos` instance
+//!
+//! # Key Types
+//!
+//! | Type | Description |
+//! |------|-------------|
+//! | [`Realtime`] | Parse and evaluate cron-like schedule expressions |
+//! | [`Data`] | Output or status payload streamed from `bartoc` to `bartos` |
+//! | [`BartosToBartoc`] | Schedule initialization message sent from `bartos` to `bartoc` |
+//! | [`BartoCli`] | Command messages sent from `barto-cli` to `bartos` |
+//! | [`load`] | Load a component's TOML configuration with env-var overrides |
+//! | [`init_tracing`] | Initialize file and stdout tracing layers |
+//!
+//! # Realtime Scheduling
+//!
+//! [`Realtime`] parses systemd-inspired calendar expressions and evaluates whether a given
+//! [`time::OffsetDateTime`] matches the schedule:
+//!
+//! ```rust
+//! use std::str::FromStr;
+//! use libbarto::Realtime;
+//!
+//! // Built-in shortcuts
+//! let daily = Realtime::from_str("daily").unwrap();
+//!
+//! // Full syntax: "[DOW] YYYY-MM-DD HH:MM:SS"
+//! // '*' matches any value; 'R' picks a random value within the valid range
+//! let schedule = Realtime::from_str("Mon *-*-01 00:00:00").unwrap();
+//!
+//! let now = time::OffsetDateTime::now_utc();
+//! let _ = daily.is_now(now);
+//! ```
+//!
+//! Built-in shortcuts: `minutely`, `hourly`, `daily`, `weekly`, `monthly`,
+//! `quarterly`, `semiannually`, `yearly`.
 //!
 //! # Features
 //!
-//! * A redb Key and Value implementation for bincode encoded/decoded data.
-//! * Shared message data structures
-//! * Client specific message data structures
-//! * Server specific message data structures
-//! * The `Realtime` struct for handling real-time scheduling.
-//! * TLS configuration loading.
-//! * Tracing initialization and configuration.
-//! * Common header output for startup.
-//! * Utility functions for parsing and sending pings/pongs.
-//!
+//! - **`unstable`** — enables additional nightly-only language features when building on a
+//!   nightly compiler (detected automatically via the `rustversion` crate).
 
 // rustc lints
 #![cfg_attr(

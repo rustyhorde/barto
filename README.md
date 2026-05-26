@@ -4,6 +4,19 @@
 [![CI](https://github.com/rustyhorde/barto/actions/workflows/barto.yml/badge.svg)](https://github.com/rustyhorde/barto/actions/workflows/barto.yml)
 [![sponsor](https://img.shields.io/github/sponsors/crazysacx?logo=github-sponsors)](https://github.com/sponsors/CraZySacX)
 
+## Overview
+
+`barto` is a distributed, WebSocket-based job scheduling system composed of four components:
+
+- **`bartos`** — Central scheduling server (Actix-web + MariaDB). Owns all schedule definitions and persists every job's output and exit status.
+- **`bartoc`** — Remote worker client. Connects to `bartos` via WebSocket, receives schedule initializations, executes the configured commands, and streams results back.
+- **`barto-cli`** — Command-line interface for querying and managing a running `bartos` instance.
+- **`libbarto`** — Shared library providing the message protocol, `Realtime` scheduler, config types, TLS support, and tracing initialization.
+
+**How it works**: `bartos` triggers scheduled commands at the configured times and sends them over WebSocket to the matching `bartoc` instance by name. `bartoc` executes each command, streams `stdout`/`stderr` output and exit status back to `bartos`, which persists everything to MariaDB for later querying via `barto-cli`.
+
+All services are configured via TOML files located at `~/.config/<service>/<service>.toml` by default, with `BARTO*` environment variables available to override any TOML value.
+
 ## MSRV
 
 1.91.1
@@ -105,6 +118,29 @@ schedules = [
 
 The `on_calendar` format is outlined at [`Realtime`](https://docs.rs/libbarto/latest/libbarto/struct.Realtime.html)
 
+### Command Line Usage
+```text
+A bartos server records information from bartoc instances and serves as a central hub for job scheduling
+
+Usage: bartos [OPTIONS]
+
+Options:
+  -v, --verbose...
+          Turn up logging verbosity (multiple will turn it up more)
+  -q, --quiet...
+          Turn down logging verbosity (multiple will turn it down more)
+  -e, --enable-std-output
+          Enable logging to stdout/stderr
+  -c, --config-absolute-path <CONFIG_ABSOLUTE_PATH>
+          Specify the absolute path to the config file
+  -t, --tracing-absolute-path <TRACING_ABSOLUTE_PATH>
+          Specify the absolute path to the tracing output file
+  -h, --help
+          Print help
+  -V, --version
+          Print version
+```
+
 ## `bartoc` - The barto client
 
 [![Crates.io](https://img.shields.io/crates/v/bartoc.svg)](https://crates.io/crates/bartoc)
@@ -124,6 +160,11 @@ name = "vader"
 # The number of attempted re-connection attempts            (REQUIRED)
 # after a disconnect
 retry_count = "10"
+# Optional connection timeout in seconds                    (OPTIONAL)
+# client_timeout = 30
+# How to handle missed scheduler ticks                      (OPTIONAL)
+# Values: Burst (default), Delay, Skip
+# missed_tick = "Burst"
 
 # The bartos configuration                                  (REQUIRED)
 [bartos]
@@ -171,6 +212,31 @@ with_line_number = false
 with_level = true
 # An comma separated list of tracing directives             (OPTIONAL)
 directives = "actix_server=error,actix_tls=error"
+```
+
+### Command Line Usage
+```text
+A bartoc instance runs scheduled jobs and reports results back to a bartos instance
+
+Usage: bartoc [OPTIONS]
+
+Options:
+  -v, --verbose...
+          Turn up logging verbosity (multiple will turn it up more)
+  -q, --quiet...
+          Turn down logging verbosity (multiple will turn it down more)
+  -e, --enable-std-output
+          Enable logging to stdout/stderr
+  -c, --config-absolute-path <CONFIG_ABSOLUTE_PATH>
+          Specify the absolute path to the config file
+  -t, --tracing-absolute-path <TRACING_ABSOLUTE_PATH>
+          Specify the absolute path to the tracing output file
+  -r, --redb-absolute-path <REDB_ABSOLUTE_PATH>
+          Specify the absolute path to the redb database file
+  -h, --help
+          Print help
+  -V, --version
+          Print version
 ```
 
 ## `barto-cli` - The barto command line client
@@ -238,7 +304,7 @@ with_level = true
 directives = "actix_server=error,actix_tls=error"
 ```
 
-### Supported `barto-cli` Commands
+### Command Line Usage
 ```text
 A command line tool for requesting information from a bartos instance
 
@@ -246,12 +312,13 @@ Usage: barto-cli [OPTIONS] <COMMAND>
 
 Commands:
   info     Display the bartos version information
-  updates  Check for recent updates on a batoc client
+  updates  Check for recent updates on a bartoc client
   cleanup  Perform cleanup of old database entries
   clients  List the currently connected clients
   query    Run a query on bartos
   list     List the output for the given command
   failed   List the jobs that failed
+  cmd      Display output for the given command name across all clients
   help     Print this message or the help of the given subcommand(s)
 
 Options:
@@ -283,12 +350,12 @@ Options:
 
 #### Updates
 ```text
-Check for recent updates on a batoc client
+Check for recent updates on a bartoc client
 
 Usage: barto-cli updates --name <NAME> --update-kind <UPDATE_KIND>
 
 Options:
-  -n, --name <NAME>                The name of the batoc client to check for recent updates
+  -n, --name <NAME>                The name of the bartoc client to check for recent updates
   -u, --update-kind <UPDATE_KIND>  Check for updates of the given kind
   -h, --help                       Print help
 ```
@@ -328,12 +395,12 @@ Options:
 ```text
 List the output for the given command
 
-Usage: barto-cli list --name <NAME> --cmd-name <CMD_NAME>
+Usage: barto-cli list --name <NAME> [-c <CMD_NAME>]
 
 Options:
-  -n, --name <NAME>          The name of the batoc client to check for recent updates
-  -c, --cmd-name <CMD_NAME>  The name of the command to list the output for
-  -h, --help                 Print help
+  -n, --name <NAME>              The name of the bartoc client to check for recent updates
+  -c, --cmd-name-opt <CMD_NAME>  The name of the command to list the output for
+  -h, --help                     Print help
 ```
 
 #### Failed
@@ -341,6 +408,19 @@ Options:
 List the jobs that failed
 
 Usage: barto-cli failed
+
+Options:
+  -h, --help  Print help
+```
+
+#### Cmd
+```text
+Display output for the given command name across all clients
+
+Usage: barto-cli cmd <CMD_NAME>
+
+Arguments:
+  <CMD_NAME>  The name of the command to display output for
 
 Options:
   -h, --help  Print help

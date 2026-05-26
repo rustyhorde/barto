@@ -13,6 +13,12 @@ Barto is a 4-component websocket-based job scheduling system:
 
 **Data flow**: `bartos` triggers scheduled commands → sends to matching `bartoc` client → `bartoc` executes and streams output/status back → `bartos` persists to MariaDB (`output` and `exit_status` tables).
 
+**WebSocket endpoints** (served by `bartos`):
+- `/ws/worker` — `bartoc` worker connections
+- `/ws/cli` — `barto-cli` connections
+
+**`bartoc` local database**: `bartoc` maintains a local `redb` embedded database (`output` and `status` tables) to buffer output/status data before forwarding to `bartos`. This is separate from the MariaDB in `bartos`.
+
 ## Commands
 
 ```bash
@@ -41,7 +47,9 @@ cargo audit
 ## Critical Patterns
 
 ### Message Protocol
-All inter-component communication uses **bincode-serialized enums** over websockets. Protocol types live in `libbarto/src/message/`. Core types: `Data::Output`, `Data::Status`. Always use the `bon::Builder` pattern for construction.
+All inter-component communication uses **`bincode-next`-serialized enums** over websockets. Protocol types live in `libbarto/src/message/` (submodules: `cli`, `client`, `server`, `shared`). Core data types: `Data::Output`, `Data::Status`. Always use the `bon::Builder` pattern for construction.
+
+**Important**: All protocol message enums require **manual** `Decode`, `BorrowDecode`, and `Encode` impls — these traits cannot be derived because the variants carry `bincode-next`-specific discriminant handling. When adding a new message variant, update all three impls and the discriminant range in the `UnexpectedVariant` error.
 
 ### Realtime Scheduling (`libbarto/src/realtime/`)
 Custom cron-like syntax inspired by systemd timers:
@@ -56,6 +64,7 @@ Built-in shortcuts: `minutely`, `hourly`, `daily`, `weekly`, `monthly`, `quarter
 - `BARTO_*` env vars override TOML values
 - Config structs use `bon::Builder` + `getset`
 - `bartos` schedules are defined as `[schedules.<client_name>]` sections linking to `bartoc` instances by name
+- Each component's CLI struct implements the `config` crate's `Source` trait so that parsed CLI args layer over TOML/env in priority order. Follow this pattern when adding new config fields.
 
 ### Error Handling
 - `anyhow::Result` for application-level errors, `thiserror::Error` for typed error enums
