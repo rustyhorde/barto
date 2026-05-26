@@ -24,9 +24,9 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use anyhow::{bail, Context as _, Result};
+use anyhow::{Context as _, Result, bail};
 use clap::{Arg, ArgAction, Command};
-use clap_complete::{generate_to, Shell};
+use clap_complete::{Shell, generate_to};
 use clap_mangen::Man;
 
 fn main() -> Result<()> {
