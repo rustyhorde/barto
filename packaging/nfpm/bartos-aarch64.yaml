@@ -13,21 +13,17 @@ description: |
 homepage: https://github.com/rustyhorde/barto
 license: MIT OR Apache-2.0
 
+scripts:
+  preinstall: packaging/nfpm/scripts/bartos-pre-install.sh
+  postinstall: packaging/nfpm/scripts/bartos-post-install.sh
+  preremove: packaging/nfpm/scripts/bartos-pre-remove.sh
+  postremove: packaging/nfpm/scripts/bartos-post-remove.sh
+
 deb:
   compression: xz
-  scripts:
-    preinstall: packaging/nfpm/scripts/bartos-pre-install.sh
-    postinstall: packaging/nfpm/scripts/bartos-post-install.sh
-    preremove: packaging/nfpm/scripts/bartos-pre-remove.sh
-    postremove: packaging/nfpm/scripts/bartos-post-remove.sh
 
 rpm:
   compression: xz
-  scripts:
-    preinstall: packaging/nfpm/scripts/bartos-pre-install.sh
-    postinstall: packaging/nfpm/scripts/bartos-post-install.sh
-    preremove: packaging/nfpm/scripts/bartos-pre-remove.sh
-    postremove: packaging/nfpm/scripts/bartos-post-remove.sh
 
 contents:
   # Binary

@@ -13,19 +13,16 @@ description: |
 homepage: https://github.com/rustyhorde/barto
 license: MIT OR Apache-2.0
 
+scripts:
+  preinstall: packaging/nfpm/scripts/bartoc-pre-install.sh
+  postinstall: packaging/nfpm/scripts/bartoc-post-install.sh
+  preremove: packaging/nfpm/scripts/bartoc-pre-remove.sh
+
 deb:
   compression: xz
-  scripts:
-    preinstall: packaging/nfpm/scripts/bartoc-pre-install.sh
-    postinstall: packaging/nfpm/scripts/bartoc-post-install.sh
-    preremove: packaging/nfpm/scripts/bartoc-pre-remove.sh
 
 rpm:
   compression: xz
-  scripts:
-    preinstall: packaging/nfpm/scripts/bartoc-pre-install.sh
-    postinstall: packaging/nfpm/scripts/bartoc-post-install.sh
-    preremove: packaging/nfpm/scripts/bartoc-pre-remove.sh
 
 contents:
   # Binary
