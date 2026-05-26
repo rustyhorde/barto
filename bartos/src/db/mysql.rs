@@ -14,7 +14,7 @@ use bon::Builder;
 use libbarto::{
     CliUpdateKind, FailedOutput, ListOutput, OffsetDataTimeWrapper, OutputTableName, UpdateKind,
 };
-use sqlx::{Column, MySqlPool, Row};
+use sqlx::{AssertSqlSafe, Column, MySqlPool, Row};
 use time::{
     OffsetDateTime,
     macros::{offset, time},
@@ -329,7 +329,9 @@ where
     }
 
     async fn query(&self, query: &str) -> Result<BTreeMap<usize, BTreeMap<String, String>>> {
-        let results = sqlx::query(query).fetch_all(self.pool.as_ref()).await?;
+        let results = sqlx::query(AssertSqlSafe(query))
+            .fetch_all(self.pool.as_ref())
+            .await?;
         let mut map = BTreeMap::new();
         for (i, row) in results.iter().enumerate() {
             let mut row_map = BTreeMap::new();
