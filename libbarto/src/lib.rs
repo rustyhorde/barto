@@ -9,7 +9,7 @@
 //! `libbarto` is the shared library for the [barto](https://github.com/rustyhorde/barto)
 //! distributed job scheduling system. It is consumed by all three barto components:
 //!
-//! - **`bartos`** — central WebSocket server; owns schedule definitions and persists all results to MariaDB
+//! - **`bartos`** — central WebSocket server; owns schedule definitions and persists all results to `MariaDB`
 //! - **`bartoc`** — remote worker client; executes scheduled commands and streams output back to `bartos`
 //! - **`barto-cli`** — command-line interface for querying and managing a running `bartos` instance
 //!
