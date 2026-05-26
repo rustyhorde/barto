@@ -1,0 +1,11 @@
+/var/log/bartoc/bartoc.log* {
+    daily
+    missingok
+    notifempty
+    nocreate
+    compress
+    compresscmd /usr/bin/xz
+    compressext .xz
+    maxage 7
+    rotate 0
+}

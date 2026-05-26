@@ -10,6 +10,8 @@ license=('MIT' 'Apache-2.0')
 provides=('bartoc')
 conflicts=('bartoc')
 depends=()
+optdepends=('logrotate: periodic cleanup of rotated log files'
+            'xz: xz compression of rotated log files')
 makedepends=()
 
 _base="https://github.com/rustyhorde/barto/releases/download/v${pkgver}"
@@ -38,6 +40,10 @@ package() {
     # Systemd service
     install -Dm644 bartoc/bartoc.service \
         "$pkgdir/usr/lib/systemd/system/bartoc.service"
+
+    # Logrotate
+    install -Dm644 bartoc/bartoc.logrotate \
+        "$pkgdir/etc/logrotate.d/bartoc"
 
     # Example config
     install -Dm644 bartoc/bartoc.toml.example \
