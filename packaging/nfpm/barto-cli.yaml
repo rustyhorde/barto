@@ -1,0 +1,52 @@
+# nfpm package configuration for barto-cli (x86_64)
+# Build with: VERSION=<ver> nfpm package --config packaging/nfpm/barto-cli.yaml --packager deb|rpm --target release-assets/
+name: barto-cli
+arch: amd64
+version: ${VERSION}
+version_schema: semver
+section: net
+maintainer: Jason Ozias <jason.g.ozias@gmail.com>
+description: |
+  Barto command-line interface.
+  Query and manage a running bartos instance: list connected clients,
+  inspect job output, run queries, and more.
+homepage: https://github.com/rustyhorde/barto
+license: MIT OR Apache-2.0
+
+deb:
+  compression: xz
+
+rpm:
+  compression: xz
+
+contents:
+  # Binary
+  - src: barto-cli-x86_64-unknown-linux-musl
+    dst: /usr/bin/barto-cli
+    file_info:
+      mode: 0755
+
+  # Man page
+  - src: dist/barto-cli/barto-cli.1
+    dst: /usr/share/man/man1/barto-cli.1
+
+  # Shell completions
+  - src: dist/barto-cli/barto-cli.bash
+    dst: /usr/share/bash-completion/completions/barto-cli
+
+  - src: dist/barto-cli/_barto-cli
+    dst: /usr/share/zsh/vendor-completions/_barto-cli
+
+  - src: dist/barto-cli/barto-cli.fish
+    dst: /usr/share/fish/vendor_completions.d/barto-cli.fish
+
+  # Example configuration
+  - src: dist/barto-cli/barto-cli.toml.example
+    dst: /usr/share/doc/barto-cli/examples/barto-cli.toml.example
+
+  # Licenses
+  - src: dist/barto-cli/LICENSE-MIT
+    dst: /usr/share/doc/barto-cli/LICENSE-MIT
+
+  - src: dist/barto-cli/LICENSE-APACHE
+    dst: /usr/share/doc/barto-cli/LICENSE-APACHE

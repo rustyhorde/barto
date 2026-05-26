@@ -1,0 +1,64 @@
+# nfpm package configuration for bartoc (x86_64)
+# Build with: VERSION=<ver> nfpm package --config packaging/nfpm/bartoc.yaml --packager deb|rpm --target release-assets/
+name: bartoc
+arch: amd64
+version: ${VERSION}
+version_schema: semver
+section: net
+maintainer: Jason Ozias <jason.g.ozias@gmail.com>
+description: |
+  Barto job executor client.
+  Executes scheduled commands on behalf of a bartos server and streams
+  output and status back over WebSocket.
+homepage: https://github.com/rustyhorde/barto
+license: MIT OR Apache-2.0
+
+deb:
+  compression: xz
+  scripts:
+    preinstall: packaging/nfpm/scripts/bartoc-pre-install.sh
+    postinstall: packaging/nfpm/scripts/bartoc-post-install.sh
+    preremove: packaging/nfpm/scripts/bartoc-pre-remove.sh
+
+rpm:
+  compression: xz
+  scripts:
+    preinstall: packaging/nfpm/scripts/bartoc-pre-install.sh
+    postinstall: packaging/nfpm/scripts/bartoc-post-install.sh
+    preremove: packaging/nfpm/scripts/bartoc-pre-remove.sh
+
+contents:
+  # Binary
+  - src: bartoc-x86_64-unknown-linux-musl
+    dst: /usr/bin/bartoc
+    file_info:
+      mode: 0755
+
+  # Man page
+  - src: dist/bartoc/bartoc.1
+    dst: /usr/share/man/man1/bartoc.1
+
+  # Shell completions
+  - src: dist/bartoc/bartoc.bash
+    dst: /usr/share/bash-completion/completions/bartoc
+
+  - src: dist/bartoc/_bartoc
+    dst: /usr/share/zsh/vendor-completions/_bartoc
+
+  - src: dist/bartoc/bartoc.fish
+    dst: /usr/share/fish/vendor_completions.d/bartoc.fish
+
+  # Systemd service
+  - src: dist/bartoc/bartoc.service
+    dst: /usr/lib/systemd/system/bartoc.service
+
+  # Example configuration
+  - src: dist/bartoc/bartoc.toml.example
+    dst: /usr/share/doc/bartoc/examples/bartoc.toml.example
+
+  # Licenses
+  - src: dist/bartoc/LICENSE-MIT
+    dst: /usr/share/doc/bartoc/LICENSE-MIT
+
+  - src: dist/bartoc/LICENSE-APACHE
+    dst: /usr/share/doc/bartoc/LICENSE-APACHE

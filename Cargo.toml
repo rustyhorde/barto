@@ -1,7 +1,7 @@
 [workspace]
 resolver = "3"
 
-members = ["barto-cli", "bartoc", "bartos", "libbarto"]
+members = ["barto-cli", "bartoc", "bartos", "libbarto", "xtask"]
 
 [workspace.dependencies]
 actix-web = "4.13.0"

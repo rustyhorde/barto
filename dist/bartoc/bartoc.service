@@ -1,0 +1,18 @@
+[Unit]
+Description=Barto Job Executor Client
+Documentation=https://github.com/rustyhorde/barto
+After=network.target
+
+[Service]
+Type=simple
+User=bartoc
+Group=bartoc
+ExecStart=/usr/bin/bartoc
+Restart=on-failure
+RestartSec=5s
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=bartoc
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,428 @@
+on:
+  push:
+    tags:
+      - "v[0-9]*"        # full release
+      - "v[0-9]*-rc*"    # pre-release / build test only
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  CARGO_TERM_COLOR: always
+  CARGO_INCREMENTAL: "0"
+
+name: 🚀 Release 🚀
+
+jobs:
+  # ── Build release binaries ───────────────────────────────────────────────────
+  build:
+    name: 🔨 Build Linux Binaries 🔨
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      pkgver: ${{ steps.version.outputs.pkgver }}
+    steps:
+      - name: Checkout
+        uses: Wandalen/wretry.action@71a909ebf09f3ffdc6f42a17bd54ecb43481da49 # v3.8.0
+        with:
+          action: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+          attempt_limit: 3
+          attempt_delay: 30000
+
+      - name: Extract version from tag
+        id: version
+        run: echo "pkgver=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@3c5f7ea28cd621ae0bf5283f0e981fb97b8a7af9
+        with:
+          toolchain: "1.91.1"
+
+      - name: 💾 Install (cargo-binstall) 💾
+        uses: cargo-bins/cargo-binstall@1c2b96c2b86875d56caeec7b7ee9980812daf0d9 # main
+
+      - name: 💾 Install (cross) 💾
+        run: cargo binstall --no-confirm --no-symlinks --no-discover-github-token cross --version 0.2.5
+
+      - name: Cache cargo registry
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+          key: ${{ runner.os }}-cargo-release-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Build x86_64-unknown-linux-musl
+        env:
+          VERGEN_IDEMPOTENT: "1"
+          SQLX_OFFLINE: "true"
+        run: |
+          cross build --release --locked \
+            --target x86_64-unknown-linux-musl \
+            --bin bartos --bin bartoc --bin barto-cli
+
+          cp target/x86_64-unknown-linux-musl/release/bartos    bartos-x86_64-unknown-linux-musl
+          cp target/x86_64-unknown-linux-musl/release/bartoc    bartoc-x86_64-unknown-linux-musl
+          cp target/x86_64-unknown-linux-musl/release/barto-cli barto-cli-x86_64-unknown-linux-musl
+
+      - name: Build aarch64-unknown-linux-musl
+        env:
+          VERGEN_IDEMPOTENT: "1"
+          SQLX_OFFLINE: "true"
+        run: |
+          cross build --release --locked \
+            --target aarch64-unknown-linux-musl \
+            --bin bartos --bin bartoc --bin barto-cli
+
+          cp target/aarch64-unknown-linux-musl/release/bartos    bartos-aarch64-unknown-linux-musl
+          cp target/aarch64-unknown-linux-musl/release/bartoc    bartoc-aarch64-unknown-linux-musl
+          cp target/aarch64-unknown-linux-musl/release/barto-cli barto-cli-aarch64-unknown-linux-musl
+
+      - name: Generate xtask dist artifacts
+        run: |
+          cargo xtask dist bartos
+          cargo xtask dist bartoc
+          cargo xtask dist barto-cli
+
+      - name: Create dist tarballs
+        run: |
+          tar -czf dist-bartos.tar.gz    -C dist bartos
+          tar -czf dist-bartoc.tar.gz    -C dist bartoc
+          tar -czf dist-barto-cli.tar.gz -C dist barto-cli
+
+      - name: Install nfpm
+        run: |
+          NFPM_VERSION="2.43.0"
+          curl -sSL \
+            "https://github.com/goreleaser/nfpm/releases/download/v${NFPM_VERSION}/nfpm_${NFPM_VERSION}_Linux_x86_64.tar.gz" \
+            | tar -xz -C /usr/local/bin nfpm
+          nfpm --version
+
+      - name: Build Debian and RPM packages
+        env:
+          VERSION: ${{ steps.version.outputs.pkgver }}
+        run: |
+          for packager in deb rpm; do
+            nfpm package \
+              --config packaging/nfpm/bartos.yaml \
+              --packager "$packager" \
+              --target release-assets/
+            nfpm package \
+              --config packaging/nfpm/bartoc.yaml \
+              --packager "$packager" \
+              --target release-assets/
+            nfpm package \
+              --config packaging/nfpm/barto-cli.yaml \
+              --packager "$packager" \
+              --target release-assets/
+            nfpm package \
+              --config packaging/nfpm/bartos-aarch64.yaml \
+              --packager "$packager" \
+              --target release-assets/
+            nfpm package \
+              --config packaging/nfpm/bartoc-aarch64.yaml \
+              --packager "$packager" \
+              --target release-assets/
+            nfpm package \
+              --config packaging/nfpm/barto-cli-aarch64.yaml \
+              --packager "$packager" \
+              --target release-assets/
+          done
+
+      - name: Stage release assets
+        run: |
+          mkdir -p release-assets
+
+          # x86_64 static MUSL binaries
+          cp bartos-x86_64-unknown-linux-musl    release-assets/
+          cp bartoc-x86_64-unknown-linux-musl    release-assets/
+          cp barto-cli-x86_64-unknown-linux-musl release-assets/
+
+          # aarch64 static MUSL binaries
+          cp bartos-aarch64-unknown-linux-musl    release-assets/
+          cp bartoc-aarch64-unknown-linux-musl    release-assets/
+          cp barto-cli-aarch64-unknown-linux-musl release-assets/
+
+          # dist tarballs (man pages + shell completions + licenses + example configs)
+          cp dist-bartos.tar.gz    release-assets/
+          cp dist-bartoc.tar.gz    release-assets/
+          cp dist-barto-cli.tar.gz release-assets/
+
+      - name: Upload release assets artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: release-assets
+          path: release-assets/
+
+  # ── Create GitHub pre-release (RC tags only) ────────────────────────────────
+  pre-release:
+    name: 🧪 Create GitHub Pre-Release 🧪
+    if: "contains(github.ref_name, '-rc')"
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download release assets
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          name: release-assets
+          path: release-assets/
+
+      - name: Create GitHub pre-release
+        uses: softprops/action-gh-release@b4309332981a82ec1c5618f44dd2e27cc8bfbfda # v3
+        with:
+          tag_name: ${{ github.ref_name }}
+          prerelease: true
+          generate_release_notes: true
+          files: release-assets/*
+
+  # ── Create GitHub release ────────────────────────────────────────────────────
+  release:
+    name: 📝 Create GitHub Release 📝
+    if: "!contains(github.ref_name, '-rc')"
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    outputs:
+      tarball_sha256: ${{ steps.sha256.outputs.tarball_sha256 }}
+    steps:
+      - name: Download release assets
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          name: release-assets
+          path: release-assets/
+
+      - name: Download source tarball from GitHub
+        run: |
+          curl -sSL \
+            "https://github.com/${{ github.repository }}/archive/${{ github.ref_name }}.tar.gz" \
+            -o "barto-${{ needs.build.outputs.pkgver }}.tar.gz"
+
+      - name: Compute source tarball sha256
+        id: sha256
+        run: |
+          SHA=$(sha256sum "barto-${{ needs.build.outputs.pkgver }}.tar.gz" | awk '{print $1}')
+          echo "tarball_sha256=$SHA" >> "$GITHUB_OUTPUT"
+
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@b4309332981a82ec1c5618f44dd2e27cc8bfbfda # v3
+        with:
+          tag_name: ${{ github.ref_name }}
+          generate_release_notes: true
+          files: |
+            release-assets/*
+            barto-${{ needs.build.outputs.pkgver }}.tar.gz
+
+  # ── Update PKGBUILDs ─────────────────────────────────────────────────────────
+  update-pkgbuilds:
+    name: 📦 Update PKGBUILDs 📦
+    if: "!contains(github.ref_name, '-rc')"
+    needs: [build, release]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - name: Checkout
+        uses: Wandalen/wretry.action@71a909ebf09f3ffdc6f42a17bd54ecb43481da49 # v3.8.0
+        with:
+          action: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+          with: |
+            token: ${{ secrets.GITHUB_TOKEN }}
+          attempt_limit: 3
+          attempt_delay: 30000
+
+      - name: Download release assets
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          name: release-assets
+          path: release-assets/
+
+      - name: Compute checksums for PKGBUILDs
+        id: binsums
+        run: |
+          echo "x86_64_bartos=$(sha256sum release-assets/bartos-x86_64-unknown-linux-musl | awk '{print $1}')" \
+            >> "$GITHUB_OUTPUT"
+          echo "x86_64_bartoc=$(sha256sum release-assets/bartoc-x86_64-unknown-linux-musl | awk '{print $1}')" \
+            >> "$GITHUB_OUTPUT"
+          echo "x86_64_barto_cli=$(sha256sum release-assets/barto-cli-x86_64-unknown-linux-musl | awk '{print $1}')" \
+            >> "$GITHUB_OUTPUT"
+          echo "aarch64_bartos=$(sha256sum release-assets/bartos-aarch64-unknown-linux-musl | awk '{print $1}')" \
+            >> "$GITHUB_OUTPUT"
+          echo "aarch64_bartoc=$(sha256sum release-assets/bartoc-aarch64-unknown-linux-musl | awk '{print $1}')" \
+            >> "$GITHUB_OUTPUT"
+          echo "aarch64_barto_cli=$(sha256sum release-assets/barto-cli-aarch64-unknown-linux-musl | awk '{print $1}')" \
+            >> "$GITHUB_OUTPUT"
+          echo "dist_bartos=$(sha256sum release-assets/dist-bartos.tar.gz | awk '{print $1}')" \
+            >> "$GITHUB_OUTPUT"
+          echo "dist_bartoc=$(sha256sum release-assets/dist-bartoc.tar.gz | awk '{print $1}')" \
+            >> "$GITHUB_OUTPUT"
+          echo "dist_barto_cli=$(sha256sum release-assets/dist-barto-cli.tar.gz | awk '{print $1}')" \
+            >> "$GITHUB_OUTPUT"
+
+      - name: Update source PKGBUILDs
+        env:
+          PKGVER: ${{ needs.build.outputs.pkgver }}
+          SHA256: ${{ needs.release.outputs.tarball_sha256 }}
+        run: |
+          for pkg in bartos bartoc barto-cli; do
+            PKGBUILD="packaging/arch/${pkg}/PKGBUILD"
+            sed -i "s/^pkgver=.*/pkgver=${PKGVER}/" "$PKGBUILD"
+            sed -i "s/^pkgrel=.*/pkgrel=1/" "$PKGBUILD"
+            sed -i "/^sha256sums=/,/^)/ s/'[^']*'/'${SHA256}'/1" "$PKGBUILD"
+          done
+
+      - name: Update binary PKGBUILDs
+        env:
+          PKGVER:           ${{ needs.build.outputs.pkgver }}
+          X86_64_BARTOS:    ${{ steps.binsums.outputs.x86_64_bartos }}
+          X86_64_BARTOC:    ${{ steps.binsums.outputs.x86_64_bartoc }}
+          X86_64_BARTO_CLI: ${{ steps.binsums.outputs.x86_64_barto_cli }}
+          AARCH64_BARTOS:   ${{ steps.binsums.outputs.aarch64_bartos }}
+          AARCH64_BARTOC:   ${{ steps.binsums.outputs.aarch64_bartoc }}
+          AARCH64_BARTO_CLI: ${{ steps.binsums.outputs.aarch64_barto_cli }}
+          DIST_BARTOS:      ${{ steps.binsums.outputs.dist_bartos }}
+          DIST_BARTOC:      ${{ steps.binsums.outputs.dist_bartoc }}
+          DIST_BARTO_CLI:   ${{ steps.binsums.outputs.dist_barto_cli }}
+        run: |
+          update_bin_pkgbuild() {
+            local pb="$1" dist_hash="$2" x86_64_hash="$3" aarch64_hash="$4"
+            sed -i "s/^pkgver=.*/pkgver=${PKGVER}/"                                        "$pb"
+            sed -i "s/^pkgrel=.*/pkgrel=1/"                                                "$pb"
+            sed -i "s/^sha256sums=('[^']*'/sha256sums=('${dist_hash}'/"                    "$pb"
+            sed -i "s/^sha256sums_x86_64=('[^']*'/sha256sums_x86_64=('${x86_64_hash}'/"   "$pb"
+            sed -i "s/^sha256sums_aarch64=('[^']*'/sha256sums_aarch64=('${aarch64_hash}'/" "$pb"
+          }
+
+          update_bin_pkgbuild \
+            packaging/arch/bartos-bin/PKGBUILD \
+            "$DIST_BARTOS" "$X86_64_BARTOS" "$AARCH64_BARTOS"
+
+          update_bin_pkgbuild \
+            packaging/arch/bartoc-bin/PKGBUILD \
+            "$DIST_BARTOC" "$X86_64_BARTOC" "$AARCH64_BARTOC"
+
+          update_bin_pkgbuild \
+            packaging/arch/barto-cli-bin/PKGBUILD \
+            "$DIST_BARTO_CLI" "$X86_64_BARTO_CLI" "$AARCH64_BARTO_CLI"
+
+      - name: Generate .SRCINFO files
+        run: |
+          set -euo pipefail
+          for pkg_dir in packaging/arch/*/; do
+            docker run --rm \
+              -v "$(pwd)/${pkg_dir%/}:/pkg" \
+              -w /pkg \
+              archlinux:latest \
+              bash -c "useradd -m builder && chown -R builder /pkg && su -s /bin/bash builder -c 'makepkg --printsrcinfo'" \
+              > "${pkg_dir}.SRCINFO"
+          done
+
+      - name: Upload updated PKGBUILDs as artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: pkgbuilds
+          path: packaging/arch/
+          include-hidden-files: true
+
+      - name: Open PR to update PKGBUILDs
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PKGVER: ${{ needs.build.outputs.pkgver }}
+        run: |
+          BRANCH="chore/pkgbuild-v${PKGVER}"
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git checkout -b "$BRANCH"
+          git add packaging/arch/
+          git diff --cached --quiet || git commit \
+            -m "chore(packaging): update PKGBUILDs to v${PKGVER}"
+          git push origin "$BRANCH"
+          gh pr create \
+            --title "chore(packaging): update PKGBUILDs to v${PKGVER}" \
+            --body "Automated PKGBUILD update for release v${PKGVER}.\n\nAUR packages have already been published from this branch. Please review and merge to keep the in-tree PKGBUILDs in sync." \
+            --base master \
+            --head "$BRANCH"
+
+  # ── Push to AUR ──────────────────────────────────────────────────────────────
+  aur-publish:
+    name: 🏹 Publish to AUR 🏹
+    if: "!contains(github.ref_name, '-rc')"
+    needs: [build, update-pkgbuilds]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    strategy:
+      max-parallel: 3
+      matrix:
+        package:
+          - bartos
+          - bartos-bin
+          - bartoc
+          - bartoc-bin
+          - barto-cli
+          - barto-cli-bin
+    steps:
+      - name: Download updated PKGBUILDs
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          name: pkgbuilds
+          path: packaging/arch/
+
+      - name: Publish ${{ matrix.package }} to AUR
+        env:
+          AUR_SSH_PRIVATE_KEY: ${{ secrets.AUR_SSH_PRIVATE_KEY }}
+          PKGNAME: ${{ matrix.package }}
+          PKGVER: ${{ needs.build.outputs.pkgver }}
+        run: |
+          set -euo pipefail
+
+          # SSH setup — env var preserves newlines natively; no YAML parsing involved
+          mkdir -p ~/.ssh
+          printf '%s\n' "$AUR_SSH_PRIVATE_KEY" | tr -d '\r' > ~/.ssh/aur
+          chmod 600 ~/.ssh/aur
+          ssh-keyscan -t rsa,ecdsa,ed25519 aur.archlinux.org >> ~/.ssh/known_hosts 2>/dev/null
+          printf 'Host aur.archlinux.org\n  IdentityFile ~/.ssh/aur\n  User aur\n' >> ~/.ssh/config
+          chmod 600 ~/.ssh/config
+
+          # Clone AUR repo
+          git clone "ssh://aur@aur.archlinux.org/${PKGNAME}.git" /tmp/aur-repo
+          cd /tmp/aur-repo
+          # Handle all AUR repo states: normal, detached HEAD, or empty (new package)
+          if git show-ref --quiet refs/remotes/origin/master; then
+            git checkout master
+          elif git rev-parse HEAD 2>/dev/null; then
+            git checkout -B master
+          else
+            git checkout --orphan master
+          fi
+
+          # Copy PKGBUILD and all sidecar files (including .SRCINFO generated upstream)
+          PKG_DIR="${GITHUB_WORKSPACE}/packaging/arch/${PKGNAME}"
+          cp "${PKG_DIR}/PKGBUILD" .
+          find "${PKG_DIR}" -maxdepth 1 -type f ! -name PKGBUILD -exec cp -v {} . \;
+
+          # Commit if there are changes
+          git config user.name  "Jason Ozias"
+          git config user.email "jason.g.ozias@gmail.com"
+          git add .
+          git diff-index --quiet HEAD 2>/dev/null || git commit -m "Update to v${PKGVER}"
+
+          # Push with retry
+          for attempt in 1 2 3; do
+            if git push origin master; then
+              break
+            fi
+            if [[ $attempt -lt 3 ]]; then
+              echo "Push attempt ${attempt} failed, retrying in 10s..."
+              sleep 10
+            else
+              echo "All push attempts failed."
+              exit 1
+            fi
+          done
