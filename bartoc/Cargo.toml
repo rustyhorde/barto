@@ -10,7 +10,7 @@ license = "MIT OR Apache-2.0"
 name = "bartoc"
 readme = "../README.md"
 repository = "https://github.com/rustyhorde/barto"
-version = "1.0.1"
+version = "1.0.2"
 rust-version = "1.91.1"
 
 [features]
@@ -25,7 +25,7 @@ config = { workspace = true }
 dirs2 = { workspace = true }
 futures-util = { workspace = true }
 getset = { workspace = true }
-libbarto = { version = "1.0.1", path = "../libbarto" }
+libbarto = { version = "1.0.2", path = "../libbarto" }
 redb = { workspace = true }
 rustls = { workspace = true }
 serde = { workspace = true }
