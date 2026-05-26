@@ -19,7 +19,7 @@ All services are configured via TOML files located at `~/.config/<service>/<serv
 
 ## MSRV
 
-1.91.1
+1.95.0
 
 ## `bartos` - The barto server
 
