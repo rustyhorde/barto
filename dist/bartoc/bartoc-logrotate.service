@@ -1,0 +1,6 @@
+[Unit]
+Description=Rotate bartoc logs
+
+[Service]
+Type=oneshot
+ExecStart=/usr/lib/bartoc/bartoc-logrotate

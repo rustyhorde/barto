@@ -1,15 +1,17 @@
 #!/bin/sh
 set -e
 
-systemctl daemon-reload >/dev/null 2>&1 || true
-
 echo ""
 echo "==> bartoc installed successfully!"
 echo ""
 echo "    Before starting the service, configure the bartos connection:"
 echo "    1. Copy and edit the example config:"
-echo "         cp /usr/share/doc/bartoc/examples/bartoc.toml.example /etc/bartoc/bartoc.toml"
-echo "         \$EDITOR /etc/bartoc/bartoc.toml"
+echo "         mkdir -p ~/.config/bartoc"
+echo "         cp /usr/share/doc/bartoc/examples/bartoc.toml.example ~/.config/bartoc/bartoc.toml"
+echo "         \$EDITOR ~/.config/bartoc/bartoc.toml"
 echo "    2. Enable and start the service:"
-echo "         systemctl enable --now bartoc"
+echo "         systemctl --user daemon-reload"
+echo "         systemctl --user enable --now bartoc"
+echo "    3. Enable daily log rotation:"
+echo "         systemctl --user enable --now bartoc-logrotate.timer"
 echo ""

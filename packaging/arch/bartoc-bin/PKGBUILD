@@ -37,13 +37,19 @@ package() {
     install -Dm644 bartoc/bartoc.fish \
         "$pkgdir/usr/share/fish/vendor_completions.d/bartoc.fish"
 
-    # Systemd service
+    # Systemd user service
     install -Dm644 bartoc/bartoc.service \
-        "$pkgdir/usr/lib/systemd/system/bartoc.service"
+        "$pkgdir/usr/lib/systemd/user/bartoc.service"
 
-    # Logrotate
-    install -Dm644 bartoc/bartoc.logrotate \
-        "$pkgdir/etc/logrotate.d/bartoc"
+    # Log rotation helper script
+    install -Dm755 bartoc/bartoc-logrotate \
+        "$pkgdir/usr/lib/bartoc/bartoc-logrotate"
+
+    # Systemd user timer for log rotation
+    install -Dm644 bartoc/bartoc-logrotate.service \
+        "$pkgdir/usr/lib/systemd/user/bartoc-logrotate.service"
+    install -Dm644 bartoc/bartoc-logrotate.timer \
+        "$pkgdir/usr/lib/systemd/user/bartoc-logrotate.timer"
 
     # Example config
     install -Dm644 bartoc/bartoc.toml.example \
