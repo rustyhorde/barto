@@ -36,9 +36,9 @@
 //! // Built-in shortcuts
 //! let daily = Realtime::from_str("daily").unwrap();
 //!
-//! // Full syntax: "[DOW] YYYY-MM-DD HH:MM:SS"
+//! // Full syntax: "[DOW] YEAR,MONTH,DAY HH:MM:SS"
 //! // '*' matches any value; 'R' picks a random value within the valid range
-//! let schedule = Realtime::from_str("Mon *-*-01 00:00:00").unwrap();
+//! let schedule = Realtime::from_str("Mon *,*,01 00:00:00").unwrap();
 //!
 //! let now = time::OffsetDateTime::now_utc();
 //! let _ = daily.is_now(now);

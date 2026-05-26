@@ -54,8 +54,8 @@ All inter-component communication uses **`bincode-next`-serialized enums** over 
 ### Realtime Scheduling (`libbarto/src/realtime/`)
 Custom cron-like syntax inspired by systemd timers:
 ```toml
-on_calendar = "*-*-* 10:R:R"        # every day at 10:XX:XX (R = random)
-on_calendar = "Mon *-*-01 00:00:00" # first Monday of every month
+on_calendar = "*,*,* 10:R:R"        # every day at 10:XX:XX (R = random)
+on_calendar = "Mon *,*,01 00:00:00" # first day of every month on Monday
 ```
 Built-in shortcuts: `minutely`, `hourly`, `daily`, `weekly`, `monthly`, `quarterly`, `semiannually`, `yearly`.
 
