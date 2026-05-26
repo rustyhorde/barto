@@ -9,7 +9,14 @@
         "type_info": {
           "type": "Blob",
           "flags": "BLOB | NO_DEFAULT_VALUE",
+          "collation": 224,
           "max_size": 262140
+        },
+        "origin": {
+          "Table": {
+            "table": "barto.output_test",
+            "name": "data"
+          }
         }
       }
     ],

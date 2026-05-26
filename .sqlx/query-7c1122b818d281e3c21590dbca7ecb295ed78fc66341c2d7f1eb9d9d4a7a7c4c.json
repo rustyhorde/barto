@@ -9,7 +9,14 @@
         "type_info": {
           "type": "VarString",
           "flags": "NOT_NULL",
+          "collation": 224,
           "max_size": 1024
+        },
+        "origin": {
+          "Table": {
+            "table": "barto.output_test",
+            "name": "cmd_name"
+          }
         }
       }
     ],
