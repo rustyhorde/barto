@@ -10,7 +10,7 @@ license = "MIT OR Apache-2.0"
 name = "bartos"
 readme = "../README.md"
 repository = "https://github.com/rustyhorde/barto"
-version = "1.0.0"
+version = "1.0.1"
 rust-version = "1.91.1"
 
 [features]
@@ -26,7 +26,7 @@ clap = { workspace = true }
 config = { workspace = true }
 futures-util = { workspace = true }
 getset = { workspace = true }
-libbarto = { version = "1.0.0", path = "../libbarto" }
+libbarto = { version = "1.0.1", path = "../libbarto" }
 regex = "1.12.3"
 rustls = { workspace = true }
 serde = { workspace = true }
@@ -45,9 +45,3 @@ vergen-pretty = { workspace = true }
 anyhow = { workspace = true }
 rustversion = { workspace = true }
 vergen-gix = { workspace = true }
-
-[lints.rust]
-unexpected_cfgs = { level = "warn", check-cfg = [
-    'cfg(coverage,coverage_nightly)',
-] }
-

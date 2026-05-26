@@ -7,13 +7,16 @@
 # modified, or distributed except according to those terms.
 
 [package]
+authors = ["Jason Ozias <jason.g.ozias@gmail.com>"]
+edition = "2024"
+license = "MIT OR Apache-2.0"
 name = "xtask"
-version = "0.1.0"
-edition = "2021"
-publish = false
+repository = "https://github.com/rustyhorde/barto"
+version = "1.0.1"
+rust-version = "1.91.1"
 
 [dependencies]
 anyhow = { workspace = true }
 clap = { workspace = true }
-clap_complete = "4.5"
-clap_mangen = "0.2"
+clap_complete = "4.6.5"
+clap_mangen = "0.3.0"
