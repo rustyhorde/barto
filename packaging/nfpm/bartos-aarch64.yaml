@@ -13,6 +13,16 @@ description: |
 homepage: https://github.com/rustyhorde/barto
 license: MIT OR Apache-2.0
 
+overrides:
+  deb:
+    suggests:
+      - logrotate
+      - xz-utils
+  rpm:
+    suggests:
+      - logrotate
+      - xz
+
 scripts:
   preinstall: packaging/nfpm/scripts/bartos-pre-install.sh
   postinstall: packaging/nfpm/scripts/bartos-post-install.sh
@@ -60,6 +70,10 @@ contents:
   # Systemd service
   - src: dist/bartos/bartos.service
     dst: /usr/lib/systemd/system/bartos.service
+
+  # Logrotate config
+  - src: dist/bartos/bartos.logrotate
+    dst: /etc/logrotate.d/bartos
 
   # Example configuration
   - src: dist/bartos/bartos.toml.example

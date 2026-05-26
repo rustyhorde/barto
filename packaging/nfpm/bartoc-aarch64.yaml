@@ -13,6 +13,16 @@ description: |
 homepage: https://github.com/rustyhorde/barto
 license: MIT OR Apache-2.0
 
+overrides:
+  deb:
+    suggests:
+      - logrotate
+      - xz-utils
+  rpm:
+    suggests:
+      - logrotate
+      - xz
+
 scripts:
   preinstall: packaging/nfpm/scripts/bartoc-pre-install.sh
   postinstall: packaging/nfpm/scripts/bartoc-post-install.sh
@@ -48,6 +58,10 @@ contents:
   # Systemd service
   - src: dist/bartoc/bartoc.service
     dst: /usr/lib/systemd/system/bartoc.service
+
+  # Logrotate config
+  - src: dist/bartoc/bartoc.logrotate
+    dst: /etc/logrotate.d/bartoc
 
   # Example configuration
   - src: dist/bartoc/bartoc.toml.example

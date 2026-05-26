@@ -1,18 +1,36 @@
 [Unit]
 Description=Barto Job Executor Client
-Documentation=https://github.com/rustyhorde/barto
+Documentation=man:bartoc(1)
 After=network.target
+Wants=network.target
 
 [Service]
 Type=simple
 User=bartoc
 Group=bartoc
-ExecStart=/usr/bin/bartoc
+ExecStart=/usr/bin/bartoc \
+    --config-absolute-path /etc/bartoc/bartoc.toml \
+    --tracing-absolute-path /var/log/bartoc/bartoc.log \
+    --redb-absolute-path /var/lib/bartoc/bartoc.redb
 Restart=on-failure
 RestartSec=5s
 StandardOutput=journal
 StandardError=journal
 SyslogIdentifier=bartoc
+
+# Systemd-managed directories (created with correct ownership on first start)
+ConfigurationDirectory=bartoc
+LogsDirectory=bartoc
+StateDirectory=bartoc
+
+# Hardening
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
 
 [Install]
 WantedBy=multi-user.target
