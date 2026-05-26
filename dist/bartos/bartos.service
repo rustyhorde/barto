@@ -1,0 +1,19 @@
+[Unit]
+Description=Barto Central Job Scheduling Server
+Documentation=https://github.com/rustyhorde/barto
+After=network.target mariadb.service
+Wants=mariadb.service
+
+[Service]
+Type=simple
+User=bartos
+Group=bartos
+ExecStart=/usr/bin/bartos
+Restart=on-failure
+RestartSec=5s
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=bartos
+
+[Install]
+WantedBy=multi-user.target

@@ -25,13 +25,20 @@ jobs:
   audit-check:
     runs-on: ubuntu-latest
     name: 💣 Audit 💣
+    permissions:
+      contents: read
+      issues: write
     steps:
       - name: ✅ Checkout ✅
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        uses: Wandalen/wretry.action@71a909ebf09f3ffdc6f42a17bd54ecb43481da49 # v3.8.0
+        with:
+          action: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+          attempt_limit: 3
+          attempt_delay: 30000
       - name: 💣 Audit 💣
-        id: audit
-        uses: rustyhorde/audit-check@7e8e8dfe2895df67935c2572a323b28efbb9d137 # main
+        # v0
+        uses: rustyhorde/audit-check@f7875ca3428c17cce4d5a141ea1128568db8b6c2
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          deny: 'warnings'
-          create_issue: 'true'
+          deny: warnings
+          create_issue: ${{ github.event_name != 'pull_request' }}

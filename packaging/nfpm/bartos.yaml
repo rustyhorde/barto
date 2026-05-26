@@ -1,0 +1,73 @@
+# nfpm package configuration for bartos (x86_64)
+# Build with: VERSION=<ver> nfpm package --config packaging/nfpm/bartos.yaml --packager deb|rpm --target release-assets/
+name: bartos
+arch: amd64
+version: ${VERSION}
+version_schema: semver
+section: net
+maintainer: Jason Ozias <jason.g.ozias@gmail.com>
+description: |
+  Barto central job scheduling server.
+  Receives scheduled job results from bartoc worker instances via WebSocket
+  and persists output and status to a MariaDB database.
+homepage: https://github.com/rustyhorde/barto
+license: MIT OR Apache-2.0
+
+scripts:
+  preinstall: packaging/nfpm/scripts/bartos-pre-install.sh
+  postinstall: packaging/nfpm/scripts/bartos-post-install.sh
+  preremove: packaging/nfpm/scripts/bartos-pre-remove.sh
+  postremove: packaging/nfpm/scripts/bartos-post-remove.sh
+
+deb:
+  compression: xz
+
+rpm:
+  compression: xz
+
+contents:
+  # Binary
+  - src: bartos-x86_64-unknown-linux-musl
+    dst: /usr/bin/bartos
+    file_info:
+      mode: 0755
+
+  # Migration helper script
+  - src: packaging/nfpm/scripts/barto-migrate
+    dst: /usr/bin/barto-migrate
+    file_info:
+      mode: 0755
+
+  # Database migrations
+  - src: migrations/
+    dst: /usr/share/bartos/migrations/
+    type: dir
+
+  # Man page
+  - src: dist/bartos/bartos.1
+    dst: /usr/share/man/man1/bartos.1
+
+  # Shell completions
+  - src: dist/bartos/bartos.bash
+    dst: /usr/share/bash-completion/completions/bartos
+
+  - src: dist/bartos/_bartos
+    dst: /usr/share/zsh/vendor-completions/_bartos
+
+  - src: dist/bartos/bartos.fish
+    dst: /usr/share/fish/vendor_completions.d/bartos.fish
+
+  # Systemd service
+  - src: dist/bartos/bartos.service
+    dst: /usr/lib/systemd/system/bartos.service
+
+  # Example configuration
+  - src: dist/bartos/bartos.toml.example
+    dst: /usr/share/doc/bartos/examples/bartos.toml.example
+
+  # Licenses
+  - src: dist/bartos/LICENSE-MIT
+    dst: /usr/share/doc/bartos/LICENSE-MIT
+
+  - src: dist/bartos/LICENSE-APACHE
+    dst: /usr/share/doc/bartos/LICENSE-APACHE

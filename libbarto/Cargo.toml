@@ -10,7 +10,7 @@ license = "MIT OR Apache-2.0"
 name = "libbarto"
 readme = "../README.md"
 repository = "https://github.com/rustyhorde/barto"
-version = "1.0.0"
+version = "1.0.1"
 rust-version = "1.91.1"
 
 [features]
@@ -53,9 +53,6 @@ vergen-pretty = { workspace = true, features = [ "color", "header", "trace" ]}
 anyhow = { workspace = true }
 rustversion = { workspace = true }
 vergen-gix = { workspace = true }
-
-[lints.rust]
-unexpected_cfgs = { level = "warn", check-cfg = ['cfg(coverage,coverage_nightly)'] }
 
 [dev-dependencies]
 proptest = "1.11.0"

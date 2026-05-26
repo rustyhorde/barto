@@ -1,0 +1,47 @@
+#compdef bartoc
+
+autoload -U is-at-least
+
+_bartoc() {
+    typeset -A opt_args
+    typeset -a _arguments_options
+    local ret=1
+
+    if is-at-least 5.2; then
+        _arguments_options=(-s -S -C)
+    else
+        _arguments_options=(-s -C)
+    fi
+
+    local context curcontext="$curcontext" state line
+    _arguments "${_arguments_options[@]}" : \
+'-c+[Specify the absolute path to the config file]:PATH:_default' \
+'--config-absolute-path=[Specify the absolute path to the config file]:PATH:_default' \
+'-t+[Specify the absolute path to the tracing output file]:PATH:_default' \
+'--tracing-absolute-path=[Specify the absolute path to the tracing output file]:PATH:_default' \
+'-r+[Specify the absolute path to the redb database file]:PATH:_default' \
+'--redb-absolute-path=[Specify the absolute path to the redb database file]:PATH:_default' \
+'(-q --quiet)*-v[Turn up logging verbosity (multiple will turn it up more)]' \
+'(-q --quiet)*--verbose[Turn up logging verbosity (multiple will turn it up more)]' \
+'(-v --verbose)*-q[Turn down logging verbosity (multiple will turn it down more)]' \
+'(-v --verbose)*--quiet[Turn down logging verbosity (multiple will turn it down more)]' \
+'-e[Enable logging to stdout/stderr]' \
+'--enable-std-output[Enable logging to stdout/stderr]' \
+'-h[Print help]' \
+'--help[Print help]' \
+'-V[Print version]' \
+'--version[Print version]' \
+&& ret=0
+}
+
+(( $+functions[_bartoc_commands] )) ||
+_bartoc_commands() {
+    local commands; commands=()
+    _describe -t commands 'bartoc commands' commands "$@"
+}
+
+if [ "$funcstack[1]" = "_bartoc" ]; then
+    _bartoc "$@"
+else
+    compdef _bartoc bartoc
+fi

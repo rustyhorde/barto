@@ -1,0 +1,21 @@
+# barto-cli configuration
+# Default location: ~/.config/barto-cli/barto-cli.toml
+# Override with: barto-cli --config-absolute-path /path/to/config.toml
+# Environment variables: BARTO_CLI_<FIELD> (e.g. BARTO_CLI_BARTOS_HOST)
+
+# A display name for this client connection.
+name = "my-client"
+
+[bartos]
+# WebSocket prefix: "ws" (plain) or "wss" (TLS)
+prefix = "ws"
+host = "localhost"
+port = 8080
+
+[tracing.stdout]
+# with_target = false
+# with_thread_ids = false
+# with_thread_names = false
+# with_line_number = false
+# with_level = true
+# directives = "barto_cli=debug"

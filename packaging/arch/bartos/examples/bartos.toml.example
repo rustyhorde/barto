@@ -1,0 +1,50 @@
+# bartos configuration
+# Default location: ~/.config/bartos/bartos.toml
+# Override with: bartos --config-absolute-path /path/to/config.toml
+# Environment variables: BARTOS_<FIELD> (e.g. BARTOS_MARIADB_PASSWORD)
+
+[mariadb]
+host = "localhost"
+# port = 3306
+username = "barto"
+password = "changeme"
+database = "barto"
+# options = "ssl-mode=disabled"
+
+[actix]
+workers = 4
+ip = "0.0.0.0"
+port = 8080
+
+# TLS configuration (optional)
+# [actix.tls]
+# ip = "0.0.0.0"
+# port = 8443
+# cert_file_path = "/etc/bartos/cert.pem"
+# key_file_path = "/etc/bartos/key.pem"
+
+[tracing.stdout]
+# with_target = false
+# with_thread_ids = false
+# with_thread_names = false
+# with_line_number = false
+# with_level = true
+# directives = "bartos=debug"
+
+# [tracing.file]
+# [tracing.file.layer]
+# with_target = false
+# with_thread_ids = false
+# with_thread_names = false
+# with_line_number = false
+# with_level = true
+# directives = "bartos=info"
+
+# Define schedules for each bartoc client.
+# The section name must match the bartoc client's `name` field.
+#
+# [schedules.my-worker]
+# schedules = [
+#   { name = "daily-check", on_calendar = "*,*,* 10:00:00", cmds = ["echo 'hello'"] },
+#   { name = "hourly-task", on_calendar = "hourly", cmds = ["/opt/scripts/run.sh"] },
+# ]

@@ -21,7 +21,20 @@ use crate::{
     utils::until_err,
 };
 
-/// The day(s) of the week matcher
+/// A day-of-week constraint for [`Realtime`](crate::Realtime) schedules.
+///
+/// `None` means every day (equivalent to `*`); `Some(days)` holds a sorted
+/// list of day numbers where 0 = Sunday and 6 = Saturday.
+///
+/// Parse from a string via [`FromStr`](std::str::FromStr) using the same
+/// syntax as the `on_calendar` field:
+///
+/// | Pattern | Meaning |
+/// |---------|---------|
+/// | `*` | Every day |
+/// | `Mon` / `Tue` / … / `Sun` | A specific day |
+/// | `Mon..Wed` | Inclusive range (Monday through Wednesday) |
+/// | `Mon,Wed,Fri` | Comma-separated list |
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct Dow(pub(crate) Option<Vec<u8>>);
 

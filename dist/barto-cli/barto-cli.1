@@ -1,0 +1,61 @@
+.ie \n(.g .ds Aq \(aq
+.el .ds Aq '
+.TH barto-cli 1  "barto-cli 0.1.0" 
+.SH NAME
+barto\-cli \- Command\-line tool for querying bartos instances
+.SH SYNOPSIS
+\fBbarto\-cli\fR [\fB\-v\fR|\fB\-\-verbose\fR]... [\fB\-q\fR|\fB\-\-quiet\fR]... [\fB\-e\fR|\fB\-\-enable\-std\-output\fR] [\fB\-c\fR|\fB\-\-config\-absolute\-path\fR] [\fB\-t\fR|\fB\-\-tracing\-absolute\-path\fR] [\fB\-h\fR|\fB\-\-help\fR] [\fB\-V\fR|\fB\-\-version\fR] <\fIsubcommands\fR>
+.SH DESCRIPTION
+Command\-line tool for querying bartos instances
+.SH OPTIONS
+.TP
+\fB\-v\fR, \fB\-\-verbose\fR
+Turn up logging verbosity (multiple will turn it up more)
+.TP
+\fB\-q\fR, \fB\-\-quiet\fR
+Turn down logging verbosity (multiple will turn it down more)
+.TP
+\fB\-e\fR, \fB\-\-enable\-std\-output\fR
+Enable logging to stdout/stderr
+.TP
+\fB\-c\fR, \fB\-\-config\-absolute\-path\fR \fI<PATH>\fR
+Specify the absolute path to the config file
+.TP
+\fB\-t\fR, \fB\-\-tracing\-absolute\-path\fR \fI<PATH>\fR
+Specify the absolute path to the tracing output file
+.TP
+\fB\-h\fR, \fB\-\-help\fR
+Print help
+.TP
+\fB\-V\fR, \fB\-\-version\fR
+Print version
+.SH SUBCOMMANDS
+.TP
+barto\-cli\-info(1)
+Display the bartos version information
+.TP
+barto\-cli\-updates(1)
+Check for recent updates on a bartoc client
+.TP
+barto\-cli\-cleanup(1)
+Perform cleanup of old database entries
+.TP
+barto\-cli\-clients(1)
+List the currently connected clients
+.TP
+barto\-cli\-query(1)
+Run a query on bartos
+.TP
+barto\-cli\-list(1)
+List the output for the given command
+.TP
+barto\-cli\-failed(1)
+List the jobs that failed
+.TP
+barto\-cli\-cmd(1)
+Display output for the given command name across all clients
+.TP
+barto\-cli\-help(1)
+Print this message or the help of the given subcommand(s)
+.SH VERSION
+v0.1.0
