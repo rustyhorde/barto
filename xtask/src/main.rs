@@ -24,9 +24,9 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use anyhow::{Context as _, Result, bail};
+use anyhow::{bail, Context as _, Result};
 use clap::{Arg, ArgAction, Command};
-use clap_complete::{Shell, generate_to};
+use clap_complete::{generate_to, Shell};
 use clap_mangen::Man;
 
 fn main() -> Result<()> {
@@ -220,16 +220,14 @@ fn barto_cli_command() -> Command {
         .subcommand(Command::new("cleanup").about("Perform cleanup of old database entries"))
         .subcommand(Command::new("clients").about("List the currently connected clients"))
         .subcommand(
-            Command::new("query")
-                .about("Run a query on bartos")
-                .arg(
-                    Arg::new("query")
-                        .short('q')
-                        .long("query")
-                        .value_name("QUERY")
-                        .required(true)
-                        .help("The query to run on bartos"),
-                ),
+            Command::new("query").about("Run a query on bartos").arg(
+                Arg::new("query")
+                    .short('q')
+                    .long("query")
+                    .value_name("QUERY")
+                    .required(true)
+                    .help("The query to run on bartos"),
+            ),
         )
         .subcommand(
             Command::new("list")
