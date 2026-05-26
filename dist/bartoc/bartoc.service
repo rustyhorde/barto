@@ -6,12 +6,10 @@ Wants=network.target bartos.service
 
 [Service]
 Type=simple
-User=bartoc
-Group=bartoc
 ExecStart=/usr/bin/bartoc \
-    --config-absolute-path /etc/bartoc/bartoc.toml \
-    --tracing-absolute-path /var/log/bartoc/bartoc.log \
-    --redb-absolute-path /var/lib/bartoc/bartoc.redb
+    --config-absolute-path %E/bartoc/bartoc.toml \
+    --tracing-absolute-path %S/bartoc/bartoc.log \
+    --redb-absolute-path %S/bartoc/bartoc.redb
 Restart=on-failure
 RestartSec=5s
 StandardOutput=journal
@@ -20,17 +18,16 @@ SyslogIdentifier=bartoc
 
 # Systemd-managed directories (created with correct ownership on first start)
 ConfigurationDirectory=bartoc
-LogsDirectory=bartoc
 StateDirectory=bartoc
 
 # Hardening
 NoNewPrivileges=true
 ProtectSystem=strict
-ProtectHome=true
+ProtectHome=false
 PrivateTmp=true
 ProtectKernelTunables=true
 ProtectKernelModules=true
 ProtectControlGroups=true
 
 [Install]
-WantedBy=multi-user.target
+WantedBy=default.target

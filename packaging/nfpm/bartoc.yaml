@@ -24,7 +24,6 @@ overrides:
       - xz
 
 scripts:
-  preinstall: packaging/nfpm/scripts/bartoc-pre-install.sh
   postinstall: packaging/nfpm/scripts/bartoc-post-install.sh
   preremove: packaging/nfpm/scripts/bartoc-pre-remove.sh
 
@@ -55,13 +54,22 @@ contents:
   - src: dist/bartoc/bartoc.fish
     dst: /usr/share/fish/vendor_completions.d/bartoc.fish
 
-  # Systemd service
+  # Systemd user service
   - src: dist/bartoc/bartoc.service
-    dst: /usr/lib/systemd/system/bartoc.service
+    dst: /usr/lib/systemd/user/bartoc.service
 
-  # Logrotate config
-  - src: dist/bartoc/bartoc.logrotate
-    dst: /etc/logrotate.d/bartoc
+  # Log rotation helper script
+  - src: dist/bartoc/bartoc-logrotate
+    dst: /usr/lib/bartoc/bartoc-logrotate
+    file_info:
+      mode: 0755
+
+  # Systemd user timer for log rotation
+  - src: dist/bartoc/bartoc-logrotate.service
+    dst: /usr/lib/systemd/user/bartoc-logrotate.service
+
+  - src: dist/bartoc/bartoc-logrotate.timer
+    dst: /usr/lib/systemd/user/bartoc-logrotate.timer
 
   # Example configuration
   - src: dist/bartoc/bartoc.toml.example

@@ -81,10 +81,10 @@ The codebase uses an extensive nightly-gated lint configuration in every crate's
 ## Build System Notes
 
 - **Workspace dependencies**: Add new deps to the workspace `Cargo.toml` first, then reference with `{ workspace = true }` in member crates.
-- **MSRV**: Rust 1.91.1. CI tests against 1.91.1, stable, beta, and nightly.
+- **MSRV**: Rust 1.95.0. CI tests against 1.95.0, stable, beta, and nightly.
 - **`vergen-gix`**: Each crate's `build.rs` embeds git/build metadata at compile time (used for `barto-cli info` output).
 - **`cargo audit`**: `.cargo/audit.toml` ignores RUSTSEC-2023-0071 (Marvin Attack in `rsa` via sqlx-mysql — no upstream fix).
-- **Required status checks**: The `master` **ruleset** (ID: 8791123) enforces all 25 CI status checks (branch protection rules have been removed). The MSRV version string (e.g., `1.91.1`) is embedded in matrix job names — whenever `rust-version` changes in any `Cargo.toml`, re-query check names from a passing run on master and update the ruleset:
+- **Required status checks**: The `master` **ruleset** (ID: 8791123) enforces all 25 CI status checks (branch protection rules have been removed). The MSRV version string (e.g., `1.95.0`) is embedded in matrix job names — whenever `rust-version` changes in any `Cargo.toml`, re-query check names from a passing run on master and update the ruleset:
   ```bash
   # Re-query status check names after an MSRV bump
   gh run list --repo rustyhorde/barto --workflow "🦀 barto 🦀" --branch master --limit 1 --json databaseId --jq '.[0].databaseId' | xargs -I{} gh run view {} --repo rustyhorde/barto --json jobs --jq '.jobs[].name'

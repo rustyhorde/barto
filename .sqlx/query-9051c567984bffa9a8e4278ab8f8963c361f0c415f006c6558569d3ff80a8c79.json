@@ -9,7 +9,14 @@
         "type_info": {
           "type": "Timestamp",
           "flags": "UNSIGNED | BINARY | NO_DEFAULT_VALUE",
+          "collation": 63,
           "max_size": 19
+        },
+        "origin": {
+          "Table": {
+            "table": "barto.output_test",
+            "name": "timestamp"
+          }
         }
       },
       {
@@ -18,7 +25,14 @@
         "type_info": {
           "type": "VarString",
           "flags": "",
+          "collation": 224,
           "max_size": 1024
+        },
+        "origin": {
+          "Table": {
+            "table": "barto.output_test",
+            "name": "cmd_name"
+          }
         }
       },
       {
@@ -27,7 +41,14 @@
         "type_info": {
           "type": "Blob",
           "flags": "BLOB | NO_DEFAULT_VALUE",
+          "collation": 224,
           "max_size": 262140
+        },
+        "origin": {
+          "Table": {
+            "table": "barto.output_test",
+            "name": "data"
+          }
         }
       },
       {
@@ -36,7 +57,14 @@
         "type_info": {
           "type": "Tiny",
           "flags": "NOT_NULL | UNSIGNED | NO_DEFAULT_VALUE",
+          "collation": 63,
           "max_size": 3
+        },
+        "origin": {
+          "Table": {
+            "table": "barto.exit_status_test",
+            "name": "exit_code"
+          }
         }
       },
       {
@@ -45,7 +73,14 @@
         "type_info": {
           "type": "Tiny",
           "flags": "NOT_NULL | NO_DEFAULT_VALUE",
+          "collation": 63,
           "max_size": 1
+        },
+        "origin": {
+          "Table": {
+            "table": "barto.exit_status_test",
+            "name": "success"
+          }
         }
       }
     ],
