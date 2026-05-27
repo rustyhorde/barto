@@ -22,6 +22,8 @@ port = 8080
 # port = 8443
 # cert_file_path = "/etc/bartos/cert.pem"
 # key_file_path = "/etc/bartos/key.pem"
+# Optional: require mutual TLS — clients must present a cert signed by this CA.
+# client_ca_cert = "/etc/bartos/client-ca.pem"
 
 [tracing.stdout]
 # with_target = false

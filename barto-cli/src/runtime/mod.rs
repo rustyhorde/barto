@@ -18,7 +18,10 @@ use anyhow::{Context as _, Result};
 use bincode_next::{config::standard, encode_to_vec};
 use clap::Parser as _;
 use futures_util::{SinkExt as _, StreamExt as _};
-use libbarto::{BartoCli, CliUpdateKind, header, init_tracing, load};
+use libbarto::{
+    BartoCli, CliUpdateKind, header, init_tracing, load, load_client_cert_and_key,
+    load_pinned_root_store,
+};
 use tokio_tungstenite::{Connector, connect_async_tls_with_config, tungstenite::Message};
 use tracing::trace;
 
@@ -73,73 +76,13 @@ where
     );
     trace!("connecting to bartos at {url}");
     let (ws_stream, _) =
-        connect_async_tls_with_config(&url, None, false, Some(make_tls_connector())).await?;
+        connect_async_tls_with_config(&url, None, false, Some(make_tls_connector(&config)?))
+            .await?;
     trace!("websocket connected");
     let (mut sink, stream) = ws_stream.split();
     let mut handler = Handler::builder().stream(stream).build();
 
-    let message = match cli.command() {
-        Commands::Info { json } => {
-            let info = encode_to_vec(BartoCli::Info { json: *json }, standard())?;
-            Message::Binary(info.into())
-        }
-        Commands::Updates { name, update_kind } => {
-            let kind = CliUpdateKind::try_from(update_kind.as_str())?;
-            let update = encode_to_vec(
-                BartoCli::Updates {
-                    name: name.clone(),
-                    kind,
-                },
-                standard(),
-            )?;
-            Message::Binary(update.into())
-        }
-        Commands::Cleanup => {
-            let cleanup = encode_to_vec(BartoCli::Cleanup, standard())?;
-            Message::Binary(cleanup.into())
-        }
-        Commands::Clients => {
-            let clients = encode_to_vec(BartoCli::Clients, standard())?;
-            Message::Binary(clients.into())
-        }
-        Commands::Query { query } => {
-            let query = encode_to_vec(
-                BartoCli::Query {
-                    query: query.clone(),
-                },
-                standard(),
-            )?;
-            Message::Binary(query.into())
-        }
-        Commands::List { name, cmd_name_opt } => {
-            let list = if let Some(cmd_name) = cmd_name_opt {
-                encode_to_vec(
-                    BartoCli::List {
-                        name: name.clone(),
-                        cmd_name: cmd_name.clone(),
-                    },
-                    standard(),
-                )?
-            } else {
-                encode_to_vec(BartoCli::ListCommands { name: name.clone() }, standard())?
-            };
-            Message::Binary(list.into())
-        }
-        Commands::Failed => {
-            let failed = encode_to_vec(BartoCli::Failed, standard())?;
-            Message::Binary(failed.into())
-        }
-        Commands::Cmd { cmd_name } => {
-            let info = encode_to_vec(
-                BartoCli::Cmd {
-                    cmd_name: cmd_name.clone(),
-                },
-                standard(),
-            )?;
-            Message::Binary(info.into())
-        }
-    };
-    sink.send(message).await?;
+    sink.send(build_message(cli.command())?).await?;
     trace!("message sent");
 
     handler.handle().await?;
@@ -150,12 +93,67 @@ where
     Ok(())
 }
 
-fn make_tls_connector() -> Connector {
+fn build_message(command: &Commands) -> Result<Message> {
+    let payload = match command {
+        Commands::Info { json } => encode_to_vec(BartoCli::Info { json: *json }, standard())?,
+        Commands::Updates { name, update_kind } => {
+            let kind = CliUpdateKind::try_from(update_kind.as_str())?;
+            encode_to_vec(
+                BartoCli::Updates {
+                    name: name.clone(),
+                    kind,
+                },
+                standard(),
+            )?
+        }
+        Commands::Cleanup => encode_to_vec(BartoCli::Cleanup, standard())?,
+        Commands::Clients => encode_to_vec(BartoCli::Clients, standard())?,
+        Commands::Query { query } => encode_to_vec(
+            BartoCli::Query {
+                query: query.clone(),
+            },
+            standard(),
+        )?,
+        Commands::List { name, cmd_name_opt } => {
+            if let Some(cmd_name) = cmd_name_opt {
+                encode_to_vec(
+                    BartoCli::List {
+                        name: name.clone(),
+                        cmd_name: cmd_name.clone(),
+                    },
+                    standard(),
+                )?
+            } else {
+                encode_to_vec(BartoCli::ListCommands { name: name.clone() }, standard())?
+            }
+        }
+        Commands::Failed => encode_to_vec(BartoCli::Failed, standard())?,
+        Commands::Cmd { cmd_name } => encode_to_vec(
+            BartoCli::Cmd {
+                cmd_name: cmd_name.clone(),
+            },
+            standard(),
+        )?,
+    };
+    Ok(Message::Binary(payload.into()))
+}
+
+fn make_tls_connector(config: &Config) -> Result<Connector> {
     use rustls::{ClientConfig, RootCertStore};
-    let mut root_store = RootCertStore::empty();
-    root_store.extend(webpki_roots::TLS_SERVER_ROOTS.iter().cloned());
-    let config = ClientConfig::builder()
-        .with_root_certificates(root_store)
-        .with_no_client_auth();
-    Connector::Rustls(Arc::new(config))
+    let root_store = if let Some(ca_cert_path) = config.bartos().ca_cert() {
+        load_pinned_root_store(ca_cert_path)?
+    } else {
+        let mut store = RootCertStore::empty();
+        store.extend(webpki_roots::TLS_SERVER_ROOTS.iter().cloned());
+        store
+    };
+    let builder = ClientConfig::builder().with_root_certificates(root_store);
+    let tls = match (config.bartos().client_cert(), config.bartos().client_key()) {
+        (Some(cert_path), Some(key_path)) => {
+            let (cert_chain, key) = load_client_cert_and_key(cert_path, key_path)?;
+            builder.with_client_auth_cert(cert_chain, key)?
+        }
+        _ => builder.with_no_client_auth(),
+    };
+    Ok(Connector::Rustls(Arc::new(tls)))
 }

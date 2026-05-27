@@ -21,7 +21,7 @@ use std::{
 use anyhow::{Context, Result};
 use clap::Parser;
 use futures_util::{StreamExt, stream::SplitSink};
-use libbarto::{Data, header, init_tracing};
+use libbarto::{Data, header, init_tracing, load_client_cert_and_key, load_pinned_root_store};
 #[cfg(not(unix))]
 use tokio::signal::ctrl_c;
 #[cfg(unix)]
@@ -131,7 +131,7 @@ async fn run_connection(
     );
     trace!("connecting to bartos at {url}");
     let (ws_stream, _) =
-        connect_async_tls_with_config(&url, None, false, Some(make_tls_connector())).await?;
+        connect_async_tls_with_config(&url, None, false, Some(make_tls_connector(config)?)).await?;
     trace!("websocket connected");
     *retry_count = *config.retry_count(); // reset on successful connection
     *error_count = 0; // reset on successful connection
@@ -185,14 +185,24 @@ async fn run_connection(
     Ok(())
 }
 
-fn make_tls_connector() -> Connector {
+fn make_tls_connector(config: &Config) -> Result<Connector> {
     use rustls::{ClientConfig, RootCertStore};
-    let mut root_store = RootCertStore::empty();
-    root_store.extend(webpki_roots::TLS_SERVER_ROOTS.iter().cloned());
-    let config = ClientConfig::builder()
-        .with_root_certificates(root_store)
-        .with_no_client_auth();
-    Connector::Rustls(Arc::new(config))
+    let root_store = if let Some(ca_cert_path) = config.bartos().ca_cert() {
+        load_pinned_root_store(ca_cert_path)?
+    } else {
+        let mut store = RootCertStore::empty();
+        store.extend(webpki_roots::TLS_SERVER_ROOTS.iter().cloned());
+        store
+    };
+    let builder = ClientConfig::builder().with_root_certificates(root_store);
+    let tls = match (config.bartos().client_cert(), config.bartos().client_key()) {
+        (Some(cert_path), Some(key_path)) => {
+            let (cert_chain, key) = load_client_cert_and_key(cert_path, key_path)?;
+            builder.with_client_auth_cert(cert_chain, key)?
+        }
+        _ => builder.with_no_client_auth(),
+    };
+    Ok(Connector::Rustls(Arc::new(tls)))
 }
 
 async fn setup_handler(

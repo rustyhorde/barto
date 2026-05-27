@@ -173,6 +173,11 @@ pub struct Tls {
     /// The path to the key file (PEM format)
     #[getset(get = "pub")]
     key_file_path: String,
+    /// Optional path to a CA certificate for mutual TLS client authentication.
+    /// When set, clients must present a certificate signed by this CA.
+    #[getset(get = "pub")]
+    #[serde(default)]
+    client_ca_cert: Option<PathBuf>,
 }
 
 impl TlsConfig for Tls {
@@ -182,6 +187,10 @@ impl TlsConfig for Tls {
 
     fn key_file_path(&self) -> &str {
         &self.key_file_path
+    }
+
+    fn client_ca_cert_path(&self) -> Option<&std::path::Path> {
+        self.client_ca_cert.as_deref()
     }
 }
 
@@ -197,6 +206,21 @@ pub struct Bartos {
     /// The bartos port
     #[getset(get_copy = "pub")]
     port: u16,
+    /// Optional path to a PEM CA certificate to pin for the bartos TLS connection.
+    /// When set, only this CA is trusted instead of the system/Mozilla root CA store.
+    #[getset(get = "pub")]
+    #[serde(default)]
+    ca_cert: Option<PathBuf>,
+    /// Optional path to a client certificate PEM file for mutual TLS authentication.
+    /// Both `client_cert` and `client_key` must be set together.
+    #[getset(get = "pub")]
+    #[serde(default)]
+    client_cert: Option<PathBuf>,
+    /// Optional path to a client private key PEM file for mutual TLS authentication.
+    /// Both `client_cert` and `client_key` must be set together.
+    #[getset(get = "pub")]
+    #[serde(default)]
+    client_key: Option<PathBuf>,
 }
 
 /// The `MariaDB` configuration
@@ -406,4 +430,63 @@ where
     config_file_path.push(defaults.default_file_name());
     let _ = config_file_path.set_extension("toml");
     Ok(config_file_path)
+}
+
+#[cfg(test)]
+mod tests {
+    use std::path::PathBuf;
+
+    use crate::TlsConfig;
+
+    use super::{Bartos, Tls};
+
+    #[test]
+    fn test_bartos_client_cert_key_default_none() {
+        let bartos = Bartos::default();
+        assert!(bartos.client_cert().is_none());
+        assert!(bartos.client_key().is_none());
+        assert!(bartos.ca_cert().is_none());
+    }
+
+    #[test]
+    fn test_tls_client_ca_cert_default_none() {
+        let tls = Tls::default();
+        assert!(tls.client_ca_cert().is_none());
+        assert!(tls.client_ca_cert_path().is_none());
+    }
+
+    #[test]
+    fn test_tls_client_ca_cert_path_returns_some() {
+        let tls = Tls {
+            ip: "0.0.0.0".to_string(),
+            port: 8443,
+            cert_file_path: "cert.pem".to_string(),
+            key_file_path: "key.pem".to_string(),
+            client_ca_cert: Some(PathBuf::from("/etc/bartos/client-ca.pem")),
+        };
+        assert_eq!(
+            tls.client_ca_cert_path(),
+            Some(std::path::Path::new("/etc/bartos/client-ca.pem"))
+        );
+    }
+
+    #[test]
+    fn test_bartos_client_cert_key_returns_some() {
+        let bartos = Bartos {
+            prefix: "wss".to_string(),
+            host: "localhost".to_string(),
+            port: 8443,
+            ca_cert: None,
+            client_cert: Some(PathBuf::from("/etc/bartoc/client.pem")),
+            client_key: Some(PathBuf::from("/etc/bartoc/client.key")),
+        };
+        assert_eq!(
+            bartos.client_cert().as_deref(),
+            Some(std::path::Path::new("/etc/bartoc/client.pem"))
+        );
+        assert_eq!(
+            bartos.client_key().as_deref(),
+            Some(std::path::Path::new("/etc/bartoc/client.key"))
+        );
+    }
 }
