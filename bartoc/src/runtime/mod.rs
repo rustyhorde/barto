@@ -76,7 +76,11 @@ where
 
     trace!("configuration loaded");
     trace!("tracing initialized");
-    println!("{} v{} starting", env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"));
+    println!(
+        "{} v{} starting",
+        env!("CARGO_PKG_NAME"),
+        env!("CARGO_PKG_VERSION")
+    );
 
     // Display the bartoc header
     let writer: Option<&mut dyn Write> = if config.enable_std_output() {
@@ -148,7 +152,11 @@ where
             // Setup the signal handling
             let sighan_handle = spawn(async move { handle_signals(sig_token, sd_c).await });
 
-            info!("{} bartoc v{} started!", config.name(), env!("CARGO_PKG_VERSION"));
+            info!(
+                "{} bartoc v{} started!",
+                config.name(),
+                env!("CARGO_PKG_VERSION")
+            );
             loop {
                 select! {
                     () = stream_token.cancelled() => {
