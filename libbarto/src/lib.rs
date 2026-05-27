@@ -346,6 +346,7 @@ pub use self::realtime::ymd::month::Month;
 pub use self::realtime::ymd::month::MonthOfYear;
 pub use self::realtime::ymd::year::Year;
 pub use self::tls::TlsConfig;
+pub use self::tls::load_pinned_root_store;
 pub use self::tls::load_tls_config;
 pub use self::tracing::TracingConfigExt;
 pub use self::tracing::init_tracing;

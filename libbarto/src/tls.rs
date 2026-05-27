@@ -6,11 +6,11 @@
 // option. All files in the project carrying such notice may not be copied,
 // modified, or distributed except according to those terms.
 
-use std::{fs::File, io::BufReader};
+use std::{fs::File, io::BufReader, path::Path};
 
 use anyhow::{Context, Result};
 use rustls::{
-    ServerConfig,
+    RootCertStore, ServerConfig,
     pki_types::{CertificateDer, PrivateKeyDer, pem::PemObject},
 };
 use tracing::trace;
@@ -61,6 +61,26 @@ where
         .with_single_cert(cert_chain, private_keys.remove(0))?;
 
     Ok(config)
+}
+
+/// Loads a `RootCertStore` containing only the certificates from the given PEM file.
+///
+/// Used for certificate pinning: when configured, only the specified CA is trusted
+/// rather than the full Mozilla root CA store.
+///
+/// # Errors
+/// * Returns an error if the file cannot be read or contains no valid certificates
+///
+pub fn load_pinned_root_store(path: &Path) -> Result<RootCertStore> {
+    let cert_file = &mut BufReader::new(File::open(path).with_context(|| Error::CertRead)?);
+    let mut root_store = RootCertStore::empty();
+    for cert in CertificateDer::pem_reader_iter(cert_file).flatten() {
+        root_store.add(cert)?;
+    }
+    if root_store.is_empty() {
+        return Err(Error::CertRead.into());
+    }
+    Ok(root_store)
 }
 
 #[cfg(test)]

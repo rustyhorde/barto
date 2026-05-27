@@ -197,6 +197,11 @@ pub struct Bartos {
     /// The bartos port
     #[getset(get_copy = "pub")]
     port: u16,
+    /// Optional path to a PEM CA certificate to pin for the bartos TLS connection.
+    /// When set, only this CA is trusted instead of the system/Mozilla root CA store.
+    #[getset(get = "pub")]
+    #[serde(default)]
+    ca_cert: Option<PathBuf>,
 }
 
 /// The `MariaDB` configuration

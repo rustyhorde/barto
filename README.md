@@ -21,6 +21,99 @@ All services are configured via TOML files located at `~/.config/<service>/<serv
 
 1.95.0
 
+## TLS & Certificate Pinning
+
+`bartos` supports TLS for all WebSocket connections. `bartoc` and `barto-cli`
+support **certificate pinning** — trusting only a specific CA certificate rather
+than the full system/Mozilla root CA store. This prevents MITM attacks via a
+compromised or malicious public CA.
+
+### Generating a CA and server certificate
+
+Two options are shown: `openssl` (ubiquitous) and `step` from
+[Smallstep](https://smallstep.com/docs/step-cli/) (simpler API for PKI work).
+
+#### Using `openssl`
+
+```bash
+# 1. Generate the CA key and self-signed CA certificate (valid 10 years)
+openssl genrsa -out bartos-ca.key 4096
+openssl req -new -x509 -days 3650 \
+  -key bartos-ca.key \
+  -out bartos-ca.pem \
+  -subj "/CN=barto CA"
+
+# 2. Generate the bartos server key and a certificate signing request (CSR).
+#    Replace the CN and SAN values with your actual hostname/IP.
+openssl genrsa -out bartos.key 4096
+openssl req -new \
+  -key bartos.key \
+  -out bartos.csr \
+  -subj "/CN=bartos.example.com"
+
+# 3. Sign the server CSR with the CA (valid 1 year).
+#    The subjectAltName extension is required by modern TLS clients (rustls).
+#    Add all hostnames and IPs that clients will use to connect.
+openssl x509 -req -days 365 \
+  -in bartos.csr \
+  -CA bartos-ca.pem \
+  -CAkey bartos-ca.key \
+  -CAcreateserial \
+  -extfile <(printf "subjectAltName=DNS:bartos.example.com,IP:192.168.1.100") \
+  -out bartos.pem
+```
+
+#### Using `step` (Smallstep CLI)
+
+```bash
+# 1. Generate the CA key and self-signed CA certificate
+step certificate create "barto CA" bartos-ca.pem bartos-ca.key \
+  --profile root-ca \
+  --no-password --insecure
+
+# 2. Generate the bartos server certificate signed by the CA.
+#    Add all hostnames and IPs via --san flags.
+step certificate create bartos.example.com bartos.pem bartos.key \
+  --ca bartos-ca.pem --ca-key bartos-ca.key \
+  --san bartos.example.com \
+  --san 192.168.1.100 \
+  --not-after 8760h \
+  --no-password --insecure
+```
+
+### Configuring bartos (server)
+
+Point `[actix.tls]` at the signed server certificate and key:
+
+```toml
+[actix.tls]
+ip = "0.0.0.0"
+port = "20000"
+cert_file_path = "/etc/bartos/bartos.pem"
+key_file_path  = "/etc/bartos/bartos.key"
+```
+
+### Configuring bartoc and barto-cli (clients)
+
+Set `prefix = "wss"` and pin the CA certificate. Only connections whose server
+certificate is signed by this CA will be accepted:
+
+```toml
+[bartos]
+prefix  = "wss"
+host    = "bartos.example.com"
+port    = 20000
+ca_cert = "/path/to/bartos-ca.pem"
+```
+
+Distribute `bartos-ca.pem` to every `bartoc` and `barto-cli` host. Keep
+`bartos-ca.key` and `bartos.key` private and only on the `bartos` host.
+
+> **Tip**: set restrictive permissions on key files:
+> ```bash
+> chmod 600 bartos-ca.key bartos.key
+> ```
+
 ## `bartos` - The barto server
 
 [![Crates.io](https://img.shields.io/crates/v/bartos.svg)](https://crates.io/crates/bartos)
