@@ -148,6 +148,24 @@ support **certificate pinning** — trusting only a specific CA certificate rath
 than the full system/Mozilla root CA store. This prevents MITM attacks via a
 compromised or malicious public CA.
 
+#### What needs to change when clients are added or removed?
+
+**Nothing on the server certificate.** The SANs in the bartos server cert list
+the *server's own* hostnames and IP addresses — they say nothing about clients.
+Adding a new `bartoc` instance only requires generating a new client certificate
+for that instance (see [Mutual TLS](#mutual-tls-mtls) below). Removing a client
+just means decommissioning its cert; the server cert is untouched.
+
+You only need to recreate the **server certificate** when:
+- bartos moves to a new hostname or IP address
+- The cert expires
+- The CA key is compromised
+
+The **CA certificate** (`bartos-ca.pem`) is the most stable artifact — valid for
+10 years in the examples below. Clients pin this CA cert, not the server cert
+itself, so they automatically trust any new server cert signed by the same CA
+when the server cert is rotated.
+
 #### Generating a CA and server certificate
 
 Two options are shown: `openssl` (ubiquitous) and `step` from
@@ -164,7 +182,7 @@ openssl req -new -x509 -days 3650 \
   -subj "/CN=barto CA"
 
 # 2. Generate the bartos server key and a certificate signing request (CSR).
-#    Replace the CN and SAN values with your actual hostname/IP.
+#    The CN and SANs are the bartos SERVER's own hostname/IP — not the clients.
 openssl genrsa -out bartos.key 4096
 openssl req -new \
   -key bartos.key \
@@ -173,7 +191,8 @@ openssl req -new \
 
 # 3. Sign the server CSR with the CA (valid 1 year).
 #    The subjectAltName extension is required by modern TLS clients (rustls).
-#    Add all hostnames and IPs that clients will use to connect.
+#    List every hostname and IP that bartos itself listens on.
+#    Client hostnames/IPs are NOT listed here.
 openssl x509 -req -days 365 \
   -in bartos.csr \
   -CA bartos-ca.pem \
@@ -192,7 +211,7 @@ step certificate create "barto CA" bartos-ca.pem bartos-ca.key \
   --no-password --insecure
 
 # 2. Generate the bartos server certificate signed by the CA.
-#    Add all hostnames and IPs via --san flags.
+#    --san flags list the SERVER's own hostname(s) and IP(s), not clients.
 step certificate create bartos.example.com bartos.pem bartos.key \
   --ca bartos-ca.pem --ca-key bartos-ca.key \
   --san bartos.example.com \
@@ -242,6 +261,10 @@ will reject any connection that does not present a valid certificate signed by a
 trusted client CA.
 
 #### Generating client certificates
+
+Each `bartoc` or `barto-cli` instance gets its own client certificate — adding
+a new client means generating one new cert and signing it with the CA. No change
+to the server certificate or to any other client's certificate is needed.
 
 Using the same CA from the Certificate Pinning section to sign client certs keeps
 the PKI simple. You can use the same CA for both server and client certs, or
