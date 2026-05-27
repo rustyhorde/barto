@@ -114,6 +114,81 @@ Distribute `bartos-ca.pem` to every `bartoc` and `barto-cli` host. Keep
 > chmod 600 bartos-ca.key bartos.key
 > ```
 
+---
+
+## Mutual TLS (mTLS)
+
+Certificate pinning (above) proves the *server's* identity to the clients.
+Mutual TLS additionally proves each *client's* identity to the server — bartos
+will reject any connection that does not present a valid certificate signed by a
+trusted client CA.
+
+### Generating client certificates
+
+Using the same CA from the Certificate Pinning section to sign client certs keeps
+the PKI simple. You can use the same CA for both server and client certs, or
+maintain separate CAs.
+
+#### Using `openssl`
+
+```bash
+# Generate a client key and CSR for a bartoc instance named "my-worker"
+openssl genrsa -out my-worker.key 4096
+openssl req -new \
+  -key my-worker.key \
+  -out my-worker.csr \
+  -subj "/CN=my-worker"
+
+# Sign the client CSR with the CA
+openssl x509 -req -days 365 \
+  -in my-worker.csr \
+  -CA bartos-ca.pem \
+  -CAkey bartos-ca.key \
+  -CAcreateserial \
+  -out my-worker.pem
+```
+
+#### Using `step`
+
+```bash
+step certificate create my-worker my-worker.pem my-worker.key \
+  --ca bartos-ca.pem --ca-key bartos-ca.key \
+  --not-after 8760h \
+  --no-password --insecure
+```
+
+### Configuring bartos (server)
+
+Add `client_ca_cert` to `[actix.tls]`. bartos will now require every connecting
+`bartoc` and `barto-cli` to present a certificate signed by this CA:
+
+```toml
+[actix.tls]
+ip             = "0.0.0.0"
+port           = "20000"
+cert_file_path = "/etc/bartos/bartos.pem"
+key_file_path  = "/etc/bartos/bartos.key"
+client_ca_cert = "/etc/bartos/bartos-ca.pem"
+```
+
+### Configuring bartoc and barto-cli (clients)
+
+Add `client_cert` and `client_key` to `[bartos]`. The client will present this
+certificate during the TLS handshake:
+
+```toml
+[bartos]
+prefix      = "wss"
+host        = "bartos.example.com"
+port        = 20000
+ca_cert     = "/path/to/bartos-ca.pem"
+client_cert = "/path/to/my-worker.pem"
+client_key  = "/path/to/my-worker.key"
+```
+
+Each `bartoc` instance should have its own unique client certificate so that a
+compromised instance can be identified and its certificate revoked independently.
+
 ## `bartos` - The barto server
 
 [![Crates.io](https://img.shields.io/crates/v/bartos.svg)](https://crates.io/crates/bartos)

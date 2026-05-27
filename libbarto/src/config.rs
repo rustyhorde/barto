@@ -173,6 +173,11 @@ pub struct Tls {
     /// The path to the key file (PEM format)
     #[getset(get = "pub")]
     key_file_path: String,
+    /// Optional path to a CA certificate for mutual TLS client authentication.
+    /// When set, clients must present a certificate signed by this CA.
+    #[getset(get = "pub")]
+    #[serde(default)]
+    client_ca_cert: Option<PathBuf>,
 }
 
 impl TlsConfig for Tls {
@@ -182,6 +187,10 @@ impl TlsConfig for Tls {
 
     fn key_file_path(&self) -> &str {
         &self.key_file_path
+    }
+
+    fn client_ca_cert_path(&self) -> Option<&std::path::Path> {
+        self.client_ca_cert.as_deref()
     }
 }
 
@@ -202,6 +211,16 @@ pub struct Bartos {
     #[getset(get = "pub")]
     #[serde(default)]
     ca_cert: Option<PathBuf>,
+    /// Optional path to a client certificate PEM file for mutual TLS authentication.
+    /// Both `client_cert` and `client_key` must be set together.
+    #[getset(get = "pub")]
+    #[serde(default)]
+    client_cert: Option<PathBuf>,
+    /// Optional path to a client private key PEM file for mutual TLS authentication.
+    /// Both `client_cert` and `client_key` must be set together.
+    #[getset(get = "pub")]
+    #[serde(default)]
+    client_key: Option<PathBuf>,
 }
 
 /// The `MariaDB` configuration

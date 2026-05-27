@@ -24,6 +24,10 @@ port = 8080
 # Optional: pin a specific CA certificate instead of trusting the system/Mozilla root CA store.
 # When set, only TLS certificates signed by this CA are accepted (certificate pinning).
 # ca_cert = "/path/to/bartos-ca.pem"
+# Optional: mutual TLS — present this client certificate to bartos for authentication.
+# Both client_cert and client_key must be set together.
+# client_cert = "/path/to/bartoc-client.pem"
+# client_key  = "/path/to/bartoc-client.key"
 
 [tracing.stdout]
 # with_target = false
