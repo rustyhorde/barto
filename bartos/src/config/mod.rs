@@ -32,6 +32,11 @@ pub(crate) struct Config {
     schedules: BTreeMap<String, Schedules>,
     #[getset(get = "pub(crate)")]
     mariadb: Mariadb,
+    /// Optional base64-encoded Ed25519 private key for signing outgoing messages to bartoc.
+    /// When set, all `BartosToBartoc` messages are prefixed with a 64-byte Ed25519 signature.
+    #[getset(get = "pub(crate)")]
+    #[serde(default)]
+    signing_key: Option<String>,
 }
 
 impl TracingConfig for Config {

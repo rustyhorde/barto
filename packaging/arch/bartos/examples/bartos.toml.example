@@ -25,6 +25,11 @@ port = 8080
 # Optional: require mutual TLS — clients must present a cert signed by this CA.
 # client_ca_cert = "/etc/bartos/client-ca.pem"
 
+# Optional: Ed25519 private key for signing all BartosToBartoc messages.
+# Generate with: openssl genpkey -algorithm ed25519 | openssl pkey -outform DER | tail -c 32 | base64
+# (see README for the recommended barto-keygen helper)
+# signing_key = "base64encodedEd25519PrivateKey..."
+
 [tracing.stdout]
 # with_target = false
 # with_thread_ids = false

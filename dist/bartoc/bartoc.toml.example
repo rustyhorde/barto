@@ -29,6 +29,10 @@ port = 8080
 # client_cert = "/path/to/bartoc-client.pem"
 # client_key  = "/path/to/bartoc-client.key"
 
+# Optional: base64-encoded Ed25519 public key of the bartos server.
+# When set, incoming messages that lack a valid signature are rejected.
+# server_public_key = "base64encodedEd25519PublicKey..."
+
 [tracing.stdout]
 # with_target = false
 # with_thread_ids = false

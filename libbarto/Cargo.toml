@@ -18,7 +18,9 @@ unstable = []
 
 [dependencies]
 anyhow = { workspace = true }
+base64 = { workspace = true }
 bincode-next = { workspace = true }
+ed25519-dalek = { workspace = true }
 bon = { workspace = true }
 bytes = { workspace = true }
 clap = { workspace = true }
