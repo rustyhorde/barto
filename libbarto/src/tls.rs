@@ -138,9 +138,13 @@ pub fn load_pinned_root_store(path: &Path) -> Result<RootCertStore> {
 
 #[cfg(test)]
 mod test {
-    use super::{TlsConfig, load_tls_config};
+    use std::path::Path;
+
+    use super::{TlsConfig, load_client_cert_and_key, load_pinned_root_store, load_tls_config};
 
     struct MockTlsConfig;
+    struct MockEmptyKeysTlsConfig;
+    struct MockMtlsTlsConfig;
 
     impl TlsConfig for MockTlsConfig {
         fn cert_file_path(&self) -> &'static str {
@@ -152,8 +156,6 @@ mod test {
         }
     }
 
-    struct MockEmptyKeysTlsConfig;
-
     impl TlsConfig for MockEmptyKeysTlsConfig {
         fn cert_file_path(&self) -> &'static str {
             "./testtls/onlytests.pem"
@@ -164,17 +166,105 @@ mod test {
         }
     }
 
+    impl TlsConfig for MockMtlsTlsConfig {
+        fn cert_file_path(&self) -> &'static str {
+            "./testtls/onlytests.pem"
+        }
+
+        fn key_file_path(&self) -> &'static str {
+            "./testtls/onlytests-key.pem"
+        }
+
+        fn client_ca_cert_path(&self) -> Option<&Path> {
+            Some(Path::new("./testtls/test-ca.pem"))
+        }
+    }
+
     #[test]
     fn test_load_tls_config() {
-        let config = MockTlsConfig;
-        let tls_config = load_tls_config(&config);
-        assert!(tls_config.is_ok());
+        assert!(load_tls_config(&MockTlsConfig).is_ok());
     }
 
     #[test]
     fn test_load_tls_config_empty_keys() {
-        let config = MockEmptyKeysTlsConfig;
-        let tls_config = load_tls_config(&config);
-        assert!(tls_config.is_err());
+        assert!(load_tls_config(&MockEmptyKeysTlsConfig).is_err());
+    }
+
+    #[test]
+    fn test_load_tls_config_with_client_auth() {
+        assert!(load_tls_config(&MockMtlsTlsConfig).is_ok());
+    }
+
+    #[test]
+    fn test_load_pinned_root_store() {
+        let store = load_pinned_root_store(Path::new("./testtls/test-ca.pem"));
+        assert!(store.is_ok());
+        assert!(!store.unwrap().is_empty());
+    }
+
+    #[test]
+    fn test_load_pinned_root_store_missing_file() {
+        assert!(load_pinned_root_store(Path::new("./testtls/nonexistent.pem")).is_err());
+    }
+
+    #[test]
+    fn test_load_pinned_root_store_empty_cert() {
+        // empty-key.pem has no certificates, so the store ends up empty → error
+        assert!(load_pinned_root_store(Path::new("./testtls/empty-key.pem")).is_err());
+    }
+
+    #[test]
+    fn test_load_client_cert_and_key() {
+        let result = load_client_cert_and_key(
+            Path::new("./testtls/test-client.pem"),
+            Path::new("./testtls/test-client.key"),
+        );
+        assert!(result.is_ok());
+        let (chain, _key) = result.unwrap();
+        assert!(!chain.is_empty());
+    }
+
+    #[test]
+    fn test_load_client_cert_and_key_missing_cert() {
+        assert!(
+            load_client_cert_and_key(
+                Path::new("./testtls/nonexistent.pem"),
+                Path::new("./testtls/test-client.key"),
+            )
+            .is_err()
+        );
+    }
+
+    #[test]
+    fn test_load_client_cert_and_key_empty_cert() {
+        assert!(
+            load_client_cert_and_key(
+                Path::new("./testtls/empty-key.pem"),
+                Path::new("./testtls/test-client.key"),
+            )
+            .is_err()
+        );
+    }
+
+    #[test]
+    fn test_load_client_cert_and_key_missing_key() {
+        assert!(
+            load_client_cert_and_key(
+                Path::new("./testtls/test-client.pem"),
+                Path::new("./testtls/nonexistent.key"),
+            )
+            .is_err()
+        );
+    }
+
+    #[test]
+    fn test_load_client_cert_and_key_empty_key() {
+        assert!(
+            load_client_cert_and_key(
+                Path::new("./testtls/test-client.pem"),
+                Path::new("./testtls/empty-key.pem"),
+            )
+            .is_err()
+        );
     }
 }
