@@ -13,6 +13,9 @@ description: |
 homepage: https://github.com/rustyhorde/barto
 license: MIT OR Apache-2.0
 
+scripts:
+  postinstall: packaging/nfpm/scripts/barto-cli-post-install.sh
+
 deb:
   compression: xz
 

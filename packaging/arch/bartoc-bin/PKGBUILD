@@ -13,6 +13,7 @@ depends=()
 optdepends=('logrotate: periodic cleanup of rotated log files'
             'xz: xz compression of rotated log files')
 makedepends=()
+install=bartoc.install
 
 _base="https://github.com/rustyhorde/barto/releases/download/v${pkgver}"
 
