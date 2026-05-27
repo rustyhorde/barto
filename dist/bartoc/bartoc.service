@@ -20,11 +20,5 @@ SyslogIdentifier=bartoc
 ConfigurationDirectory=bartoc
 StateDirectory=bartoc
 
-# Hardening
-NoNewPrivileges=true
-ProtectSystem=strict
-ProtectHome=false
-PrivateTmp=true
-
 [Install]
 WantedBy=default.target
