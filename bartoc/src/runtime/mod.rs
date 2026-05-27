@@ -97,96 +97,91 @@ where
     while retry_count > 0 {
         let sd_r = Arc::clone(&shutdown);
         let sd_c = Arc::clone(&shutdown);
-        let res: Result<()> = async {
-            let token = CancellationToken::new();
-            let sig_token = token.clone();
-            let stream_token = token.clone();
-            let heartbeat_token = token.clone();
-            let output_token = token.clone();
-            let (tx, mut rx) = unbounded_channel();
-            let (data_tx, data_rx) = unbounded_channel();
-            let url = format!(
-                "{}://{}:{}/v1/ws/worker?name={}",
-                config.bartos().prefix(),
-                config.bartos().host(),
-                config.bartos().port(),
-                config.name()
-            );
-            trace!("connecting to bartos at {url}");
-            let (ws_stream, _) =
-                connect_async_tls_with_config(&url, None, false, Some(make_tls_connector()))
-                    .await?;
-            trace!("websocket connected");
-            retry_count = *config.retry_count(); // reset retry count on successful connection
-            error_count = 0; // reset error count on successful connection
-            trace!("retry and error counts reset");
-            let (sink, mut stream) = ws_stream.split();
-            let mut handler =
-                setup_handler(sink, tx.clone(), data_tx.clone(), heartbeat_token, &config).await?;
-            trace!("bartoc heartbeat started");
-            let mut ws_handler = WsHandler::builder()
-                .tx(tx.clone())
-                .token(stream_token.clone())
-                .build();
-
-            let sink_handle = spawn(async move {
-                while let Some(msg) = rx.recv().await {
-                    if let Err(e) = handler.handle_msg(msg).await {
-                        error!("{e}");
-                        trace!("shutting down sink handler");
-                        break;
-                    }
-                }
-            });
-
-            // Setup the database handler
-            let db_tx = tx.clone();
-            let mut db = BartocDatabase::new(&config, db_tx)?;
-
-            let db_handle = spawn(async move {
-                if let Err(e) = db.monitor(data_rx, output_token).await {
-                    error!("database handler error: {e}");
-                }
-            });
-
-            // Setup the signal handling
-            let sighan_handle = spawn(async move { handle_signals(sig_token, sd_c).await });
-
-            info!(
-                "{} bartoc v{} started!",
-                config.name(),
-                env!("CARGO_PKG_VERSION")
-            );
-            loop {
-                select! {
-                    () = stream_token.cancelled() => {
-                        handle_cancellation(tx).await;
-                        break;
-                    }
-                    next_opt = stream.next() => {
-                        if let Err(e) = ws_handler.handle_msg(next_opt) {
-                            error!("{e}");
-                        }
-                    }
-                }
-            }
-
-            sink_handle.await?;
-            db_handle.await?;
-            let _res = sighan_handle.await?;
-            Ok(())
-        }
-        .await;
-
+        let res = run_connection(&config, sd_c, &mut retry_count, &mut error_count).await;
         if let Err(e) = res {
             error!("{e}");
         }
-
         if handle_shutdown(&shutdown, sd_r, &mut retry_count, &mut error_count).await {
             break;
         }
     }
 
+    Ok(())
+}
+
+async fn run_connection(
+    config: &Config,
+    sd_c: Arc<AtomicBool>,
+    retry_count: &mut u8,
+    error_count: &mut u32,
+) -> Result<()> {
+    let token = CancellationToken::new();
+    let sig_token = token.clone();
+    let stream_token = token.clone();
+    let heartbeat_token = token.clone();
+    let output_token = token.clone();
+    let (tx, mut rx) = unbounded_channel();
+    let (data_tx, data_rx) = unbounded_channel();
+    let url = format!(
+        "{}://{}:{}/v1/ws/worker?name={}",
+        config.bartos().prefix(),
+        config.bartos().host(),
+        config.bartos().port(),
+        config.name()
+    );
+    trace!("connecting to bartos at {url}");
+    let (ws_stream, _) =
+        connect_async_tls_with_config(&url, None, false, Some(make_tls_connector())).await?;
+    trace!("websocket connected");
+    *retry_count = *config.retry_count(); // reset on successful connection
+    *error_count = 0; // reset on successful connection
+    trace!("retry and error counts reset");
+    let (sink, mut stream) = ws_stream.split();
+    let mut handler =
+        setup_handler(sink, tx.clone(), data_tx.clone(), heartbeat_token, config).await?;
+    trace!("bartoc heartbeat started");
+    let mut ws_handler = WsHandler::builder()
+        .tx(tx.clone())
+        .token(stream_token.clone())
+        .build();
+    let sink_handle = spawn(async move {
+        while let Some(msg) = rx.recv().await {
+            if let Err(e) = handler.handle_msg(msg).await {
+                error!("{e}");
+                trace!("shutting down sink handler");
+                break;
+            }
+        }
+    });
+    let db_tx = tx.clone();
+    let mut db = BartocDatabase::new(config, db_tx)?;
+    let db_handle = spawn(async move {
+        if let Err(e) = db.monitor(data_rx, output_token).await {
+            error!("database handler error: {e}");
+        }
+    });
+    let sighan_handle = spawn(async move { handle_signals(sig_token, sd_c).await });
+    info!(
+        "{} bartoc v{} started!",
+        config.name(),
+        env!("CARGO_PKG_VERSION")
+    );
+    loop {
+        select! {
+            () = stream_token.cancelled() => {
+                handle_cancellation(tx).await;
+                break;
+            }
+            next_opt = stream.next() => {
+                if let Err(e) = ws_handler.handle_msg(next_opt) {
+                    error!("{e}");
+                }
+            }
+        }
+    }
+    sink_handle.await?;
+    db_handle.await?;
+    let _res = sighan_handle.await?;
     Ok(())
 }
 
