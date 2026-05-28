@@ -2,6 +2,14 @@
 # Default location: ~/.config/barto-cli/barto-cli.toml
 # Override with: barto-cli --config-absolute-path /path/to/config.toml
 # Environment variables: BARTO_CLI_<FIELD> (e.g. BARTO_CLI_BARTOS_HOST)
+#
+# SECRETS: Do NOT put secret values in this file.
+# Store them once in the platform keychain using barto-cli:
+#   barto-cli secrets set BARTO_CLI_BARTOS_API_KEY
+# See SECRETS.md for details.
+#
+# Secret env vars (managed via platform keychain):
+#   BARTO_CLI_BARTOS_API_KEY  — Bearer token for WebSocket upgrade
 
 # A display name for this client connection.
 name = "my-client"
@@ -18,9 +26,13 @@ port = 8080
 # Both client_cert and client_key must be set together.
 # client_cert = "/path/to/barto-cli-client.pem"
 # client_key  = "/path/to/barto-cli-client.key"
-# Optional: pre-shared token sent as Authorization: Bearer <token> on WebSocket upgrade.
-# Must match api_key in bartos.toml.
-# api_key = "your-secret-token-here"
+
+# The following secret field is intentionally omitted from this file.
+# Store it via `barto-cli secrets set BARTO_CLI_BARTOS_API_KEY` (see SECRETS.md).
+#
+# api_key  — Bearer token sent as Authorization: Bearer <token> on WebSocket upgrade.
+#            Must match api_key in bartos.toml.
+#            Set via: BARTO_CLI_BARTOS_API_KEY env var
 
 [tracing.stdout]
 # with_target = false

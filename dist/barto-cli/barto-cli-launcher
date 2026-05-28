@@ -1,0 +1,31 @@
+#!/bin/sh
+# Loads barto-cli secrets from the platform keychain (GNOME Keyring / KWallet via
+# libsecret) and exports them as environment variables before exec-ing barto-cli.
+#
+# This launcher is optional for interactive use — barto-cli reads from the keychain
+# natively via `barto-cli secrets`.  Use this wrapper when calling barto-cli from
+# scripts or cron jobs that lack a keychain session.
+#
+# Requires: libsecret (secret-tool) — available on GNOME/KDE desktops.
+#
+# Store secrets once:
+#   barto-cli secrets set BARTO_CLI_BARTOS_API_KEY
+#
+# See SECRETS.md for the full setup workflow.
+set -e
+
+load_secret() {
+    secret-tool lookup service barto key "$1" 2>/dev/null || true
+}
+
+if command -v secret-tool > /dev/null 2>&1; then
+    if [ -z "${BARTO_CLI_BARTOS_API_KEY:-}" ]; then
+        val=$(load_secret BARTO_CLI_BARTOS_API_KEY)
+        if [ -n "$val" ]; then
+            BARTO_CLI_BARTOS_API_KEY="$val"
+            export BARTO_CLI_BARTOS_API_KEY
+        fi
+    fi
+fi
+
+exec /usr/bin/barto-cli "$@"

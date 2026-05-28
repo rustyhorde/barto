@@ -36,6 +36,9 @@ package() {
     # Binary
     install -Dm755 "target/release/bartoc" "$pkgdir/usr/bin/bartoc"
 
+    # Launcher script (loads secrets from GNOME Keyring / KWallet)
+    install -Dm755 "dist/bartoc/bartoc-launcher" "$pkgdir/usr/lib/bartoc/bartoc-launcher"
+
     # Man page
     install -Dm644 "dist/bartoc/bartoc.1" "$pkgdir/usr/share/man/man1/bartoc.1"
 

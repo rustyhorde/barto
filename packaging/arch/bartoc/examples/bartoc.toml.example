@@ -2,6 +2,18 @@
 # Default location: ~/.config/bartoc/bartoc.toml
 # Override with: bartoc --config-absolute-path /path/to/config.toml
 # Environment variables: BARTOC_<FIELD> (e.g. BARTOC_BARTOS_HOST)
+#
+# SECRETS: Do NOT put secret values in this file.
+# Store them once in the platform keychain using barto-cli:
+#   barto-cli secrets set BARTOC_HMAC_KEY
+#   barto-cli secrets set BARTOC_SERVER_PUBLIC_KEY
+#   barto-cli secrets set BARTOC_BARTOS_API_KEY
+# bartoc-launcher loads them automatically at startup — see SECRETS.md.
+#
+# Secret env vars (managed via platform keychain):
+#   BARTOC_HMAC_KEY            — shared HMAC-SHA256 key (must match bartos)
+#   BARTOC_SERVER_PUBLIC_KEY   — Ed25519 public key to verify bartos messages
+#   BARTOC_BARTOS_API_KEY      — Bearer token for WebSocket upgrade
 
 # The name of this bartoc instance.
 # Must match the section name in the bartos schedules config (e.g. [schedules.my-worker]).
@@ -29,18 +41,18 @@ port = 8080
 # client_cert = "/path/to/bartoc-client.pem"
 # client_key  = "/path/to/bartoc-client.key"
 
-# Optional: base64-encoded Ed25519 public key of the bartos server.
-# When set, incoming messages that lack a valid signature are rejected.
-# server_public_key = "base64encodedEd25519PublicKey..."
-
-# Optional: shared secret for HMAC-SHA256 authentication of incoming messages from bartos.
-# Must match hmac_key in bartos.toml.
-# hmac_key = "your-shared-secret-here"
-# Replay protection window in seconds (default: 60).
-# replay_window_secs = 60
-# Optional: pre-shared token sent as Authorization: Bearer <token> on WebSocket upgrade.
-# Must match api_key in bartos.toml.
-# api_key = "your-secret-token-here"
+# The following secret fields are intentionally omitted from this file.
+# Store them via `barto-cli secrets set <KEY>` (see SECRETS.md).
+#
+# server_public_key — base64-encoded Ed25519 public key of the bartos server.
+#                     Set via: BARTOC_SERVER_PUBLIC_KEY env var
+#
+# hmac_key          — shared HMAC-SHA256 secret for message authentication.
+#                     Set via: BARTOC_HMAC_KEY env var
+#                     replay_window_secs = 60  (optional, default 60)
+#
+# api_key           — Bearer token sent on WebSocket upgrade.
+#                     Set via: BARTOC_BARTOS_API_KEY env var
 
 [tracing.stdout]
 # with_target = false

@@ -32,7 +32,7 @@ function run_step
 end
 
 set release_dir "target/x86_64-unknown-linux-musl/release"
-set bins "bartos bartoc barto-cli"
+set bins bartos bartoc barto-cli
 
 echo "Building MUSL binaries with Docker..."
 run_step "docker run -v cargo-cache:/root/.cargo/registry -v (pwd):/home/rust/src -v ~/.gitconfig:/root/.gitconfig:ro -e SQLX_OFFLINE=true --rm -t blackdex/rust-musl:x86_64-musl-nightly cargo build --release --locked $features"

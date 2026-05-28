@@ -136,6 +136,8 @@ impl PathDefaults for Cli {
 
 #[derive(Clone, Debug, Subcommand)]
 pub(crate) enum Commands {
+    #[clap(about = "Manage barto secrets in the platform keychain (no bartos connection needed)")]
+    Secrets(SecretsArgs),
     #[clap(about = "Display the bartos version information")]
     Info {
         /// Output the information in JSON format
@@ -190,5 +192,34 @@ pub(crate) enum Commands {
         /// The name of the command to display output for
         #[clap(help = "The name of the command to display output for")]
         cmd_name: String,
+    },
+}
+
+/// Wrapper so `secrets` appears as a subcommand with its own sub-subcommands.
+#[derive(Clone, Debug, clap::Args)]
+pub(crate) struct SecretsArgs {
+    #[command(subcommand)]
+    pub(crate) command: SecretsSubcommand,
+}
+
+#[derive(Clone, Debug, Subcommand)]
+pub(crate) enum SecretsSubcommand {
+    /// Store a secret value in the platform keychain.
+    /// Prompts for the value without echoing it.
+    Set {
+        /// Name of the secret (e.g. `BARTOC_HMAC_KEY`)
+        key: String,
+    },
+    /// Retrieve and print a secret from the platform keychain.
+    Get {
+        /// Name of the secret to retrieve
+        key: String,
+    },
+    /// List known barto secrets and whether each is currently stored.
+    List,
+    /// Delete a secret from the platform keychain.
+    Delete {
+        /// Name of the secret to delete
+        key: String,
     },
 }

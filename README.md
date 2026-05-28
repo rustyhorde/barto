@@ -829,6 +829,68 @@ Options:
   -h, --help  Print help
 ```
 
+## Secrets Management
+
+Barto secrets (HMAC keys, signing keys, API tokens, database passwords) should
+**never** be stored as plaintext in TOML config files.  All components read secrets
+from environment variables, and the launchers installed with each package inject
+those variables from a secure store at startup.
+
+| Secret | Component | Env Var |
+|---|---|---|
+| HMAC-SHA256 key | bartos | `BARTOS_HMAC_KEY` |
+| Ed25519 private key | bartos | `BARTOS_SIGNING_KEY` |
+| Bearer token | bartos | `BARTOS_API_KEY` |
+| MariaDB password | bartos | `BARTOS_MARIADB_PASSWORD` |
+| HMAC-SHA256 key | bartoc | `BARTOC_HMAC_KEY` |
+| Ed25519 public key | bartoc | `BARTOC_SERVER_PUBLIC_KEY` |
+| Bearer token | bartoc | `BARTOC_BARTOS_API_KEY` |
+| Bearer token | barto-cli | `BARTO_CLI_BARTOS_API_KEY` |
+
+### bartos — systemd credentials (Linux)
+
+bartos runs as a system service and uses **systemd credentials** to keep secrets
+encrypted at rest.  If a TPM2 is present, credentials are hardware-bound; otherwise
+they are sealed to a machine-specific key.
+
+```sh
+# Interactive setup — generates SetCredentialEncrypted= lines to paste into the service:
+barto-secrets-init
+
+# Manual — encrypt one secret at a time:
+printf 'MY_HMAC_KEY' | systemd-creds encrypt --name=hmac_key -
+```
+
+Add the output to `/etc/systemd/system/bartos.service.d/secrets.conf`, then:
+
+```sh
+systemctl daemon-reload && systemctl restart bartos
+```
+
+### bartoc and barto-cli — platform keychain
+
+bartoc and barto-cli run as user processes.  Secrets are stored in the **platform
+keychain**, which is auto-unlocked at login (GNOME Keyring / KWallet on Linux,
+Login Keychain on macOS, PasswordVault on Windows).
+
+```sh
+# Store secrets once:
+barto-cli secrets set BARTOC_HMAC_KEY
+barto-cli secrets set BARTOC_SERVER_PUBLIC_KEY
+barto-cli secrets set BARTOC_BARTOS_API_KEY
+barto-cli secrets set BARTO_CLI_BARTOS_API_KEY
+
+# Check what is stored:
+barto-cli secrets list
+```
+
+The `bartoc-launcher` script (installed at `/usr/lib/bartoc/bartoc-launcher`) reads
+the keychain at service start and exports secrets as env vars before starting bartoc.
+
+See [SECRETS.md](SECRETS.md) for the complete setup guide, including platform-specific
+details, TPM2 detection, generating new key material, and migrating away from
+plaintext TOML secrets.
+
 ## `libbarto` - The shared library
 
 [![docs.rs](https://docs.rs/libbarto/badge.svg)](https://docs.rs/libbarto)

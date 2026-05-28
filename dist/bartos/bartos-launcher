@@ -1,0 +1,38 @@
+#!/bin/sh
+# Reads secrets from the systemd credentials directory and exports them as
+# environment variables before exec-ing bartos.  Run by bartos.service via
+# ExecStart so the process itself never touches a plaintext secrets file.
+#
+# Secrets are provisioned with:
+#   printf 'SECRET' | systemd-creds encrypt --name=<name> -
+# and placed in [Service] SetCredentialEncrypted= lines.
+# See SECRETS.md or `barto-secrets-init bartos` for the full setup workflow.
+set -e
+
+if [ -n "${CREDENTIALS_DIRECTORY:-}" ]; then
+    for name in hmac_key signing_key api_key mariadb_password; do
+        path="${CREDENTIALS_DIRECTORY}/${name}"
+        if [ -f "$path" ]; then
+            case "$name" in
+                hmac_key)
+                    BARTOS_HMAC_KEY=$(cat "$path")
+                    export BARTOS_HMAC_KEY
+                    ;;
+                signing_key)
+                    BARTOS_SIGNING_KEY=$(cat "$path")
+                    export BARTOS_SIGNING_KEY
+                    ;;
+                api_key)
+                    BARTOS_API_KEY=$(cat "$path")
+                    export BARTOS_API_KEY
+                    ;;
+                mariadb_password)
+                    BARTOS_MARIADB_PASSWORD=$(cat "$path")
+                    export BARTOS_MARIADB_PASSWORD
+                    ;;
+            esac
+        fi
+    done
+fi
+
+exec /usr/bin/bartos "$@"
