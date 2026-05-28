@@ -22,7 +22,7 @@ use anyhow::{Context, Result};
 use clap::Parser;
 use futures_util::{StreamExt, stream::SplitSink};
 use libbarto::{
-    Data, header, init_tracing, load_client_cert_and_key, load_pinned_root_store,
+    Data, header, init_tracing, load_client_cert_and_key, load_pinned_root_store, parse_hmac_key,
     parse_verifying_key,
 };
 #[cfg(not(unix))]
@@ -148,10 +148,13 @@ async fn run_connection(
         .as_deref()
         .map(parse_verifying_key)
         .transpose()?;
+    let hmac_key = config.hmac_key().as_deref().map(parse_hmac_key);
     let mut ws_handler = WsHandler::builder()
         .tx(tx.clone())
         .token(stream_token.clone())
         .maybe_verifying_key(verifying_key)
+        .maybe_hmac_key(hmac_key)
+        .maybe_replay_window_secs(config.replay_window_secs())
         .build();
     let sink_handle = spawn(async move {
         while let Some(msg) = rx.recv().await {

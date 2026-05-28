@@ -30,6 +30,11 @@ port = 8080
 # (see README for the recommended barto-keygen helper)
 # signing_key = "base64encodedEd25519PrivateKey..."
 
+# Optional: shared secret for HMAC-SHA256 authentication of outgoing messages to bartoc.
+# Generate with: openssl rand -base64 32
+# Must match hmac_key in bartoc.toml.
+# hmac_key = "your-shared-secret-here"
+
 [tracing.stdout]
 # with_target = false
 # with_thread_ids = false

@@ -17,7 +17,8 @@ use bincode_next::{config::standard, decode_from_slice, encode_to_vec};
 use futures_util::StreamExt as _;
 use libbarto::{
     Bartoc, BartosToBartoc, Initialize, Output, OutputKind, OutputTableName, Status,
-    StatusTableName, UuidWrapper, parse_signing_key, parse_ts_ping, sign_payload,
+    StatusTableName, UuidWrapper, hmac_sign, parse_hmac_key, parse_signing_key, parse_ts_ping,
+    sign_payload,
 };
 use sqlx::MySqlPool;
 use tokio::{
@@ -168,6 +169,14 @@ async fn initialize(
             error!("unable to encode initialization message: {e}");
             ErrorInternalServerError("internal server error")
         })?;
+        // Layer 4: HMAC-SHA256 authenticated envelope (applied before Ed25519 signing).
+        let payload = if let Some(hmac_key_str) = config.hmac_key() {
+            trace!("wrapping initialization message with HMAC-SHA256 envelope");
+            hmac_sign(&parse_hmac_key(hmac_key_str), &payload)
+        } else {
+            payload
+        };
+        // Layer 5: Ed25519 signature (outermost layer).
         if let Some(sk_b64) = config.signing_key() {
             match parse_signing_key(sk_b64) {
                 Ok(sk) => {

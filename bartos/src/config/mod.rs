@@ -37,6 +37,13 @@ pub(crate) struct Config {
     #[getset(get = "pub(crate)")]
     #[serde(default)]
     signing_key: Option<String>,
+    /// Optional shared secret for HMAC-SHA256 authentication of outgoing messages to bartoc.
+    /// When set, all `BartosToBartoc` messages are wrapped in an authenticated envelope
+    /// containing a timestamp, random nonce, and HMAC-SHA256 MAC.
+    /// Must match `hmac_key` in bartoc.toml.
+    #[getset(get = "pub(crate)")]
+    #[serde(default)]
+    hmac_key: Option<String>,
 }
 
 impl TracingConfig for Config {

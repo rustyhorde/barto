@@ -55,6 +55,18 @@ pub(crate) struct Config {
     #[getset(get = "pub(crate)")]
     #[serde(default)]
     server_public_key: Option<String>,
+    /// Optional shared secret for HMAC-SHA256 authentication of incoming messages from bartos.
+    /// When set, messages must carry a valid HMAC-SHA256 envelope (timestamp + nonce + MAC).
+    /// Messages outside the replay window or with replayed nonces are rejected.
+    /// Must match `hmac_key` in bartos.toml.
+    #[getset(get = "pub(crate)")]
+    #[serde(default)]
+    hmac_key: Option<String>,
+    /// Replay protection window in seconds (default: 60).
+    /// Messages with a timestamp outside this window of the current time are rejected.
+    #[getset(get_copy = "pub(crate)")]
+    #[serde(default)]
+    replay_window_secs: Option<u64>,
 }
 
 impl TracingConfig for Config {
