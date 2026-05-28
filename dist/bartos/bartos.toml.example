@@ -2,12 +2,23 @@
 # Default location: ~/.config/bartos/bartos.toml
 # Override with: bartos --config-absolute-path /path/to/config.toml
 # Environment variables: BARTOS_<FIELD> (e.g. BARTOS_MARIADB_PASSWORD)
+#
+# SECRETS: Do NOT put secret values in this file.
+# Use systemd credentials instead — see SECRETS.md or run `barto-secrets-init`.
+# Secrets are injected as env vars by the bartos-launcher wrapper at service start.
+#
+# Secret env vars (managed via systemd credentials):
+#   BARTOS_HMAC_KEY          — shared HMAC-SHA256 key (must match bartoc)
+#   BARTOS_SIGNING_KEY       — Ed25519 private key (base64-encoded)
+#   BARTOS_API_KEY           — Bearer token for WebSocket upgrade
+#   BARTOS_MARIADB_PASSWORD  — MariaDB password (can also stay in [mariadb] below)
 
 [mariadb]
 host = "localhost"
 # port = 3306
 username = "barto"
-password = "changeme"
+# password is set via BARTOS_MARIADB_PASSWORD env var (systemd credential)
+# password = "changeme"
 database = "barto"
 # options = "ssl-mode=disabled"
 
@@ -25,21 +36,17 @@ port = 8080
 # Optional: require mutual TLS — clients must present a cert signed by this CA.
 # client_ca_cert = "/etc/bartos/client-ca.pem"
 
-# Optional: Ed25519 private key for signing all BartosToBartoc messages.
-# Generate with: openssl genpkey -algorithm ed25519 | openssl pkey -outform DER | tail -c 32 | base64
-# (see README for the recommended barto-keygen helper)
-# signing_key = "base64encodedEd25519PrivateKey..."
-
-# Optional: shared secret for HMAC-SHA256 authentication of outgoing messages to bartoc.
-# Generate with: openssl rand -base64 32
-# Must match hmac_key in bartoc.toml.
-# hmac_key = "your-shared-secret-here"
-
-# Optional: pre-shared token for Bearer authentication on WebSocket upgrades.
-# When set, bartoc and barto-cli must send Authorization: Bearer <token> on connect.
-# Generate with: openssl rand -base64 32
-# Must match api_key in bartoc.toml and barto-cli.toml.
-# api_key = "your-secret-token-here"
+# The following secret fields are intentionally omitted from this file.
+# Set them via systemd credentials using `barto-secrets-init` (see SECRETS.md).
+#
+# signing_key  — Ed25519 private key for signing BartosToBartoc messages.
+#                Generate: openssl genpkey -algorithm ed25519 | openssl pkey -outform DER | tail -c 32 | base64
+#
+# hmac_key     — Shared HMAC-SHA256 secret for message authentication.
+#                Generate: openssl rand -base64 32   (use same value in bartoc.toml)
+#
+# api_key      — Bearer token for WebSocket upgrade authentication.
+#                Generate: openssl rand -base64 32   (use same value in bartoc/barto-cli)
 
 [tracing.stdout]
 # with_target = false

@@ -28,14 +28,18 @@ sha256sums_aarch64=('bef1028d31038204abda770e94f04c30a0850fbb11e6641ff6502a98248
 package() {
     install -Dm755 "bartos-${CARCH}" "$pkgdir/usr/bin/bartos"
 
-    # Migration helper
-    install -Dm755 "bartos/barto-migrate" "$pkgdir/usr/bin/barto-migrate" 2>/dev/null || true
+    # Launcher script (reads systemd credentials, exports as env vars)
+    install -Dm755 "bartos/bartos-launcher" "$pkgdir/usr/lib/bartos/bartos-launcher"
 
-    # Database migrations (sourced from dist tarball)
-    if [ -d "bartos/migrations" ]; then
-        install -dm755 "$pkgdir/usr/share/bartos/migrations"
-        install -m644 bartos/migrations/*.sql "$pkgdir/usr/share/bartos/migrations/"
-    fi
+    # Secrets init helper
+    install -Dm755 "bartos/barto-secrets-init" "$pkgdir/usr/bin/barto-secrets-init"
+
+    # Migration helper
+    install -Dm755 "bartos/barto-migrate" "$pkgdir/usr/bin/barto-migrate"
+
+    # Database migrations
+    install -dm755 "$pkgdir/usr/share/bartos/migrations"
+    install -m644 bartos/migrations/*.sql "$pkgdir/usr/share/bartos/migrations/"
 
     # Man page
     install -Dm644 bartos/bartos.1 "$pkgdir/usr/share/man/man1/bartos.1"
@@ -59,6 +63,9 @@ package() {
     # Example config
     install -Dm644 bartos/bartos.toml.example \
         "$pkgdir/usr/share/doc/$pkgname/examples/bartos.toml.example"
+
+    # Documentation
+    install -Dm644 bartos/README.md "$pkgdir/usr/share/doc/$pkgname/README.md"
 
     # Licenses
     install -Dm644 bartos/LICENSE-MIT    "$pkgdir/usr/share/licenses/$pkgname/LICENSE-MIT"

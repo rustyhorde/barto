@@ -40,6 +40,9 @@ _barto-cli() {
             barto__cli,query)
                 cmd="barto__cli__subcmd__query"
                 ;;
+            barto__cli,secrets)
+                cmd="barto__cli__subcmd__secrets"
+                ;;
             barto__cli,updates)
                 cmd="barto__cli__subcmd__updates"
                 ;;
@@ -67,8 +70,53 @@ _barto-cli() {
             barto__cli__subcmd__help,query)
                 cmd="barto__cli__subcmd__help__subcmd__query"
                 ;;
+            barto__cli__subcmd__help,secrets)
+                cmd="barto__cli__subcmd__help__subcmd__secrets"
+                ;;
             barto__cli__subcmd__help,updates)
                 cmd="barto__cli__subcmd__help__subcmd__updates"
+                ;;
+            barto__cli__subcmd__help__subcmd__secrets,delete)
+                cmd="barto__cli__subcmd__help__subcmd__secrets__subcmd__delete"
+                ;;
+            barto__cli__subcmd__help__subcmd__secrets,get)
+                cmd="barto__cli__subcmd__help__subcmd__secrets__subcmd__get"
+                ;;
+            barto__cli__subcmd__help__subcmd__secrets,list)
+                cmd="barto__cli__subcmd__help__subcmd__secrets__subcmd__list"
+                ;;
+            barto__cli__subcmd__help__subcmd__secrets,set)
+                cmd="barto__cli__subcmd__help__subcmd__secrets__subcmd__set"
+                ;;
+            barto__cli__subcmd__secrets,delete)
+                cmd="barto__cli__subcmd__secrets__subcmd__delete"
+                ;;
+            barto__cli__subcmd__secrets,get)
+                cmd="barto__cli__subcmd__secrets__subcmd__get"
+                ;;
+            barto__cli__subcmd__secrets,help)
+                cmd="barto__cli__subcmd__secrets__subcmd__help"
+                ;;
+            barto__cli__subcmd__secrets,list)
+                cmd="barto__cli__subcmd__secrets__subcmd__list"
+                ;;
+            barto__cli__subcmd__secrets,set)
+                cmd="barto__cli__subcmd__secrets__subcmd__set"
+                ;;
+            barto__cli__subcmd__secrets__subcmd__help,delete)
+                cmd="barto__cli__subcmd__secrets__subcmd__help__subcmd__delete"
+                ;;
+            barto__cli__subcmd__secrets__subcmd__help,get)
+                cmd="barto__cli__subcmd__secrets__subcmd__help__subcmd__get"
+                ;;
+            barto__cli__subcmd__secrets__subcmd__help,help)
+                cmd="barto__cli__subcmd__secrets__subcmd__help__subcmd__help"
+                ;;
+            barto__cli__subcmd__secrets__subcmd__help,list)
+                cmd="barto__cli__subcmd__secrets__subcmd__help__subcmd__list"
+                ;;
+            barto__cli__subcmd__secrets__subcmd__help,set)
+                cmd="barto__cli__subcmd__secrets__subcmd__help__subcmd__set"
                 ;;
             *)
                 ;;
@@ -77,7 +125,7 @@ _barto-cli() {
 
     case "${cmd}" in
         barto__cli)
-            opts="-v -q -e -c -t -h -V --verbose --quiet --enable-std-output --config-absolute-path --tracing-absolute-path --help --version info updates cleanup clients query list failed cmd help"
+            opts="-v -q -e -c -t -h -V --verbose --quiet --enable-std-output --config-absolute-path --tracing-absolute-path --help --version secrets info updates cleanup clients query list failed cmd help"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 1 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -163,7 +211,7 @@ _barto-cli() {
             return 0
             ;;
         barto__subcmd__cli__subcmd__help)
-            opts="info updates cleanup clients query list failed cmd help"
+            opts="secrets info updates cleanup clients query list failed cmd help"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -288,6 +336,76 @@ _barto-cli() {
             COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
             return 0
             ;;
+        barto__subcmd__cli__subcmd__help__subcmd__secrets)
+            opts="set get list delete"
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 3 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
+        barto__subcmd__cli__subcmd__help__subcmd__secrets__subcmd__delete)
+            opts=""
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 4 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
+        barto__subcmd__cli__subcmd__help__subcmd__secrets__subcmd__get)
+            opts=""
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 4 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
+        barto__subcmd__cli__subcmd__help__subcmd__secrets__subcmd__list)
+            opts=""
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 4 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
+        barto__subcmd__cli__subcmd__help__subcmd__secrets__subcmd__set)
+            opts=""
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 4 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
         barto__subcmd__cli__subcmd__help__subcmd__updates)
             opts=""
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 3 ]] ; then
@@ -361,6 +479,160 @@ _barto-cli() {
                     COMPREPLY=($(compgen -f "${cur}"))
                     return 0
                     ;;
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
+        barto__subcmd__cli__subcmd__secrets)
+            opts="-h --help set get list delete help"
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
+        barto__subcmd__cli__subcmd__secrets__subcmd__delete)
+            opts="-h --help <KEY>"
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 3 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
+        barto__subcmd__cli__subcmd__secrets__subcmd__get)
+            opts="-h --help <KEY>"
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 3 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
+        barto__subcmd__cli__subcmd__secrets__subcmd__help)
+            opts="set get list delete help"
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 3 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
+        barto__subcmd__cli__subcmd__secrets__subcmd__help__subcmd__delete)
+            opts=""
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 4 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
+        barto__subcmd__cli__subcmd__secrets__subcmd__help__subcmd__get)
+            opts=""
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 4 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
+        barto__subcmd__cli__subcmd__secrets__subcmd__help__subcmd__help)
+            opts=""
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 4 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
+        barto__subcmd__cli__subcmd__secrets__subcmd__help__subcmd__list)
+            opts=""
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 4 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
+        barto__subcmd__cli__subcmd__secrets__subcmd__help__subcmd__set)
+            opts=""
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 4 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
+        barto__subcmd__cli__subcmd__secrets__subcmd__list)
+            opts="-h --help"
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 3 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
+        barto__subcmd__cli__subcmd__secrets__subcmd__set)
+            opts="-h --help <KEY>"
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 3 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
                 *)
                     COMPREPLY=()
                     ;;

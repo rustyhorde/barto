@@ -1,0 +1,7 @@
+ALTER TABLE exit_status
+    ADD COLUMN timestamp TIMESTAMP NOT NULL DEFAULT NOW()
+    AFTER id;
+
+ALTER TABLE exit_status_test
+    ADD COLUMN timestamp TIMESTAMP NOT NULL DEFAULT NOW()
+    AFTER id;

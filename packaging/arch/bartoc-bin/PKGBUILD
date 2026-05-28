@@ -27,6 +27,9 @@ sha256sums_aarch64=('2892ef46339395439d007559d5a817922704c398ce1e1b20241fb3cbe9d
 package() {
     install -Dm755 "bartoc-${CARCH}" "$pkgdir/usr/bin/bartoc"
 
+    # Launcher script (reads keychain secrets, exports as env vars)
+    install -Dm755 "bartoc/bartoc-launcher" "$pkgdir/usr/lib/bartoc/bartoc-launcher"
+
     # Man page
     install -Dm644 bartoc/bartoc.1 "$pkgdir/usr/share/man/man1/bartoc.1"
 
@@ -55,6 +58,9 @@ package() {
     # Example config
     install -Dm644 bartoc/bartoc.toml.example \
         "$pkgdir/usr/share/doc/$pkgname/examples/bartoc.toml.example"
+
+    # Documentation
+    install -Dm644 bartoc/README.md "$pkgdir/usr/share/doc/$pkgname/README.md"
 
     # Licenses
     install -Dm644 bartoc/LICENSE-MIT    "$pkgdir/usr/share/licenses/$pkgname/LICENSE-MIT"
