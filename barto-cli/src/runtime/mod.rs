@@ -22,7 +22,10 @@ use libbarto::{
     BartoCli, CliUpdateKind, header, init_tracing, load, load_client_cert_and_key,
     load_pinned_root_store,
 };
-use tokio_tungstenite::{Connector, connect_async_tls_with_config, tungstenite::Message};
+use tokio_tungstenite::{
+    Connector, connect_async_tls_with_config,
+    tungstenite::{Message, client::ClientRequestBuilder, http::Uri},
+};
 use tracing::trace;
 
 use crate::{config::Config, error::Error, handler::Handler, runtime::cli::Commands};
@@ -75,8 +78,15 @@ where
         config.name()
     );
     trace!("connecting to bartos at {url}");
+    let uri: Uri = url.parse()?;
+    let ws_req = if let Some(token) = config.bartos().api_key() {
+        trace!("adding Bearer auth header to WebSocket upgrade");
+        ClientRequestBuilder::new(uri).with_header("Authorization", format!("Bearer {token}"))
+    } else {
+        ClientRequestBuilder::new(uri)
+    };
     let (ws_stream, _) =
-        connect_async_tls_with_config(&url, None, false, Some(make_tls_connector(&config)?))
+        connect_async_tls_with_config(ws_req, None, false, Some(make_tls_connector(&config)?))
             .await?;
     trace!("websocket connected");
     let (mut sink, stream) = ws_stream.split();

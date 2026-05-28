@@ -9,6 +9,7 @@ anyhow = "1.0.102"
 base64 = "0.22.1"
 hmac = "0.13.0"
 sha2 = "0.11.0"
+subtle = "2.6.1"
 ed25519-dalek = { version = "3.0.0-pre.7", features = ["serde"] }
 bincode-next = { version = "3.0.0-rc.15", features = ["serde", "derive"] }
 bon = "3.9.1"
@@ -21,7 +22,11 @@ futures-util = { version = "0.3.32", default-features = false, features = [
 ] }
 getset = "0.1.6"
 redb = "4.1.0"
-rustls = { version = "0.23.40", default-features = false, features = ["std", "tls12", "ring"] }
+rustls = { version = "0.23.40", default-features = false, features = [
+  "std",
+  "tls12",
+  "ring",
+] }
 rustversion = "1.0.22"
 serde = { version = "1.0.228", features = ["derive"] }
 sqlx = { version = "0.9.0", features = [
@@ -35,9 +40,7 @@ sysinfo = { version = "0.39.2", features = ["serde"] }
 thiserror = "2.0.18"
 time = "0.3.47"
 tokio = { version = "1.52.3", features = ["macros", "rt-multi-thread"] }
-tokio-tungstenite = { version = "0.29.0", features = [
-  "__rustls-tls",
-] }
+tokio-tungstenite = { version = "0.29.0", features = ["__rustls-tls"] }
 tokio-util = "0.7.18"
 tracing = { version = "0.1.44", features = [
   "max_level_trace",

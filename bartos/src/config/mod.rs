@@ -44,6 +44,12 @@ pub(crate) struct Config {
     #[getset(get = "pub(crate)")]
     #[serde(default)]
     hmac_key: Option<String>,
+    /// Optional pre-shared token for Bearer authentication on the WebSocket upgrade.
+    /// When set, incoming upgrade requests from bartoc and barto-cli must carry
+    /// `Authorization: Bearer <api_key>`. Connections with wrong or missing tokens are rejected.
+    #[getset(get = "pub(crate)")]
+    #[serde(default)]
+    api_key: Option<String>,
 }
 
 impl TracingConfig for Config {

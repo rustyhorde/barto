@@ -30,7 +30,11 @@ use tokio_util::sync::CancellationToken;
 use tracing::{error, info, trace};
 use uuid::Uuid;
 
-use crate::{common::Clients, config::Config, endpoints::insecure::Name};
+use crate::{
+    common::Clients,
+    config::Config,
+    endpoints::insecure::{Name, bearer_auth_ok},
+};
 
 pub(crate) async fn worker(
     request: HttpRequest,
@@ -43,6 +47,10 @@ pub(crate) async fn worker(
 ) -> Result<impl Responder> {
     let describe = name.describe(&request);
     info!("worker connection from '{describe}'");
+    if !bearer_auth_ok(&request, config.api_key().as_deref()) {
+        info!("worker connection from '{describe}' rejected: missing or invalid Bearer token");
+        return Err(actix_web::error::ErrorUnauthorized("unauthorized"));
+    }
     let id = Uuid::new_v4();
     let (response, session, msg_stream) = handle(&request, body)?;
     let mut agms = msg_stream.aggregate_continuations();
