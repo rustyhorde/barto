@@ -353,6 +353,7 @@ pub use self::realtime::ymd::month::MonthOfYear;
 pub use self::realtime::ymd::year::Year;
 pub use self::signing::SigningKey;
 pub use self::signing::VerifyingKey;
+pub use self::signing::key_fingerprint;
 pub use self::signing::parse_signing_key;
 pub use self::signing::parse_verifying_key;
 pub use self::signing::public_key_b64;

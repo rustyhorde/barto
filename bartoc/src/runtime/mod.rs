@@ -22,8 +22,8 @@ use anyhow::{Context, Result};
 use clap::Parser;
 use futures_util::{StreamExt, stream::SplitSink};
 use libbarto::{
-    Data, header, init_tracing, load_client_cert_and_key, load_pinned_root_store, parse_hmac_key,
-    parse_verifying_key,
+    Data, header, init_tracing, key_fingerprint, load_client_cert_and_key, load_pinned_root_store,
+    parse_hmac_key, parse_verifying_key,
 };
 #[cfg(not(unix))]
 use tokio::signal::ctrl_c;
@@ -158,6 +158,14 @@ async fn run_connection(
         .as_deref()
         .map(parse_verifying_key)
         .transpose()?;
+    if let Some(vk) = &verifying_key {
+        info!(
+            "Ed25519 verifying key loaded (fingerprint: {})",
+            key_fingerprint(vk)
+        );
+    } else {
+        info!("Ed25519 verifying key not configured — signatures will not be verified");
+    }
     let hmac_key = config.hmac_key().as_deref().map(parse_hmac_key);
     let mut ws_handler = WsHandler::builder()
         .tx(tx.clone())

@@ -404,7 +404,8 @@ where
     let config = Config::builder()
         .add_source(
             Environment::with_prefix(&defaults.env_prefix())
-                .separator("_")
+                .prefix_separator("_")
+                .separator("__")
                 .try_parsing(true),
         )
         .add_source(cli.clone())

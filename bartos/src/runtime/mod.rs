@@ -23,7 +23,7 @@ use actix_web::{
 };
 use anyhow::{Context, Result};
 use clap::Parser;
-use libbarto::{header, init_tracing, load, load_tls_config};
+use libbarto::{header, init_tracing, key_fingerprint, load, load_tls_config, parse_signing_key};
 use rustls::crypto::ring::default_provider;
 use sqlx::MySqlPool;
 #[cfg(unix)]
@@ -74,6 +74,17 @@ where
     };
     header::<Config, dyn Write>(&config, HEADER_PREFIX, writer)?;
     info!("{} configured!", env!("CARGO_PKG_NAME"));
+    if let Some(sk_b64) = config.signing_key() {
+        match parse_signing_key(sk_b64) {
+            Ok(sk) => info!(
+                "Ed25519 signing key loaded (public fingerprint: {})",
+                key_fingerprint(&sk.verifying_key())
+            ),
+            Err(e) => warn!("Ed25519 signing key is set but invalid: {e}"),
+        }
+    } else {
+        info!("Ed25519 signing key not configured — messages will be unsigned");
+    }
 
     // Setup the default crypto provider
     match default_provider().install_default() {

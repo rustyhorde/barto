@@ -11,14 +11,16 @@ configuration files.
 | `BARTOS_HMAC_KEY` | bartos | Shared HMAC-SHA256 key for outgoing message authentication |
 | `BARTOS_SIGNING_KEY` | bartos | Ed25519 private key for signing BartosToBartoc messages |
 | `BARTOS_API_KEY` | bartos | Bearer token required on WebSocket upgrade |
-| `BARTOS_MARIADB_PASSWORD` | bartos | MariaDB database password |
+| `BARTOS_MARIADB__PASSWORD` | bartos | MariaDB database password |
 | `BARTOC_HMAC_KEY` | bartoc | Same shared HMAC-SHA256 key (must match `BARTOS_HMAC_KEY`) |
 | `BARTOC_SERVER_PUBLIC_KEY` | bartoc | Ed25519 public key to verify messages from bartos |
-| `BARTOC_BARTOS_API_KEY` | bartoc | Bearer token for WebSocket connection to bartos |
+| `BARTOC_BARTOS__API_KEY` | bartoc | Bearer token for WebSocket connection to bartos |
 | `BARTO_CLI_BARTOS_API_KEY` | barto-cli | Bearer token for WebSocket connection to bartos |
 
 All components already read these values from environment variables.  The config
-system loads them via `<PREFIX>_<FIELD>` overrides; no TOML changes are required.
+system uses `<PREFIX>_<FIELD>` for flat (top-level) config fields and
+`<PREFIX>_<STRUCT>__<FIELD>` (double underscore) for nested fields; no TOML changes
+are required.
 
 ---
 
@@ -103,7 +105,7 @@ platform-specific CLI tools.
 # Store a secret (prompts for value, no echo):
 barto-cli secrets set BARTOC_HMAC_KEY
 barto-cli secrets set BARTOC_SERVER_PUBLIC_KEY
-barto-cli secrets set BARTOC_BARTOS_API_KEY
+barto-cli secrets set BARTOC_BARTOS__API_KEY
 barto-cli secrets set BARTO_CLI_BARTOS_API_KEY
 
 # Check what is stored:
@@ -164,7 +166,7 @@ To verify in PowerShell:
 
 ```powershell
 $vault = New-Object Windows.Security.Credentials.PasswordVault
-$cred  = $vault.Retrieve('barto', 'BARTOC_BARTOS_API_KEY')
+$cred  = $vault.Retrieve('barto', 'BARTOC_BARTOS__API_KEY')
 $cred.RetrievePassword()
 $cred.Password
 ```

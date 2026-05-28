@@ -46,6 +46,22 @@ pub fn public_key_b64(key: &SigningKey) -> String {
     STANDARD.encode(key.verifying_key().as_bytes())
 }
 
+/// Return a short fingerprint of a verifying key: first 8 bytes of its SHA-256 hash, hex-encoded.
+///
+/// Safe to log — reveals no key material.
+#[must_use]
+pub fn key_fingerprint(key: &VerifyingKey) -> String {
+    use sha2::{Digest, Sha256};
+    use std::fmt::Write as _;
+    let hash = Sha256::digest(key.as_bytes());
+    hash[..8]
+        .iter()
+        .fold(String::with_capacity(16), |mut s, b| {
+            let _ = write!(s, "{b:02x}");
+            s
+        })
+}
+
 /// Sign a payload, returning `[64-byte signature][payload]` as a `Vec<u8>`.
 ///
 /// The signature covers exactly the payload bytes.

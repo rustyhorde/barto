@@ -35,11 +35,11 @@ if command -v secret-tool > /dev/null 2>&1; then
         fi
     fi
 
-    if [ -z "${BARTOC_BARTOS_API_KEY:-}" ]; then
-        val=$(load_secret BARTOC_BARTOS_API_KEY)
+    if [ -z "${BARTOC_BARTOS__API_KEY:-}" ]; then
+        val=$(load_secret BARTOC_BARTOS__API_KEY)
         if [ -n "$val" ]; then
-            BARTOC_BARTOS_API_KEY="$val"
-            export BARTOC_BARTOS_API_KEY
+            BARTOC_BARTOS__API_KEY="$val"
+            export BARTOC_BARTOS__API_KEY
         fi
     fi
 fi
