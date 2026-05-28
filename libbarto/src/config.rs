@@ -404,7 +404,8 @@ where
     let config = Config::builder()
         .add_source(
             Environment::with_prefix(&defaults.env_prefix())
-                .separator("_")
+                .prefix_separator("_")
+                .separator("__")
                 .try_parsing(true),
         )
         .add_source(cli.clone())
@@ -444,7 +445,7 @@ mod tests {
 
     use crate::TlsConfig;
 
-    use super::{Bartos, Tls};
+    use super::{Bartos, PathDefaults, Tls, load};
 
     #[test]
     fn test_bartos_client_cert_key_default_none() {
@@ -496,5 +497,75 @@ mod tests {
             bartos.client_key().as_deref(),
             Some(std::path::Path::new("/etc/bartoc/client.key"))
         );
+    }
+
+    // Verify that the env var separator fix works: a flat field whose name contains
+    // an underscore (e.g. `my_field`) must be populated from `PREFIX_MY_FIELD`, not
+    // treated as a nested path `my.field` (which was the old behaviour).
+    #[test]
+    #[cfg_attr(nightly, allow(unsafe_code))]
+    fn test_load_flat_env_var_with_underscore() {
+        use std::env;
+
+        use config::{ConfigError, Map, Source, Value};
+        use serde::Deserialize;
+        use tempfile::NamedTempFile;
+
+        #[derive(Debug, Deserialize, PartialEq)]
+        struct TestCfg {
+            my_field: Option<String>,
+        }
+
+        #[derive(Debug, Clone)]
+        struct NoOpSource;
+        impl Source for NoOpSource {
+            fn clone_into_box(&self) -> Box<dyn Source + Send + Sync> {
+                Box::new(self.clone())
+            }
+            fn collect(&self) -> Result<Map<String, Value>, ConfigError> {
+                Ok(Map::new())
+            }
+        }
+
+        struct TestDefaults {
+            path: String,
+        }
+        impl PathDefaults for TestDefaults {
+            fn env_prefix(&self) -> String {
+                "LBCFGTEST".to_string()
+            }
+            fn config_absolute_path(&self) -> Option<String> {
+                Some(self.path.clone())
+            }
+            fn default_file_path(&self) -> String {
+                String::new()
+            }
+            fn default_file_name(&self) -> String {
+                String::new()
+            }
+            fn tracing_absolute_path(&self) -> Option<String> {
+                None
+            }
+            fn default_tracing_path(&self) -> String {
+                String::new()
+            }
+            fn default_tracing_file_name(&self) -> String {
+                String::new()
+            }
+        }
+
+        let toml = NamedTempFile::new().unwrap();
+        std::fs::write(toml.path(), b"").unwrap();
+        let defaults = TestDefaults {
+            path: toml.path().to_str().unwrap().to_string(),
+        };
+
+        // SAFETY: single-threaded test, no other thread reads this env var
+        unsafe { env::set_var("LBCFGTEST_MY_FIELD", "flatval") };
+        let cfg: TestCfg = load(&NoOpSource, &defaults).unwrap();
+        // SAFETY: same as above
+        unsafe { env::remove_var("LBCFGTEST_MY_FIELD") };
+
+        assert_eq!(cfg.my_field.as_deref(), Some("flatval"));
     }
 }

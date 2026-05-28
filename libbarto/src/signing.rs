@@ -46,6 +46,22 @@ pub fn public_key_b64(key: &SigningKey) -> String {
     STANDARD.encode(key.verifying_key().as_bytes())
 }
 
+/// Return a short fingerprint of a verifying key: first 8 bytes of its SHA-256 hash, hex-encoded.
+///
+/// Safe to log — reveals no key material.
+#[must_use]
+pub fn key_fingerprint(key: &VerifyingKey) -> String {
+    use sha2::{Digest, Sha256};
+    use std::fmt::Write as _;
+    let hash = Sha256::digest(key.as_bytes());
+    hash[..8]
+        .iter()
+        .fold(String::with_capacity(16), |mut s, b| {
+            let _ = write!(s, "{b:02x}");
+            s
+        })
+}
+
 /// Sign a payload, returning `[64-byte signature][payload]` as a `Vec<u8>`.
 ///
 /// The signature covers exactly the payload bytes.
@@ -81,7 +97,8 @@ pub fn verify_and_extract(key: &VerifyingKey, data: &[u8]) -> Result<Vec<u8>> {
 #[cfg(test)]
 mod tests {
     use super::{
-        parse_signing_key, parse_verifying_key, public_key_b64, sign_payload, verify_and_extract,
+        key_fingerprint, parse_signing_key, parse_verifying_key, public_key_b64, sign_payload,
+        verify_and_extract,
     };
     use base64::{Engine, engine::general_purpose::STANDARD};
     use ed25519_dalek::SigningKey;
@@ -170,5 +187,23 @@ mod tests {
         let (_, _, pk_b64) = make_keypair(1);
         let vk = parse_verifying_key(&pk_b64).unwrap();
         assert!(verify_and_extract(&vk, &[0u8; 32]).is_err());
+    }
+
+    #[test]
+    fn test_key_fingerprint_is_16_hex_chars() {
+        let (_, _, pk_b64) = make_keypair(1);
+        let vk = parse_verifying_key(&pk_b64).unwrap();
+        let fp = key_fingerprint(&vk);
+        assert_eq!(fp.len(), 16);
+        assert!(fp.chars().all(|c| c.is_ascii_hexdigit()));
+    }
+
+    #[test]
+    fn test_key_fingerprint_differs_for_different_keys() {
+        let (_, _, pk_b64_1) = make_keypair(1);
+        let (_, _, pk_b64_2) = make_keypair(2);
+        let vk1 = parse_verifying_key(&pk_b64_1).unwrap();
+        let vk2 = parse_verifying_key(&pk_b64_2).unwrap();
+        assert_ne!(key_fingerprint(&vk1), key_fingerprint(&vk2));
     }
 }

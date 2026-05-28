@@ -505,7 +505,7 @@ checksum = "f2032f911046de80f0a198e0901378627c33f59ea0ac00e363d481118bd70a53"
 
 [[package]]
 name = "barto-cli"
-version = "1.4.2"
+version = "1.4.3"
 dependencies = [
  "anyhow",
  "apple-native-keyring-store",
@@ -537,7 +537,7 @@ dependencies = [
 
 [[package]]
 name = "bartoc"
-version = "1.4.2"
+version = "1.4.3"
 dependencies = [
  "anyhow",
  "bincode-next",
@@ -565,7 +565,7 @@ dependencies = [
 
 [[package]]
 name = "bartos"
-version = "1.4.2"
+version = "1.4.3"
 dependencies = [
  "actix-web",
  "actix-ws",
@@ -901,9 +901,9 @@ dependencies = [
 
 [[package]]
 name = "cmov"
-version = "0.5.3"
+version = "0.5.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3f88a43d011fc4a6876cb7344703e297c71dda42494fee094d5f7c76bf13f746"
+checksum = "0c9ea0ac24bc397ab3c98583a3c9ba74fa56b09a4449bbe172b9b1ddb016027a"
 
 [[package]]
 name = "colorchoice"
@@ -3079,7 +3079,7 @@ checksum = "09edd9e8b54e49e587e4f6295a7d29c3ea94d469cb40ab8ca70b288248a81db2"
 
 [[package]]
 name = "libbarto"
-version = "1.4.2"
+version = "1.4.3"
 dependencies = [
  "anyhow",
  "base64",
@@ -5682,7 +5682,7 @@ checksum = "1ffae5123b2d3fc086436f8834ae3ab053a283cfac8fe0a0b8eaae044768a4c4"
 
 [[package]]
 name = "xtask"
-version = "1.4.2"
+version = "1.4.3"
 dependencies = [
  "anyhow",
  "clap",

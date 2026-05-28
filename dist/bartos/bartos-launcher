@@ -27,8 +27,8 @@ if [ -n "${CREDENTIALS_DIRECTORY:-}" ]; then
                     export BARTOS_API_KEY
                     ;;
                 mariadb_password)
-                    BARTOS_MARIADB_PASSWORD=$(cat "$path")
-                    export BARTOS_MARIADB_PASSWORD
+                    BARTOS_MARIADB__PASSWORD=$(cat "$path")
+                    export BARTOS_MARIADB__PASSWORD
                     ;;
             esac
         fi
