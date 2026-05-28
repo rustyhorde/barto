@@ -204,6 +204,67 @@ instance — it is a public key.
 
 ---
 
+### HMAC-SHA256 Message Authentication & Replay Protection
+
+`bartos` can wrap every outgoing `BartosToBartoc` message in an HMAC-SHA256
+authenticated envelope. `bartoc` verifies the MAC before acting on any message
+and rejects messages with duplicate nonces or timestamps outside a configurable
+window (default ±60 s). This provides:
+
+- **Message integrity** — any in-transit tampering with the payload is detected
+- **Authentication** — only a peer that knows the shared secret can produce valid messages
+- **Replay protection** — each message carries a random 64-bit nonce; `bartoc`
+  tracks seen nonces within the replay window and drops duplicates
+
+The authenticated envelope is prepended to the bincode payload (inside any Ed25519
+signature when both are enabled):
+
+```
+[8-byte timestamp BE][8-byte nonce BE][32-byte HMAC-SHA256][bincode payload]
+```
+
+When `hmac_key` is not configured on either side, messages are forwarded without
+authentication (backward-compatible). If only one side has the key configured,
+jobs will not run — both sides must use the same key.
+
+#### Generating an HMAC key
+
+```bash
+# Generate a 32-byte random key (base64-encoded)
+openssl rand -base64 32
+# → paste the output as hmac_key in both bartos.toml and bartoc.toml
+```
+
+Keep this value **secret**. Unlike the Ed25519 public key, it must never be
+distributed publicly — anyone who knows it can forge authenticated messages.
+
+#### Configuring bartos (server)
+
+```toml
+# bartos.toml — top-level, not under any section
+hmac_key = "your-shared-secret-here"
+```
+
+#### Configuring bartoc (client)
+
+```toml
+# bartoc.toml — top-level, not under any section
+hmac_key = "your-shared-secret-here"
+
+# Optional: replay window in seconds (default: 60).
+# Messages whose timestamp differs from the current time by more than this value
+# are rejected, regardless of MAC validity.
+# replay_window_secs = 60
+```
+
+> **Layer ordering**: when both Ed25519 signing and HMAC are enabled, the HMAC
+> envelope wraps the bincode payload first (inner layer), then the Ed25519
+> signature wraps the result (outer layer). On `bartoc`, Ed25519 is verified
+> first, then the HMAC envelope is unwrapped. Either layer can be enabled
+> independently of the other.
+
+---
+
 ### TLS & Certificate Pinning
 
 `bartos` supports TLS for all WebSocket connections. `bartoc` and `barto-cli`
@@ -511,6 +572,24 @@ client_key  = "/path/to/my-worker.key"
 
 Each `bartoc` instance should have its own unique certificate so that a
 compromised instance can be identified and its certificate revoked independently.
+
+### HMAC-SHA256 Authentication
+
+If `bartos` is configured with an `hmac_key`, each `bartoc` instance must be
+configured with the same key to accept messages. Set the key and, optionally, the
+replay window at the top level of `bartoc.toml`:
+
+```toml
+# bartoc.toml — top-level, not under any section
+hmac_key = "your-shared-secret-here"
+
+# Optional: replay window in seconds (default: 60)
+# replay_window_secs = 60
+```
+
+See the [HMAC-SHA256 Message Authentication & Replay Protection](#hmac-sha256-message-authentication--replay-protection)
+section under `bartos` for key generation instructions and a full description of
+the wire format and layer ordering.
 
 ## `barto-cli` - The barto command line client
 

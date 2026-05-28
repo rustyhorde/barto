@@ -6,19 +6,26 @@
 // option. All files in the project carrying such notice may not be copied,
 // modified, or distributed except according to those terms.
 
+use std::{
+    collections::HashMap,
+    time::{SystemTime, UNIX_EPOCH},
+};
+
 use anyhow::Result;
 use bincode_next::{
     config::{Configuration, standard},
     decode_from_slice,
 };
 use bon::Builder;
-use libbarto::{BartosToBartoc, VerifyingKey, verify_and_extract};
+use libbarto::{BartosToBartoc, VerifyingKey, hmac_verify_and_extract, verify_and_extract};
 use tokio::sync::mpsc::UnboundedSender;
 use tokio_tungstenite::tungstenite::{Error, Message};
 use tokio_util::sync::CancellationToken;
 use tracing::{error, trace, warn};
 
 use crate::handler::BartocMessage;
+
+const DEFAULT_REPLAY_WINDOW_SECS: u64 = 60;
 
 #[derive(Builder, Clone, Debug)]
 pub(crate) struct WsHandler {
@@ -27,6 +34,16 @@ pub(crate) struct WsHandler {
     /// Optional Ed25519 verifying key — when set, incoming binary messages must carry a valid
     /// 64-byte signature prefix. Messages that fail verification are dropped and logged.
     verifying_key: Option<VerifyingKey>,
+    /// Optional HMAC-SHA256 key — when set, the payload (after any Ed25519 unwrap) must carry
+    /// a valid authenticated envelope. Messages with bad MACs, expired timestamps, or replayed
+    /// nonces are dropped and logged.
+    hmac_key: Option<Vec<u8>>,
+    /// Replay window in seconds. Defaults to 60.
+    #[builder(default = DEFAULT_REPLAY_WINDOW_SECS)]
+    replay_window_secs: u64,
+    /// Seen nonces within the current replay window, keyed by nonce → message timestamp.
+    #[builder(default)]
+    seen_nonces: HashMap<u64, u64>,
 }
 
 impl WsHandler {
@@ -39,20 +56,51 @@ impl WsHandler {
                 Ok(msg) => match msg {
                     Message::Text(_utf8_bytes) => error!("text message received, ignoring"),
                     Message::Binary(bytes) => {
-                        let decode_target: Option<Vec<u8>> = if let Some(vk) = &self.verifying_key {
+                        // Layer 5: Ed25519 verify (outermost layer).
+                        let after_ed25519: Option<Vec<u8>> = if let Some(vk) = &self.verifying_key {
                             match verify_and_extract(vk, &bytes) {
                                 Ok(payload) => {
-                                    trace!("binary message signature verified");
+                                    trace!("binary message Ed25519 signature verified");
                                     Some(payload)
                                 }
                                 Err(e) => {
-                                    warn!("message signature invalid, dropping: {e}");
+                                    warn!("message Ed25519 signature invalid, dropping: {e}");
                                     None
                                 }
                             }
                         } else {
                             Some(bytes.to_vec())
                         };
+
+                        // Layer 4: HMAC-SHA256 verify and replay check.
+                        let decode_target: Option<Vec<u8>> = if let Some(payload) = after_ed25519 {
+                            if let Some(hmac_key) = &self.hmac_key.clone() {
+                                match hmac_verify_and_extract(
+                                    hmac_key,
+                                    &payload,
+                                    self.replay_window_secs,
+                                ) {
+                                    Ok((inner, ts, nonce)) => {
+                                        if self.check_and_record_nonce(nonce, ts) {
+                                            trace!("binary message HMAC verified");
+                                            Some(inner)
+                                        } else {
+                                            warn!("replayed nonce detected, dropping message");
+                                            None
+                                        }
+                                    }
+                                    Err(e) => {
+                                        warn!("message HMAC invalid, dropping: {e}");
+                                        None
+                                    }
+                                }
+                            } else {
+                                Some(payload)
+                            }
+                        } else {
+                            None
+                        };
+
                         if let Some(payload) = decode_target {
                             if let Ok((btb, _)) = decode_from_slice::<BartosToBartoc, Configuration>(
                                 &payload,
@@ -107,5 +155,23 @@ impl WsHandler {
             }
         }
         Ok(())
+    }
+
+    /// Returns `true` if the nonce is fresh (not seen before), recording it for future checks.
+    /// Returns `false` if the nonce has already been seen (replay detected).
+    /// Also prunes nonces whose timestamps have expired from the replay window.
+    fn check_and_record_nonce(&mut self, nonce: u64, timestamp: u64) -> bool {
+        let now = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_secs();
+        let window = self.replay_window_secs;
+        self.seen_nonces
+            .retain(|_, &mut ts| now.abs_diff(ts) <= window);
+        if self.seen_nonces.contains_key(&nonce) {
+            return false;
+        }
+        let _ = self.seen_nonces.insert(nonce, timestamp);
+        true
     }
 }

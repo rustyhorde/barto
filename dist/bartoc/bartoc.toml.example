@@ -33,6 +33,12 @@ port = 8080
 # When set, incoming messages that lack a valid signature are rejected.
 # server_public_key = "base64encodedEd25519PublicKey..."
 
+# Optional: shared secret for HMAC-SHA256 authentication of incoming messages from bartos.
+# Must match hmac_key in bartos.toml.
+# hmac_key = "your-shared-secret-here"
+# Replay protection window in seconds (default: 60).
+# replay_window_secs = 60
+
 [tracing.stdout]
 # with_target = false
 # with_thread_ids = false

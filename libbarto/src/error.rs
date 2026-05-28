@@ -95,6 +95,15 @@ pub enum Error {
     /// A message signature did not verify — message may be tampered or from wrong source
     #[error("message signature is invalid")]
     SignatureInvalid,
+    /// HMAC authentication failed — MAC does not match or data is malformed
+    #[error("HMAC authentication failed")]
+    HmacInvalid,
+    /// Message timestamp is outside the replay window
+    #[error("message timestamp is outside the replay window")]
+    MessageExpired,
+    /// Message nonce has already been seen — possible replay attack
+    #[error("message nonce has already been seen")]
+    MessageReplayed,
 }
 
 /// Converts an `anyhow::Error` into a suitable exit code or clap message for a CLI application.
