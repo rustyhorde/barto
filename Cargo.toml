@@ -19,7 +19,6 @@ futures-util = { version = "0.3.32", default-features = false, features = [
 ] }
 getset = "0.1.6"
 hmac = "0.13.0"
-keyring = { version = "3", features = ["async-secret-service", "tokio", "crypto-rust", "apple-native", "windows-native"] }
 redb = "4.1.0"
 rpassword = "7"
 rustls = { version = "0.23.40", default-features = false, features = [

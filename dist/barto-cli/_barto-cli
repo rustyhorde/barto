@@ -38,7 +38,88 @@ _barto-cli() {
         (( CURRENT += 1 ))
         curcontext="${curcontext%:*:*}:barto-cli-command-$line[1]:"
         case $line[1] in
-            (info)
+            (secrets)
+_arguments "${_arguments_options[@]}" : \
+'-h[Print help]' \
+'--help[Print help]' \
+":: :_barto-cli__subcmd__secrets_commands" \
+"*::: :->secrets" \
+&& ret=0
+
+    case $state in
+    (secrets)
+        words=($line[1] "${words[@]}")
+        (( CURRENT += 1 ))
+        curcontext="${curcontext%:*:*}:barto-cli-secrets-command-$line[1]:"
+        case $line[1] in
+            (set)
+_arguments "${_arguments_options[@]}" : \
+'-h[Print help]' \
+'--help[Print help]' \
+':key -- Name of the secret (e.g. BARTOC_HMAC_KEY):_default' \
+&& ret=0
+;;
+(get)
+_arguments "${_arguments_options[@]}" : \
+'-h[Print help]' \
+'--help[Print help]' \
+':key -- Name of the secret to retrieve:_default' \
+&& ret=0
+;;
+(list)
+_arguments "${_arguments_options[@]}" : \
+'-h[Print help]' \
+'--help[Print help]' \
+&& ret=0
+;;
+(delete)
+_arguments "${_arguments_options[@]}" : \
+'-h[Print help]' \
+'--help[Print help]' \
+':key -- Name of the secret to delete:_default' \
+&& ret=0
+;;
+(help)
+_arguments "${_arguments_options[@]}" : \
+":: :_barto-cli__subcmd__secrets__subcmd__help_commands" \
+"*::: :->help" \
+&& ret=0
+
+    case $state in
+    (help)
+        words=($line[1] "${words[@]}")
+        (( CURRENT += 1 ))
+        curcontext="${curcontext%:*:*}:barto-cli-secrets-help-command-$line[1]:"
+        case $line[1] in
+            (set)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(get)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(list)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(delete)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(help)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+        esac
+    ;;
+esac
+;;
+        esac
+    ;;
+esac
+;;
+(info)
 _arguments "${_arguments_options[@]}" : \
 '-j[Output the information in JSON format]' \
 '--json[Output the information in JSON format]' \
@@ -111,7 +192,39 @@ _arguments "${_arguments_options[@]}" : \
         (( CURRENT += 1 ))
         curcontext="${curcontext%:*:*}:barto-cli-help-command-$line[1]:"
         case $line[1] in
-            (info)
+            (secrets)
+_arguments "${_arguments_options[@]}" : \
+":: :_barto-cli__subcmd__help__subcmd__secrets_commands" \
+"*::: :->secrets" \
+&& ret=0
+
+    case $state in
+    (secrets)
+        words=($line[1] "${words[@]}")
+        (( CURRENT += 1 ))
+        curcontext="${curcontext%:*:*}:barto-cli-help-secrets-command-$line[1]:"
+        case $line[1] in
+            (set)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(get)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(list)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(delete)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+        esac
+    ;;
+esac
+;;
+(info)
 _arguments "${_arguments_options[@]}" : \
 && ret=0
 ;;
@@ -159,6 +272,7 @@ esac
 (( $+functions[_barto-cli_commands] )) ||
 _barto-cli_commands() {
     local commands; commands=(
+'secrets:Manage barto secrets in the platform keychain (no bartos connection needed)' \
 'info:Display the bartos version information' \
 'updates:Check for recent updates on a bartoc client' \
 'cleanup:Perform cleanup of old database entries' \
@@ -194,6 +308,7 @@ _barto-cli__subcmd__failed_commands() {
 (( $+functions[_barto-cli__subcmd__help_commands] )) ||
 _barto-cli__subcmd__help_commands() {
     local commands; commands=(
+'secrets:Manage barto secrets in the platform keychain (no bartos connection needed)' \
 'info:Display the bartos version information' \
 'updates:Check for recent updates on a bartoc client' \
 'cleanup:Perform cleanup of old database entries' \
@@ -246,6 +361,36 @@ _barto-cli__subcmd__help__subcmd__query_commands() {
     local commands; commands=()
     _describe -t commands 'barto-cli help query commands' commands "$@"
 }
+(( $+functions[_barto-cli__subcmd__help__subcmd__secrets_commands] )) ||
+_barto-cli__subcmd__help__subcmd__secrets_commands() {
+    local commands; commands=(
+'set:Store a secret value in the platform keychain' \
+'get:Retrieve and print a secret from the platform keychain' \
+'list:List known barto secrets and their status' \
+'delete:Delete a secret from the platform keychain' \
+    )
+    _describe -t commands 'barto-cli help secrets commands' commands "$@"
+}
+(( $+functions[_barto-cli__subcmd__help__subcmd__secrets__subcmd__delete_commands] )) ||
+_barto-cli__subcmd__help__subcmd__secrets__subcmd__delete_commands() {
+    local commands; commands=()
+    _describe -t commands 'barto-cli help secrets delete commands' commands "$@"
+}
+(( $+functions[_barto-cli__subcmd__help__subcmd__secrets__subcmd__get_commands] )) ||
+_barto-cli__subcmd__help__subcmd__secrets__subcmd__get_commands() {
+    local commands; commands=()
+    _describe -t commands 'barto-cli help secrets get commands' commands "$@"
+}
+(( $+functions[_barto-cli__subcmd__help__subcmd__secrets__subcmd__list_commands] )) ||
+_barto-cli__subcmd__help__subcmd__secrets__subcmd__list_commands() {
+    local commands; commands=()
+    _describe -t commands 'barto-cli help secrets list commands' commands "$@"
+}
+(( $+functions[_barto-cli__subcmd__help__subcmd__secrets__subcmd__set_commands] )) ||
+_barto-cli__subcmd__help__subcmd__secrets__subcmd__set_commands() {
+    local commands; commands=()
+    _describe -t commands 'barto-cli help secrets set commands' commands "$@"
+}
 (( $+functions[_barto-cli__subcmd__help__subcmd__updates_commands] )) ||
 _barto-cli__subcmd__help__subcmd__updates_commands() {
     local commands; commands=()
@@ -265,6 +410,73 @@ _barto-cli__subcmd__list_commands() {
 _barto-cli__subcmd__query_commands() {
     local commands; commands=()
     _describe -t commands 'barto-cli query commands' commands "$@"
+}
+(( $+functions[_barto-cli__subcmd__secrets_commands] )) ||
+_barto-cli__subcmd__secrets_commands() {
+    local commands; commands=(
+'set:Store a secret value in the platform keychain' \
+'get:Retrieve and print a secret from the platform keychain' \
+'list:List known barto secrets and their status' \
+'delete:Delete a secret from the platform keychain' \
+'help:Print this message or the help of the given subcommand(s)' \
+    )
+    _describe -t commands 'barto-cli secrets commands' commands "$@"
+}
+(( $+functions[_barto-cli__subcmd__secrets__subcmd__delete_commands] )) ||
+_barto-cli__subcmd__secrets__subcmd__delete_commands() {
+    local commands; commands=()
+    _describe -t commands 'barto-cli secrets delete commands' commands "$@"
+}
+(( $+functions[_barto-cli__subcmd__secrets__subcmd__get_commands] )) ||
+_barto-cli__subcmd__secrets__subcmd__get_commands() {
+    local commands; commands=()
+    _describe -t commands 'barto-cli secrets get commands' commands "$@"
+}
+(( $+functions[_barto-cli__subcmd__secrets__subcmd__help_commands] )) ||
+_barto-cli__subcmd__secrets__subcmd__help_commands() {
+    local commands; commands=(
+'set:Store a secret value in the platform keychain' \
+'get:Retrieve and print a secret from the platform keychain' \
+'list:List known barto secrets and their status' \
+'delete:Delete a secret from the platform keychain' \
+'help:Print this message or the help of the given subcommand(s)' \
+    )
+    _describe -t commands 'barto-cli secrets help commands' commands "$@"
+}
+(( $+functions[_barto-cli__subcmd__secrets__subcmd__help__subcmd__delete_commands] )) ||
+_barto-cli__subcmd__secrets__subcmd__help__subcmd__delete_commands() {
+    local commands; commands=()
+    _describe -t commands 'barto-cli secrets help delete commands' commands "$@"
+}
+(( $+functions[_barto-cli__subcmd__secrets__subcmd__help__subcmd__get_commands] )) ||
+_barto-cli__subcmd__secrets__subcmd__help__subcmd__get_commands() {
+    local commands; commands=()
+    _describe -t commands 'barto-cli secrets help get commands' commands "$@"
+}
+(( $+functions[_barto-cli__subcmd__secrets__subcmd__help__subcmd__help_commands] )) ||
+_barto-cli__subcmd__secrets__subcmd__help__subcmd__help_commands() {
+    local commands; commands=()
+    _describe -t commands 'barto-cli secrets help help commands' commands "$@"
+}
+(( $+functions[_barto-cli__subcmd__secrets__subcmd__help__subcmd__list_commands] )) ||
+_barto-cli__subcmd__secrets__subcmd__help__subcmd__list_commands() {
+    local commands; commands=()
+    _describe -t commands 'barto-cli secrets help list commands' commands "$@"
+}
+(( $+functions[_barto-cli__subcmd__secrets__subcmd__help__subcmd__set_commands] )) ||
+_barto-cli__subcmd__secrets__subcmd__help__subcmd__set_commands() {
+    local commands; commands=()
+    _describe -t commands 'barto-cli secrets help set commands' commands "$@"
+}
+(( $+functions[_barto-cli__subcmd__secrets__subcmd__list_commands] )) ||
+_barto-cli__subcmd__secrets__subcmd__list_commands() {
+    local commands; commands=()
+    _describe -t commands 'barto-cli secrets list commands' commands "$@"
+}
+(( $+functions[_barto-cli__subcmd__secrets__subcmd__set_commands] )) ||
+_barto-cli__subcmd__secrets__subcmd__set_commands() {
+    local commands; commands=()
+    _describe -t commands 'barto-cli secrets set commands' commands "$@"
 }
 (( $+functions[_barto-cli__subcmd__updates_commands] )) ||
 _barto-cli__subcmd__updates_commands() {

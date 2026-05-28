@@ -10,7 +10,7 @@ license = "MIT OR Apache-2.0"
 name = "barto-cli"
 readme = "../README.md"
 repository = "https://github.com/rustyhorde/barto"
-version = "1.4.1"
+version = "1.4.2"
 rust-version = "1.95.0"
 
 [features]
@@ -26,8 +26,8 @@ console = "0.16.3"
 count-digits = "0.5.1"
 futures-util = { workspace = true }
 getset = { workspace = true }
-keyring = { workspace = true }
-libbarto = { version = "1.4.1", path = "../libbarto" }
+keyring-core = "1.0.0"
+libbarto = { version = "1.4.2", path = "../libbarto" }
 rpassword = { workspace = true }
 rustls = { workspace = true }
 serde = { workspace = true }
@@ -44,6 +44,15 @@ tracing = { workspace = true }
 tracing-subscriber-init = { workspace = true }
 vergen-pretty = { workspace = true }
 webpki-roots = { workspace = true }
+
+[target.'cfg(target_os = "linux")'.dependencies]
+zbus-secret-service-keyring-store = { version = "1.0.0", features = ["crypto-rust"] }
+
+[target.'cfg(target_os = "macos")'.dependencies]
+apple-native-keyring-store = { version = "1.0.0", features = ["keychain", "protected"] }
+
+[target.'cfg(target_os = "windows")'.dependencies]
+windows-native-keyring-store = "1.0.0"
 
 [build-dependencies]
 anyhow = { workspace = true }

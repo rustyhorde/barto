@@ -69,6 +69,7 @@ fn dist(binary: &str) -> Result<()> {
     copy_licenses(&out_dir)?;
     copy_example_config(binary, &out_dir)?;
     copy_systemd_unit(binary, &out_dir)?;
+    copy_extras(binary, &out_dir)?;
 
     println!("Artifacts written to {}", out_dir.display());
     Ok(())
@@ -100,6 +101,35 @@ fn copy_systemd_unit(binary: &str, out_dir: &Path) -> Result<()> {
     if src.exists() && src != out_dir.join(&unit) {
         fs::copy(&src, out_dir.join(&unit))
             .with_context(|| format!("failed to copy {}", src.display()))?;
+    }
+    Ok(())
+}
+
+fn copy_extras(binary: &str, out_dir: &Path) -> Result<()> {
+    fs::copy("README.md", out_dir.join("README.md")).context("failed to copy README.md")?;
+
+    if binary == "bartos" {
+        fs::copy(
+            "packaging/nfpm/scripts/barto-secrets-init",
+            out_dir.join("barto-secrets-init"),
+        )
+        .context("failed to copy barto-secrets-init")?;
+
+        fs::copy(
+            "packaging/nfpm/scripts/barto-migrate",
+            out_dir.join("barto-migrate"),
+        )
+        .context("failed to copy barto-migrate")?;
+
+        let mig_out = out_dir.join("migrations");
+        fs::create_dir_all(&mig_out).context("failed to create migrations dir")?;
+        for entry in fs::read_dir("migrations").context("failed to read migrations/")? {
+            let entry = entry?;
+            if entry.path().extension().and_then(|e| e.to_str()) == Some("sql") {
+                fs::copy(entry.path(), mig_out.join(entry.file_name()))
+                    .with_context(|| format!("failed to copy {}", entry.path().display()))?;
+            }
+        }
     }
     Ok(())
 }

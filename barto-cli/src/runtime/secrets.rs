@@ -8,11 +8,12 @@
 
 //! Platform keychain management for barto client secrets.
 //!
-//! Backed by GNOME Keyring / `KWallet` on Linux (via libsecret), macOS
-//! Keychain on macOS, and Windows Credential Manager on Windows.
+//! Backed by GNOME Keyring / `KWallet` on Linux (via `zbus` / Secret Service
+//! protocol), macOS Keychain on macOS, and Windows Credential Manager on
+//! Windows.
 
 use anyhow::{Context as _, Result};
-use keyring::Entry;
+use keyring_core::Entry;
 
 use crate::runtime::cli::SecretsSubcommand;
 
@@ -42,7 +43,30 @@ const KNOWN_SECRETS: &[(&str, &str)] = &[
     ),
 ];
 
+fn init_store() -> Result<()> {
+    #[cfg(target_os = "linux")]
+    {
+        use zbus_secret_service_keyring_store::Store;
+        let store = Store::new().context("failed to connect to Secret Service")?;
+        keyring_core::set_default_store(store);
+    }
+    #[cfg(target_os = "macos")]
+    {
+        use apple_native_keyring_store::keychain::Store;
+        let store = Store::new().context("failed to connect to macOS Keychain")?;
+        keyring_core::set_default_store(store);
+    }
+    #[cfg(target_os = "windows")]
+    {
+        use windows_native_keyring_store::Store;
+        let store = Store::new().context("failed to connect to Windows Credential Manager")?;
+        keyring_core::set_default_store(store);
+    }
+    Ok(())
+}
+
 pub(crate) fn handle(cmd: &SecretsSubcommand) -> Result<()> {
+    init_store()?;
     match cmd {
         SecretsSubcommand::Set { key } => set(key),
         SecretsSubcommand::Get { key } => get(key),

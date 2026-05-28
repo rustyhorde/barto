@@ -40,6 +40,9 @@ package() {
     install -Dm644 barto-cli/barto-cli.toml.example \
         "$pkgdir/usr/share/doc/$pkgname/examples/barto-cli.toml.example"
 
+    # Documentation
+    install -Dm644 barto-cli/README.md "$pkgdir/usr/share/doc/$pkgname/README.md"
+
     # Licenses
     install -Dm644 barto-cli/LICENSE-MIT    "$pkgdir/usr/share/licenses/$pkgname/LICENSE-MIT"
     install -Dm644 barto-cli/LICENSE-APACHE "$pkgdir/usr/share/licenses/$pkgname/LICENSE-APACHE"
