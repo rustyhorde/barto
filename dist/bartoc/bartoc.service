@@ -6,7 +6,7 @@ Wants=network.target bartos.service
 
 [Service]
 Type=simple
-ExecStart=/usr/bin/bartoc \
+ExecStart=/usr/lib/bartoc/bartoc-launcher \
     --config-absolute-path %E/bartoc/bartoc.toml \
     --tracing-absolute-path %S/bartoc/bartoc.log \
     --redb-absolute-path %S/bartoc/bartoc.redb

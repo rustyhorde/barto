@@ -8,7 +8,7 @@ Wants=network.target mariadb.service
 Type=simple
 User=bartos
 Group=bartos
-ExecStart=/usr/bin/bartos \
+ExecStart=/usr/lib/bartos/bartos-launcher \
     --config-absolute-path /etc/bartos/bartos.toml \
     --tracing-absolute-path /var/log/bartos/bartos.log
 Restart=on-failure
@@ -20,6 +20,29 @@ SyslogIdentifier=bartos
 # Systemd-managed directories (created with correct ownership on first start)
 ConfigurationDirectory=bartos
 LogsDirectory=bartos
+
+# Secrets — encrypted at rest, injected by systemd at service start.
+#
+# Generate encrypted blobs (works with or without a TPM; systemd picks the best
+# available tier automatically):
+#
+#   printf 'YOUR_VALUE' | systemd-creds encrypt --name=hmac_key         -
+#   printf 'YOUR_VALUE' | systemd-creds encrypt --name=signing_key      -
+#   printf 'YOUR_VALUE' | systemd-creds encrypt --name=api_key          -
+#   printf 'YOUR_VALUE' | systemd-creds encrypt --name=mariadb_password -
+#
+# Or use the helper:  barto-secrets-init bartos
+#
+# Then uncomment and paste the blobs below:
+#
+# SetCredentialEncrypted=hmac_key: \
+#         <paste blob here>
+# SetCredentialEncrypted=signing_key: \
+#         <paste blob here>
+# SetCredentialEncrypted=api_key: \
+#         <paste blob here>
+# SetCredentialEncrypted=mariadb_password: \
+#         <paste blob here>
 
 # Hardening
 NoNewPrivileges=true

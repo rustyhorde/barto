@@ -187,6 +187,44 @@ fn barto_cli_command() -> Command {
         .arg(tracing_absolute_path_arg())
         .subcommand_required(true)
         .subcommand(
+            Command::new("secrets")
+                .about(
+                    "Manage barto secrets in the platform keychain (no bartos connection needed)",
+                )
+                .subcommand_required(true)
+                .subcommand(
+                    Command::new("set")
+                        .about("Store a secret value in the platform keychain")
+                        .arg(
+                            Arg::new("key")
+                                .value_name("KEY")
+                                .required(true)
+                                .help("Name of the secret (e.g. BARTOC_HMAC_KEY)"),
+                        ),
+                )
+                .subcommand(
+                    Command::new("get")
+                        .about("Retrieve and print a secret from the platform keychain")
+                        .arg(
+                            Arg::new("key")
+                                .value_name("KEY")
+                                .required(true)
+                                .help("Name of the secret to retrieve"),
+                        ),
+                )
+                .subcommand(Command::new("list").about("List known barto secrets and their status"))
+                .subcommand(
+                    Command::new("delete")
+                        .about("Delete a secret from the platform keychain")
+                        .arg(
+                            Arg::new("key")
+                                .value_name("KEY")
+                                .required(true)
+                                .help("Name of the secret to delete"),
+                        ),
+                ),
+        )
+        .subcommand(
             Command::new("info")
                 .about("Display the bartos version information")
                 .arg(

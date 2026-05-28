@@ -40,6 +40,12 @@ contents:
     file_info:
       mode: 0755
 
+  # Launcher script (loads secrets from GNOME Keyring / KWallet)
+  - src: dist/bartoc/bartoc-launcher
+    dst: /usr/lib/bartoc/bartoc-launcher
+    file_info:
+      mode: 0755
+
   # Man page
   - src: dist/bartoc/bartoc.1
     dst: /usr/share/man/man1/bartoc.1

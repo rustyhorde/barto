@@ -7,6 +7,7 @@
 // modified, or distributed except according to those terms.
 
 mod cli;
+mod secrets;
 
 use std::{
     ffi::OsString,
@@ -50,6 +51,11 @@ where
     } else {
         Cli::try_parse()?
     };
+
+    // Secrets commands are handled locally — no config load or bartos connection.
+    if let Commands::Secrets(ref args) = *cli.command() {
+        return secrets::handle(&args.command);
+    }
 
     // Load the configuration
     let mut config = load::<Cli, Config, Cli>(&cli, &cli).with_context(|| Error::ConfigLoad)?;
@@ -105,6 +111,8 @@ where
 
 fn build_message(command: &Commands) -> Result<Message> {
     let payload = match command {
+        // Secrets are handled before reaching this point — see run().
+        Commands::Secrets(_) => unreachable!("secrets handled before build_message"),
         Commands::Info { json } => encode_to_vec(BartoCli::Info { json: *json }, standard())?,
         Commands::Updates { name, update_kind } => {
             let kind = CliUpdateKind::try_from(update_kind.as_str())?;

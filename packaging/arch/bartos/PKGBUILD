@@ -38,6 +38,12 @@ package() {
     # Binary
     install -Dm755 "target/release/bartos" "$pkgdir/usr/bin/bartos"
 
+    # Launcher script (reads systemd credentials, exports as env vars)
+    install -Dm755 "dist/bartos/bartos-launcher" "$pkgdir/usr/lib/bartos/bartos-launcher"
+
+    # Secrets init helper
+    install -Dm755 "packaging/nfpm/scripts/barto-secrets-init" "$pkgdir/usr/bin/barto-secrets-init"
+
     # Migration helper
     install -Dm755 "packaging/nfpm/scripts/barto-migrate" "$pkgdir/usr/bin/barto-migrate"
 

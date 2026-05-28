@@ -42,6 +42,18 @@ contents:
     file_info:
       mode: 0755
 
+  # Launcher script (reads systemd credentials, exports as env vars)
+  - src: dist/bartos/bartos-launcher
+    dst: /usr/lib/bartos/bartos-launcher
+    file_info:
+      mode: 0755
+
+  # Secrets init helper
+  - src: packaging/nfpm/scripts/barto-secrets-init
+    dst: /usr/bin/barto-secrets-init
+    file_info:
+      mode: 0755
+
   # Migration helper script
   - src: packaging/nfpm/scripts/barto-migrate
     dst: /usr/bin/barto-migrate
