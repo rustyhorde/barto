@@ -17,7 +17,7 @@ bytes = "1.11.1"
 clap = { version = "4.6.1", features = ["derive"] }
 config = { version = "0.15.23", features = ["toml"] }
 dirs2 = "3.0.1"
-keyring = { version = "3", features = ["sync-secret-service"] }
+keyring = { version = "3", features = ["async-secret-service", "tokio", "crypto-rust", "apple-native", "windows-native"] }
 rpassword = "7"
 futures-util = { version = "0.3.32", default-features = false, features = [
   "std",
