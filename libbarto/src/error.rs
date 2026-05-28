@@ -89,6 +89,12 @@ pub enum Error {
     /// An invalid `SecondOfMinute` string was specified when parsing a realtime schedule
     #[error("invalid second of minute: '{}'", .0)]
     InvalidSecondOfMinute(String),
+    /// The provided cryptographic key is invalid or incorrectly encoded
+    #[error("invalid cryptographic key")]
+    InvalidKey,
+    /// A message signature did not verify — message may be tampered or from wrong source
+    #[error("message signature is invalid")]
+    SignatureInvalid,
 }
 
 /// Converts an `anyhow::Error` into a suitable exit code or clap message for a CLI application.

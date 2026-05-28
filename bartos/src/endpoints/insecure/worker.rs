@@ -17,7 +17,7 @@ use bincode_next::{config::standard, decode_from_slice, encode_to_vec};
 use futures_util::StreamExt as _;
 use libbarto::{
     Bartoc, BartosToBartoc, Initialize, Output, OutputKind, OutputTableName, Status,
-    StatusTableName, UuidWrapper, parse_ts_ping,
+    StatusTableName, UuidWrapper, parse_signing_key, parse_ts_ping, sign_payload,
 };
 use sqlx::MySqlPool;
 use tokio::{
@@ -164,10 +164,24 @@ async fn initialize(
             .id(uuid)
             .schedules(schedules.clone())
             .build();
-        encode_to_vec(BartosToBartoc::Initialize(init), standard()).map_err(|e| {
+        let payload = encode_to_vec(BartosToBartoc::Initialize(init), standard()).map_err(|e| {
             error!("unable to encode initialization message: {e}");
             ErrorInternalServerError("internal server error")
-        })?
+        })?;
+        if let Some(sk_b64) = config.signing_key() {
+            match parse_signing_key(sk_b64) {
+                Ok(sk) => {
+                    trace!("signing initialization message with Ed25519 key");
+                    sign_payload(&sk, &payload)
+                }
+                Err(e) => {
+                    error!("invalid signing key, sending unsigned: {e}");
+                    payload
+                }
+            }
+        } else {
+            payload
+        }
     } else {
         vec![]
     };

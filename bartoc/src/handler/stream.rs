@@ -12,11 +12,11 @@ use bincode_next::{
     decode_from_slice,
 };
 use bon::Builder;
-use libbarto::BartosToBartoc;
+use libbarto::{BartosToBartoc, VerifyingKey, verify_and_extract};
 use tokio::sync::mpsc::UnboundedSender;
 use tokio_tungstenite::tungstenite::{Error, Message};
 use tokio_util::sync::CancellationToken;
-use tracing::{error, trace};
+use tracing::{error, trace, warn};
 
 use crate::handler::BartocMessage;
 
@@ -24,6 +24,9 @@ use crate::handler::BartocMessage;
 pub(crate) struct WsHandler {
     tx: UnboundedSender<BartocMessage>,
     token: CancellationToken,
+    /// Optional Ed25519 verifying key — when set, incoming binary messages must carry a valid
+    /// 64-byte signature prefix. Messages that fail verification are dropped and logged.
+    verifying_key: Option<VerifyingKey>,
 }
 
 impl WsHandler {
@@ -36,16 +39,33 @@ impl WsHandler {
                 Ok(msg) => match msg {
                     Message::Text(_utf8_bytes) => error!("text message received, ignoring"),
                     Message::Binary(bytes) => {
-                        if let Ok((btb, _size)) =
-                            decode_from_slice::<BartosToBartoc, Configuration>(&bytes, standard())
-                        {
-                            trace!("binary message received");
-                            let bm = BartocMessage::BartosToBartoc(btb);
-                            if let Err(e) = self.tx.send(bm) {
-                                error!("unable to send binary message to handler: {e}");
+                        let decode_target: Option<Vec<u8>> = if let Some(vk) = &self.verifying_key {
+                            match verify_and_extract(vk, &bytes) {
+                                Ok(payload) => {
+                                    trace!("binary message signature verified");
+                                    Some(payload)
+                                }
+                                Err(e) => {
+                                    warn!("message signature invalid, dropping: {e}");
+                                    None
+                                }
                             }
                         } else {
-                            error!("unable to decode binary message, ignoring");
+                            Some(bytes.to_vec())
+                        };
+                        if let Some(payload) = decode_target {
+                            if let Ok((btb, _)) = decode_from_slice::<BartosToBartoc, Configuration>(
+                                &payload,
+                                standard(),
+                            ) {
+                                trace!("binary message received");
+                                let bm = BartocMessage::BartosToBartoc(btb);
+                                if let Err(e) = self.tx.send(bm) {
+                                    error!("unable to send binary message to handler: {e}");
+                                }
+                            } else {
+                                error!("unable to decode binary message, ignoring");
+                            }
                         }
                     }
                     Message::Ping(bytes) => {

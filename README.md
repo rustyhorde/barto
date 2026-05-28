@@ -141,6 +141,69 @@ Options:
           Print version
 ```
 
+### Ed25519 Message Signing
+
+`bartos` can sign every outgoing `BartosToBartoc` message with an Ed25519 private
+key. `bartoc` verifies the signature before acting on any message — a bartoc
+instance that receives an unsigned or incorrectly-signed message drops it and logs
+a warning. This protects against a compromised network path even when TLS alone
+might be bypassed.
+
+The wire format is `[64-byte Ed25519 signature][bincode-encoded message]`. When
+`signing_key` is not configured on bartos, messages are sent unsigned (current
+behaviour). When `server_public_key` is not configured on bartoc, verification is
+skipped.
+
+#### Generating an Ed25519 keypair
+
+```bash
+# Generate a 32-byte Ed25519 private key seed (base64-encoded)
+openssl genpkey -algorithm ed25519 \
+  | openssl pkey -outform DER \
+  | tail -c 32 \
+  | base64
+# → paste output as signing_key in bartos.toml
+
+# Derive the corresponding public key (base64-encoded)
+openssl pkey -pubout -outform DER \
+  < <(openssl genpkey -algorithm ed25519) \
+  | tail -c 32 \
+  | base64
+```
+
+Or generate both in one step and capture each:
+
+```bash
+# Write private key to file
+openssl genpkey -algorithm ed25519 -out bartos-signing.pem
+
+# Extract 32-byte private seed (base64) → signing_key for bartos
+openssl pkey -in bartos-signing.pem -outform DER | tail -c 32 | base64
+
+# Extract 32-byte public key (base64) → server_public_key for bartoc
+openssl pkey -in bartos-signing.pem -pubout -outform DER | tail -c 32 | base64
+```
+
+#### Configuring bartos (server)
+
+```toml
+# bartos.toml
+signing_key = "base64encodedEd25519PrivateKey..."
+```
+
+#### Configuring bartoc (client)
+
+```toml
+# bartoc.toml
+server_public_key = "base64encodedEd25519PublicKey..."
+```
+
+Keep `bartos-signing.pem` (and the `signing_key` value) secret and only on the
+bartos host. The `server_public_key` value is safe to distribute to every bartoc
+instance — it is a public key.
+
+---
+
 ### TLS & Certificate Pinning
 
 `bartos` supports TLS for all WebSocket connections. `bartoc` and `barto-cli`

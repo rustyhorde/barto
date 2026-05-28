@@ -21,7 +21,10 @@ use std::{
 use anyhow::{Context, Result};
 use clap::Parser;
 use futures_util::{StreamExt, stream::SplitSink};
-use libbarto::{Data, header, init_tracing, load_client_cert_and_key, load_pinned_root_store};
+use libbarto::{
+    Data, header, init_tracing, load_client_cert_and_key, load_pinned_root_store,
+    parse_verifying_key,
+};
 #[cfg(not(unix))]
 use tokio::signal::ctrl_c;
 #[cfg(unix)]
@@ -140,9 +143,15 @@ async fn run_connection(
     let mut handler =
         setup_handler(sink, tx.clone(), data_tx.clone(), heartbeat_token, config).await?;
     trace!("bartoc heartbeat started");
+    let verifying_key = config
+        .server_public_key()
+        .as_deref()
+        .map(parse_verifying_key)
+        .transpose()?;
     let mut ws_handler = WsHandler::builder()
         .tx(tx.clone())
         .token(stream_token.clone())
+        .maybe_verifying_key(verifying_key)
         .build();
     let sink_handle = spawn(async move {
         while let Some(msg) = rx.recv().await {

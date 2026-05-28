@@ -49,6 +49,12 @@ pub(crate) struct Config {
     client_timeout: Option<u64>,
     #[getset(get_copy = "pub(crate)")]
     missed_tick: Option<MissedTick>,
+    /// Optional base64-encoded Ed25519 public key of the bartos server.
+    /// When set, incoming `BartosToBartoc` messages must carry a valid 64-byte signature prefix.
+    /// Messages that fail verification are rejected and logged.
+    #[getset(get = "pub(crate)")]
+    #[serde(default)]
+    server_public_key: Option<String>,
 }
 
 impl TracingConfig for Config {
