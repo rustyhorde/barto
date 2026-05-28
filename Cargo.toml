@@ -6,8 +6,8 @@ members = ["barto-cli", "bartoc", "bartos", "libbarto", "xtask"]
 [workspace.dependencies]
 actix-web = "4.13.0"
 anyhow = "1.0.102"
-base64 = "0.22"
-ed25519-dalek = { version = "2", features = ["serde"] }
+base64 = "0.22.1"
+ed25519-dalek = { version = "3.0.0-pre.7", features = ["serde"] }
 bincode-next = { version = "3.0.0-rc.15", features = ["serde", "derive"] }
 bon = "3.9.1"
 bytes = "1.11.1"
