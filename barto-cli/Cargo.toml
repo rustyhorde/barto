@@ -24,11 +24,11 @@ clap = { workspace = true }
 config = { workspace = true }
 console = "0.16.3"
 count-digits = "0.5.1"
-keyring = { workspace = true }
-rpassword = { workspace = true }
 futures-util = { workspace = true }
 getset = { workspace = true }
+keyring = { workspace = true }
 libbarto = { version = "1.4.1", path = "../libbarto" }
+rpassword = { workspace = true }
 rustls = { workspace = true }
 serde = { workspace = true }
 thiserror = { workspace = true }
