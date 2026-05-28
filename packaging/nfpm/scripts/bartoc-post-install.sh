@@ -20,5 +20,6 @@ echo "         Mutual TLS:           set client_cert and client_key in [bartos].
 echo "         HMAC authentication:  set hmac_key (top-level) to the same value as bartos.toml."
 echo "           Optionally set replay_window_secs (default: 60)."
 echo "         Ed25519 verification: set server_public_key (top-level) to match bartos signing_key."
+echo "         Bearer token auth:    set api_key in [bartos] to the same value as bartos.toml."
 echo "         See: https://github.com/rustyhorde/barto#tls--certificate-pinning"
 echo ""

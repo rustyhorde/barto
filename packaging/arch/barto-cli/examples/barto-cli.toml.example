@@ -18,6 +18,9 @@ port = 8080
 # Both client_cert and client_key must be set together.
 # client_cert = "/path/to/barto-cli-client.pem"
 # client_key  = "/path/to/barto-cli-client.key"
+# Optional: pre-shared token sent as Authorization: Bearer <token> on WebSocket upgrade.
+# Must match api_key in bartos.toml.
+# api_key = "your-secret-token-here"
 
 [tracing.stdout]
 # with_target = false

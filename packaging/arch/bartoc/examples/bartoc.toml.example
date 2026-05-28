@@ -38,6 +38,9 @@ port = 8080
 # hmac_key = "your-shared-secret-here"
 # Replay protection window in seconds (default: 60).
 # replay_window_secs = 60
+# Optional: pre-shared token sent as Authorization: Bearer <token> on WebSocket upgrade.
+# Must match api_key in bartos.toml.
+# api_key = "your-secret-token-here"
 
 [tracing.stdout]
 # with_target = false

@@ -37,7 +37,9 @@ use tokio::{
 };
 use tokio_tungstenite::{
     Connector, MaybeTlsStream, WebSocketStream, connect_async_tls_with_config,
-    tungstenite::{Message, protocol::frame::coding::CloseCode},
+    tungstenite::{
+        Message, client::ClientRequestBuilder, http::Uri, protocol::frame::coding::CloseCode,
+    },
 };
 use tokio_util::sync::CancellationToken;
 use tracing::{error, info, trace};
@@ -133,8 +135,16 @@ async fn run_connection(
         config.name()
     );
     trace!("connecting to bartos at {url}");
+    let uri: Uri = url.parse()?;
+    let ws_req = if let Some(token) = config.bartos().api_key() {
+        trace!("adding Bearer auth header to WebSocket upgrade");
+        ClientRequestBuilder::new(uri).with_header("Authorization", format!("Bearer {token}"))
+    } else {
+        ClientRequestBuilder::new(uri)
+    };
     let (ws_stream, _) =
-        connect_async_tls_with_config(&url, None, false, Some(make_tls_connector(config)?)).await?;
+        connect_async_tls_with_config(ws_req, None, false, Some(make_tls_connector(config)?))
+            .await?;
     trace!("websocket connected");
     *retry_count = *config.retry_count(); // reset on successful connection
     *error_count = 0; // reset on successful connection

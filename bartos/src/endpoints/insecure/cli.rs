@@ -19,7 +19,10 @@ use tokio_util::sync::CancellationToken;
 use tracing::{error, info, trace};
 
 use crate::{
-    common::Clients, config::Config, db::mysql::MySqlHandler, endpoints::insecure::Name,
+    common::Clients,
+    config::Config,
+    db::mysql::MySqlHandler,
+    endpoints::insecure::{Name, bearer_auth_ok},
     handler::cli::BinaryMessageHandler,
 };
 
@@ -34,6 +37,10 @@ pub(crate) async fn cli(
 ) -> Result<impl Responder> {
     let describe = name.describe(&request);
     info!("cli connection from '{describe}'");
+    if !bearer_auth_ok(&request, config.api_key().as_deref()) {
+        info!("cli connection from '{describe}' rejected: missing or invalid Bearer token");
+        return Err(actix_web::error::ErrorUnauthorized("unauthorized"));
+    }
     let ws_token = token.get_ref().clone();
     let (response, session, msg_stream) = handle(&request, body)?;
     let mut ws_session = session.clone();

@@ -265,6 +265,43 @@ hmac_key = "your-shared-secret-here"
 
 ---
 
+### Pre-Shared Token / Bearer Authentication
+
+`bartos` supports a pre-shared API token that all clients must present on the
+WebSocket upgrade request (`Authorization: Bearer <token>`). Connections with a
+missing or incorrect token are rejected with HTTP 401 before the WebSocket
+handshake completes. This provides connection-level authentication independent
+of TLS or message-layer signing.
+
+When `api_key` is not configured, all connections are accepted (backward-compatible).
+
+#### Generating an API key
+
+```bash
+# Generate a 32-byte random token (base64-encoded)
+openssl rand -base64 32
+# → paste the output as api_key in bartos.toml, bartoc.toml, and barto-cli.toml
+```
+
+Keep this value **secret**. Anyone who knows it can connect to `bartos`.
+
+#### Configuring bartos (server)
+
+```toml
+# bartos.toml — top-level, not under any section
+api_key = "your-secret-token-here"
+```
+
+#### Configuring bartoc and barto-cli (clients)
+
+```toml
+# bartoc.toml or barto-cli.toml — under [bartos]
+[bartos]
+api_key = "your-secret-token-here"
+```
+
+---
+
 ### TLS & Certificate Pinning
 
 `bartos` supports TLS for all WebSocket connections. `bartoc` and `barto-cli`
@@ -590,6 +627,20 @@ hmac_key = "your-shared-secret-here"
 See the [HMAC-SHA256 Message Authentication & Replay Protection](#hmac-sha256-message-authentication--replay-protection)
 section under `bartos` for key generation instructions and a full description of
 the wire format and layer ordering.
+
+### Bearer Token Authentication
+
+If `bartos` is configured with an `api_key`, each `bartoc` instance must present
+the same token on the WebSocket upgrade or the connection will be rejected (HTTP
+401). Set the key under `[bartos]` in `bartoc.toml`:
+
+```toml
+[bartos]
+api_key = "your-secret-token-here"
+```
+
+See the [Pre-Shared Token / Bearer Authentication](#pre-shared-token--bearer-authentication)
+section under `bartos` for token generation instructions.
 
 ## `barto-cli` - The barto command line client
 

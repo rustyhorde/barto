@@ -221,6 +221,12 @@ pub struct Bartos {
     #[getset(get = "pub")]
     #[serde(default)]
     client_key: Option<PathBuf>,
+    /// Optional pre-shared token for Bearer authentication on the WebSocket upgrade.
+    /// When set, the client sends `Authorization: Bearer <api_key>` on the WS upgrade request.
+    /// Must match `api_key` in bartos.toml.
+    #[getset(get = "pub")]
+    #[serde(default)]
+    api_key: Option<String>,
 }
 
 /// The `MariaDB` configuration
@@ -446,6 +452,7 @@ mod tests {
         assert!(bartos.client_cert().is_none());
         assert!(bartos.client_key().is_none());
         assert!(bartos.ca_cert().is_none());
+        assert!(bartos.api_key().is_none());
     }
 
     #[test]
@@ -479,6 +486,7 @@ mod tests {
             ca_cert: None,
             client_cert: Some(PathBuf::from("/etc/bartoc/client.pem")),
             client_key: Some(PathBuf::from("/etc/bartoc/client.key")),
+            api_key: None,
         };
         assert_eq!(
             bartos.client_cert().as_deref(),

@@ -35,6 +35,12 @@ port = 8080
 # Must match hmac_key in bartoc.toml.
 # hmac_key = "your-shared-secret-here"
 
+# Optional: pre-shared token for Bearer authentication on WebSocket upgrades.
+# When set, bartoc and barto-cli must send Authorization: Bearer <token> on connect.
+# Generate with: openssl rand -base64 32
+# Must match api_key in bartoc.toml and barto-cli.toml.
+# api_key = "your-secret-token-here"
+
 [tracing.stdout]
 # with_target = false
 # with_thread_ids = false
