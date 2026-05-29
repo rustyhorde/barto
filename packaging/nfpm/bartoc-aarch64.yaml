@@ -47,7 +47,7 @@ contents:
       mode: 0755
 
   # Secrets init helper for systemd user credentials (lingering services)
-  - src: dist/bartoc/bartoc-secrets-init
+  - src: packaging/nfpm/scripts/bartoc-secrets-init
     dst: /usr/bin/bartoc-secrets-init
     file_info:
       mode: 0755

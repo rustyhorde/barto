@@ -110,7 +110,7 @@ fn copy_extras(binary: &str, out_dir: &Path) -> Result<()> {
 
     if binary == "bartoc" {
         fs::copy(
-            "dist/bartoc/bartoc-secrets-init",
+            "packaging/nfpm/scripts/bartoc-secrets-init",
             out_dir.join("bartoc-secrets-init"),
         )
         .context("failed to copy bartoc-secrets-init")?;
