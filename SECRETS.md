@@ -139,15 +139,22 @@ Then reload:
 systemctl --user daemon-reload && systemctl --user restart bartoc
 ```
 
-Requires systemd ≥ 256.
+Requires systemd ≥ 250 (systemd ≥ 256 uses `--user` for user-scoped encryption; older versions omit the flag).
 
 #### Manual setup
 
 ```sh
 # Encrypt each secret (replace YOUR_VALUE with the actual secret):
+
+# systemd >= 256: --user scopes the blob to this user's service context
 printf 'YOUR_VALUE' | systemd-creds encrypt --user --name=hmac_key          - -
 printf 'YOUR_VALUE' | systemd-creds encrypt --user --name=server_public_key - -
 printf 'YOUR_VALUE' | systemd-creds encrypt --user --name=api_key           - -
+
+# systemd 250–255: omit --user (machine-key encryption, still works in user services)
+printf 'YOUR_VALUE' | systemd-creds encrypt --name=hmac_key          - -
+printf 'YOUR_VALUE' | systemd-creds encrypt --name=server_public_key - -
+printf 'YOUR_VALUE' | systemd-creds encrypt --name=api_key           - -
 ```
 
 Create a drop-in file `~/.config/systemd/user/bartoc.service.d/secrets.conf`:
