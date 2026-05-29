@@ -99,7 +99,7 @@ whether bartoc starts before or after an interactive user login:
 
 | Scenario | Recommended method |
 |---|---|
-| Lingering service (starts at boot, no login required) | `bartoc-secrets-init` → systemd user credentials |
+| Lingering service (starts at boot, no login required) | `bartoc-secrets-init` → systemd user credentials (requires systemd ≥ 256) |
 | Desktop only (user always logged in before service starts) | `barto-cli secrets set` → platform keychain |
 
 Both methods are supported simultaneously — `bartoc-launcher` checks systemd
@@ -112,7 +112,7 @@ login.  The GNOME Keyring is not unlocked at that point, so `secret-tool` cannot
 read secrets.  Use systemd user credentials instead:
 
 ```sh
-# Interactive setup — encrypts secrets and prints SetCredentialEncrypted= lines:
+# Interactive setup (systemd >= 256 required):
 bartoc-secrets-init
 ```
 
@@ -139,22 +139,16 @@ Then reload:
 systemctl --user daemon-reload && systemctl --user restart bartoc
 ```
 
-Requires systemd ≥ 250 (systemd ≥ 256 uses `--user` for user-scoped encryption; older versions omit the flag).
+Requires systemd ≥ 256.  Encrypted credentials in user services are not supported on older versions — the user manager cannot decrypt machine-key blobs at startup (`status=243/CREDENTIALS`).  For systemd 250–255, use the platform keychain approach described below.
 
 #### Manual setup
 
 ```sh
 # Encrypt each secret (replace YOUR_VALUE with the actual secret):
-
-# systemd >= 256: --user scopes the blob to this user's service context
+# Requires systemd >= 256 — user service credential encryption is not supported on older versions.
 printf 'YOUR_VALUE' | systemd-creds encrypt --user --name=hmac_key          - -
 printf 'YOUR_VALUE' | systemd-creds encrypt --user --name=server_public_key - -
 printf 'YOUR_VALUE' | systemd-creds encrypt --user --name=api_key           - -
-
-# systemd 250–255: omit --user (machine-key encryption, still works in user services)
-printf 'YOUR_VALUE' | systemd-creds encrypt --name=hmac_key          - -
-printf 'YOUR_VALUE' | systemd-creds encrypt --name=server_public_key - -
-printf 'YOUR_VALUE' | systemd-creds encrypt --name=api_key           - -
 ```
 
 Create a drop-in file `~/.config/systemd/user/bartoc.service.d/secrets.conf`:
