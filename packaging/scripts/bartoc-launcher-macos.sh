@@ -8,7 +8,7 @@
 # Store secrets once:
 #   barto-cli secrets set BARTOC_HMAC_KEY
 #   barto-cli secrets set BARTOC_SERVER_PUBLIC_KEY
-#   barto-cli secrets set BARTOC_BARTOS_API_KEY
+#   barto-cli secrets set BARTOC_BARTOS__API_KEY
 #
 # See SECRETS.md for the full setup workflow.
 set -e
@@ -33,11 +33,11 @@ if [ -z "${BARTOC_SERVER_PUBLIC_KEY:-}" ]; then
     fi
 fi
 
-if [ -z "${BARTOC_BARTOS_API_KEY:-}" ]; then
-    val=$(load_secret BARTOC_BARTOS_API_KEY)
+if [ -z "${BARTOC_BARTOS__API_KEY:-}" ]; then
+    val=$(load_secret BARTOC_BARTOS__API_KEY)
     if [ -n "$val" ]; then
-        BARTOC_BARTOS_API_KEY="$val"
-        export BARTOC_BARTOS_API_KEY
+        BARTOC_BARTOS__API_KEY="$val"
+        export BARTOC_BARTOS__API_KEY
     fi
 fi
 

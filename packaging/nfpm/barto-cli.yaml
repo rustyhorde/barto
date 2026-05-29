@@ -23,8 +23,14 @@ rpm:
   compression: xz
 
 contents:
-  # Binary
+  # Real binary (invoked by the launcher)
   - src: barto-cli-x86_64-unknown-linux-musl
+    dst: /usr/lib/barto-cli/barto-cli
+    file_info:
+      mode: 0755
+
+  # Launcher at the public PATH location — loads keychain secrets before exec
+  - src: dist/barto-cli/barto-cli-launcher
     dst: /usr/bin/barto-cli
     file_info:
       mode: 0755

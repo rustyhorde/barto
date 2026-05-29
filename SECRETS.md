@@ -15,7 +15,7 @@ configuration files.
 | `BARTOC_HMAC_KEY` | bartoc | Same shared HMAC-SHA256 key (must match `BARTOS_HMAC_KEY`) |
 | `BARTOC_SERVER_PUBLIC_KEY` | bartoc | Ed25519 public key to verify messages from bartos |
 | `BARTOC_BARTOS__API_KEY` | bartoc | Bearer token for WebSocket connection to bartos |
-| `BARTO_CLI_BARTOS_API_KEY` | barto-cli | Bearer token for WebSocket connection to bartos |
+| `BARTO_CLI_BARTOS__API_KEY` | barto-cli | Bearer token for WebSocket connection to bartos |
 
 All components already read these values from environment variables.  The config
 system uses `<PREFIX>_<FIELD>` for flat (top-level) config fields and
@@ -44,10 +44,10 @@ systemd-creds --has-tpm2   # exits 0 if TPM2 is usable
 ls /dev/tpm0 /dev/tpmrm0 2>/dev/null
 ```
 
-### Quick setup with `barto-secrets-init`
+### Quick setup with `bartos-secrets-init`
 
 ```sh
-barto-secrets-init
+bartos-secrets-init
 ```
 
 The script prompts for each secret, encrypts it, and prints the
@@ -92,10 +92,56 @@ before exec-ing bartos.
 
 ## bartoc and barto-cli (user services / interactive tools)
 
-bartoc and barto-cli run in the context of a logged-in user.  Secrets are stored in
-the **platform keychain**, which is auto-unlocked at login.
+### bartoc — choosing a secret storage method
 
-### Managing secrets with `barto-cli secrets`
+bartoc runs as a systemd **user** service.  How secrets are stored depends on
+whether bartoc starts before or after an interactive user login:
+
+| Scenario | Recommended method |
+|---|---|
+| Lingering service (starts at boot, no login required) | `bartoc-secrets-init` → systemd user credentials |
+| Desktop only (user always logged in before service starts) | `barto-cli secrets set` → platform keychain |
+
+Both methods are supported simultaneously — `bartoc-launcher` checks systemd
+credentials first, then falls back to the platform keychain for any gaps.
+
+#### Lingering services — systemd user credentials
+
+When `loginctl enable-linger` is set, bartoc starts at boot before any interactive
+login.  The GNOME Keyring is not unlocked at that point, so `secret-tool` cannot
+read secrets.  Use systemd user credentials instead:
+
+```sh
+# Interactive setup — encrypts secrets and prints SetCredentialEncrypted= lines:
+bartoc-secrets-init
+```
+
+Add the output to a drop-in file:
+
+```sh
+mkdir -p ~/.config/systemd/user/bartoc.service.d
+$EDITOR ~/.config/systemd/user/bartoc.service.d/secrets.conf
+```
+
+```ini
+[Service]
+SetCredentialEncrypted=hmac_key: \
+        <blob from bartoc-secrets-init>
+SetCredentialEncrypted=server_public_key: \
+        <blob>
+SetCredentialEncrypted=api_key: \
+        <blob>
+```
+
+Then reload:
+
+```sh
+systemctl --user daemon-reload && systemctl --user restart bartoc
+```
+
+Requires systemd ≥ 252.
+
+#### Desktop sessions — platform keychain
 
 `barto-cli secrets` is the cross-platform tool for managing client-side secrets.
 It writes to and reads from the native keychain without requiring knowledge of
@@ -106,7 +152,7 @@ platform-specific CLI tools.
 barto-cli secrets set BARTOC_HMAC_KEY
 barto-cli secrets set BARTOC_SERVER_PUBLIC_KEY
 barto-cli secrets set BARTOC_BARTOS__API_KEY
-barto-cli secrets set BARTO_CLI_BARTOS_API_KEY
+barto-cli secrets set BARTO_CLI_BARTOS__API_KEY
 
 # Check what is stored:
 barto-cli secrets list
@@ -130,14 +176,21 @@ PAM auto-unlock (enabled by default on most desktop distributions):
 - GNOME: `pam_gnome_keyring.so` in `/etc/pam.d/login`
 - KDE:   `pam_kwallet5.so` in `/etc/pam.d/login`
 
-The `bartoc-launcher` script at `/usr/lib/bartoc/bartoc-launcher` reads secrets via
-`secret-tool` and exports them before starting bartoc.  The bartoc systemd user
-service uses this launcher automatically.
+The `bartoc-launcher` script at `/usr/lib/bartoc/bartoc-launcher` loads secrets in
+priority order: systemd user credentials first (see above), then `secret-tool` for
+any remaining gaps.  The bartoc systemd user service uses this launcher automatically.
+
+The `barto-cli-launcher` script is installed at `/usr/bin/barto-cli` (the real binary
+lives at `/usr/lib/barto-cli/barto-cli`).  Every `barto-cli` invocation transparently
+loads `BARTO_CLI_BARTOS__API_KEY` from the keychain first.  If that secret is not
+stored separately, the launcher falls back to `BARTOC_BARTOS__API_KEY` — useful when
+bartos uses a single shared API key for both bartoc and barto-cli connections.
 
 To verify your keychain is accessible:
 
 ```sh
-secret-tool lookup service barto key BARTOC_HMAC_KEY
+secret-tool lookup service barto username BARTOC_HMAC_KEY
+secret-tool lookup service barto username BARTO_CLI_BARTOS__API_KEY
 ```
 
 #### macOS — Login Keychain

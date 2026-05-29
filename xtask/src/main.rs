@@ -108,12 +108,20 @@ fn copy_systemd_unit(binary: &str, out_dir: &Path) -> Result<()> {
 fn copy_extras(binary: &str, out_dir: &Path) -> Result<()> {
     fs::copy("README.md", out_dir.join("README.md")).context("failed to copy README.md")?;
 
+    if binary == "bartoc" {
+        fs::copy(
+            "dist/bartoc/bartoc-secrets-init",
+            out_dir.join("bartoc-secrets-init"),
+        )
+        .context("failed to copy bartoc-secrets-init")?;
+    }
+
     if binary == "bartos" {
         fs::copy(
-            "packaging/nfpm/scripts/barto-secrets-init",
-            out_dir.join("barto-secrets-init"),
+            "packaging/nfpm/scripts/bartos-secrets-init",
+            out_dir.join("bartos-secrets-init"),
         )
-        .context("failed to copy barto-secrets-init")?;
+        .context("failed to copy bartos-secrets-init")?;
 
         fs::copy(
             "packaging/nfpm/scripts/barto-migrate",

@@ -6,6 +6,25 @@ Wants=network.target bartos.service
 
 [Service]
 Type=simple
+
+# Secrets via systemd user credentials — recommended when bartoc runs as a
+# lingering service started at boot (GNOME Keyring is not unlocked at that
+# point). Run bartoc-secrets-init to generate the encrypted blobs, then add
+# them here or in a drop-in:
+#   ~/.config/systemd/user/bartoc.service.d/secrets.conf
+#
+# SetCredentialEncrypted=hmac_key: \
+#         <blob from bartoc-secrets-init>
+# SetCredentialEncrypted=server_public_key: \
+#         <blob>
+# SetCredentialEncrypted=api_key: \
+#         <blob>
+#
+# Alternative for desktop sessions (always logged in at service start):
+#   barto-cli secrets set BARTOC_HMAC_KEY
+#   barto-cli secrets set BARTOC_SERVER_PUBLIC_KEY
+#   barto-cli secrets set BARTOC_BARTOS__API_KEY
+
 ExecStart=/usr/lib/bartoc/bartoc-launcher \
     --config-absolute-path %E/bartoc/bartoc.toml \
     --tracing-absolute-path %S/bartoc/bartoc.log \

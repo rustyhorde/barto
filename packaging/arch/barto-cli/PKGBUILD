@@ -31,8 +31,11 @@ build() {
 package() {
     cd "barto-$pkgver"
 
-    # Binary
-    install -Dm755 "target/release/barto-cli" "$pkgdir/usr/bin/barto-cli"
+    # Real binary (invoked by the launcher)
+    install -Dm755 "target/release/barto-cli" "$pkgdir/usr/lib/barto-cli/barto-cli"
+
+    # Launcher at the public PATH location — loads keychain secrets before exec
+    install -Dm755 "dist/barto-cli/barto-cli-launcher" "$pkgdir/usr/bin/barto-cli"
 
     # Man page
     install -Dm644 "dist/barto-cli/barto-cli.1" "$pkgdir/usr/share/man/man1/barto-cli.1"

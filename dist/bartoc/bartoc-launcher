@@ -1,21 +1,48 @@
 #!/bin/sh
-# Loads bartoc secrets from the platform keychain (GNOME Keyring / KWallet via
-# libsecret) and exports them as environment variables before exec-ing bartoc.
+# Loads bartoc secrets and exports them as environment variables before exec-ing bartoc.
 #
-# Requires: libsecret (secret-tool) — available on GNOME/KDE desktops.
-# The keychain is auto-unlocked by PAM at login when pam_gnome_keyring.so or
-# pam_kwallet5.so is active.
+# Two secret sources are supported (checked in priority order):
 #
-# Store secrets once:
-#   barto-cli secrets set BARTOC_HMAC_KEY
-#   barto-cli secrets set BARTOC_SERVER_PUBLIC_KEY
-#   barto-cli secrets set BARTOC_BARTOS_API_KEY
+# 1. systemd user credentials — recommended for lingering services started at
+#    boot (before any interactive login). Set up once with bartoc-secrets-init,
+#    which generates SetCredentialEncrypted= lines for:
+#      ~/.config/systemd/user/bartoc.service.d/secrets.conf
+#
+# 2. Platform keychain (GNOME Keyring / KWallet via libsecret) — suitable for
+#    desktop sessions that are always logged in when bartoc starts. Requires
+#    libsecret (secret-tool) and an unlocked keychain. Store secrets with:
+#      barto-cli secrets set BARTOC_HMAC_KEY
+#      barto-cli secrets set BARTOC_SERVER_PUBLIC_KEY
+#      barto-cli secrets set BARTOC_BARTOS__API_KEY
 #
 # See SECRETS.md for the full setup workflow.
 set -e
 
+# Primary: systemd user credentials (works for lingering services started at boot)
+if [ -n "${CREDENTIALS_DIRECTORY:-}" ]; then
+    for cred in hmac_key server_public_key api_key; do
+        path="${CREDENTIALS_DIRECTORY}/${cred}"
+        [ -f "$path" ] || continue
+        case "$cred" in
+            hmac_key)
+                BARTOC_HMAC_KEY=$(cat "$path")
+                export BARTOC_HMAC_KEY
+                ;;
+            server_public_key)
+                BARTOC_SERVER_PUBLIC_KEY=$(cat "$path")
+                export BARTOC_SERVER_PUBLIC_KEY
+                ;;
+            api_key)
+                BARTOC_BARTOS__API_KEY=$(cat "$path")
+                export BARTOC_BARTOS__API_KEY
+                ;;
+        esac
+    done
+fi
+
+# Fallback: platform keychain (fills any gaps not covered by systemd credentials)
 load_secret() {
-    secret-tool lookup service barto key "$1" 2>/dev/null || true
+    secret-tool lookup service barto username "$1" 2>/dev/null || true
 }
 
 if command -v secret-tool > /dev/null 2>&1; then

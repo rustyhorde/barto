@@ -7,13 +7,13 @@
 # Store them once in the platform keychain using barto-cli:
 #   barto-cli secrets set BARTOC_HMAC_KEY
 #   barto-cli secrets set BARTOC_SERVER_PUBLIC_KEY
-#   barto-cli secrets set BARTOC_BARTOS_API_KEY
+#   barto-cli secrets set BARTOC_BARTOS__API_KEY
 # bartoc-launcher loads them automatically at startup — see SECRETS.md.
 #
 # Secret env vars (managed via platform keychain):
 #   BARTOC_HMAC_KEY            — shared HMAC-SHA256 key (must match bartos)
 #   BARTOC_SERVER_PUBLIC_KEY   — Ed25519 public key to verify bartos messages
-#   BARTOC_BARTOS_API_KEY      — Bearer token for WebSocket upgrade
+#   BARTOC_BARTOS__API_KEY      — Bearer token for WebSocket upgrade
 
 # The name of this bartoc instance.
 # Must match the section name in the bartos schedules config (e.g. [schedules.my-worker]).
@@ -52,7 +52,7 @@ port = 8080
 #                     replay_window_secs = 60  (optional, default 60)
 #
 # api_key           — Bearer token sent on WebSocket upgrade.
-#                     Set via: BARTOC_BARTOS_API_KEY env var
+#                     Set via: BARTOC_BARTOS__API_KEY env var
 
 [tracing.stdout]
 # with_target = false
