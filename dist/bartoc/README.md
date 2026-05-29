@@ -841,11 +841,11 @@ those variables from a secure store at startup.
 | HMAC-SHA256 key | bartos | `BARTOS_HMAC_KEY` |
 | Ed25519 private key | bartos | `BARTOS_SIGNING_KEY` |
 | Bearer token | bartos | `BARTOS_API_KEY` |
-| MariaDB password | bartos | `BARTOS_MARIADB_PASSWORD` |
+| MariaDB password | bartos | `BARTOS_MARIADB__PASSWORD` |
 | HMAC-SHA256 key | bartoc | `BARTOC_HMAC_KEY` |
 | Ed25519 public key | bartoc | `BARTOC_SERVER_PUBLIC_KEY` |
-| Bearer token | bartoc | `BARTOC_BARTOS_API_KEY` |
-| Bearer token | barto-cli | `BARTO_CLI_BARTOS_API_KEY` |
+| Bearer token | bartoc | `BARTOC_BARTOS__API_KEY` |
+| Bearer token | barto-cli | `BARTO_CLI_BARTOS__API_KEY` |
 
 ### bartos — systemd credentials (Linux)
 
@@ -855,7 +855,7 @@ they are sealed to a machine-specific key.
 
 ```sh
 # Interactive setup — generates SetCredentialEncrypted= lines to paste into the service:
-barto-secrets-init
+bartos-secrets-init
 
 # Manual — encrypt one secret at a time:
 printf 'MY_HMAC_KEY' | systemd-creds encrypt --name=hmac_key -
@@ -877,8 +877,8 @@ Login Keychain on macOS, PasswordVault on Windows).
 # Store secrets once:
 barto-cli secrets set BARTOC_HMAC_KEY
 barto-cli secrets set BARTOC_SERVER_PUBLIC_KEY
-barto-cli secrets set BARTOC_BARTOS_API_KEY
-barto-cli secrets set BARTO_CLI_BARTOS_API_KEY
+barto-cli secrets set BARTOC_BARTOS__API_KEY
+barto-cli secrets set BARTO_CLI_BARTOS__API_KEY
 
 # Check what is stored:
 barto-cli secrets list
@@ -886,6 +886,8 @@ barto-cli secrets list
 
 The `bartoc-launcher` script (installed at `/usr/lib/bartoc/bartoc-launcher`) reads
 the keychain at service start and exports secrets as env vars before starting bartoc.
+The `barto-cli-launcher` (installed at `/usr/bin/barto-cli`) does the same for
+barto-cli — the real binary lives at `/usr/lib/barto-cli/barto-cli`.
 
 See [SECRETS.md](SECRETS.md) for the complete setup guide, including platform-specific
 details, TPM2 detection, generating new key material, and migrating away from

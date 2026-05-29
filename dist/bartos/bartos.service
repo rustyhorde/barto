@@ -31,7 +31,7 @@ LogsDirectory=bartos
 #   printf 'YOUR_VALUE' | systemd-creds encrypt --name=api_key          -
 #   printf 'YOUR_VALUE' | systemd-creds encrypt --name=mariadb_password -
 #
-# Or use the helper:  barto-secrets-init bartos
+# Or use the helper:  bartos-secrets-init bartos
 #
 # Then uncomment and paste the blobs below:
 #

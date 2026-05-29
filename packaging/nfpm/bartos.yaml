@@ -49,8 +49,8 @@ contents:
       mode: 0755
 
   # Secrets init helper
-  - src: packaging/nfpm/scripts/barto-secrets-init
-    dst: /usr/bin/barto-secrets-init
+  - src: packaging/nfpm/scripts/bartos-secrets-init
+    dst: /usr/bin/bartos-secrets-init
     file_info:
       mode: 0755
 

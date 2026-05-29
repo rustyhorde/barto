@@ -23,7 +23,11 @@ sha256sums_x86_64=('a0ca678cec86c6a7e2bffeecc848dfae61a7c5d4904ee65f8d46274fee13
 sha256sums_aarch64=('a8614d108e317a66a2bcb34558e9998496336cb054f6f8e6f1f25fab2c3b3ab2')
 
 package() {
-    install -Dm755 "barto-cli-${CARCH}" "$pkgdir/usr/bin/barto-cli"
+    # Real binary (invoked by the launcher)
+    install -Dm755 "barto-cli-${CARCH}" "$pkgdir/usr/lib/barto-cli/barto-cli"
+
+    # Launcher script (reads keychain secrets, exports as env vars)
+    install -Dm755 "barto-cli/barto-cli-launcher" "$pkgdir/usr/bin/barto-cli"
 
     # Man page
     install -Dm644 barto-cli/barto-cli.1 "$pkgdir/usr/share/man/man1/barto-cli.1"

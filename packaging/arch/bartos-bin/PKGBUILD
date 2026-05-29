@@ -32,7 +32,7 @@ package() {
     install -Dm755 "bartos/bartos-launcher" "$pkgdir/usr/lib/bartos/bartos-launcher"
 
     # Secrets init helper
-    install -Dm755 "bartos/barto-secrets-init" "$pkgdir/usr/bin/barto-secrets-init"
+    install -Dm755 "bartos/bartos-secrets-init" "$pkgdir/usr/bin/bartos-secrets-init"
 
     # Migration helper
     install -Dm755 "bartos/barto-migrate" "$pkgdir/usr/bin/barto-migrate"

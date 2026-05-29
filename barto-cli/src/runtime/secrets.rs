@@ -22,7 +22,7 @@ const SERVICE: &str = "barto";
 /// Known client-side barto secrets managed via the platform keychain.
 ///
 /// `bartos` system-service secrets (`hmac_key`, `signing_key`, `api_key`,
-/// `mariadb_password`) are managed separately via `barto-secrets-init` and
+/// `mariadb_password`) are managed separately via `bartos-secrets-init` and
 /// systemd credentials — not listed here.
 const KNOWN_SECRETS: &[(&str, &str)] = &[
     (
@@ -38,7 +38,7 @@ const KNOWN_SECRETS: &[(&str, &str)] = &[
         "Bearer token for bartoc WebSocket connection",
     ),
     (
-        "BARTO_CLI_BARTOS_API_KEY",
+        "BARTO_CLI_BARTOS__API_KEY",
         "Bearer token for barto-cli WebSocket connection",
     ),
 ];

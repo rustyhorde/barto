@@ -5,11 +5,11 @@
 #
 # SECRETS: Do NOT put secret values in this file.
 # Store them once in the platform keychain using barto-cli:
-#   barto-cli secrets set BARTO_CLI_BARTOS_API_KEY
+#   barto-cli secrets set BARTO_CLI_BARTOS__API_KEY
 # See SECRETS.md for details.
 #
 # Secret env vars (managed via platform keychain):
-#   BARTO_CLI_BARTOS_API_KEY  — Bearer token for WebSocket upgrade
+#   BARTO_CLI_BARTOS__API_KEY  — Bearer token for WebSocket upgrade
 
 # A display name for this client connection.
 name = "my-client"
@@ -28,11 +28,11 @@ port = 8080
 # client_key  = "/path/to/barto-cli-client.key"
 
 # The following secret field is intentionally omitted from this file.
-# Store it via `barto-cli secrets set BARTO_CLI_BARTOS_API_KEY` (see SECRETS.md).
+# Store it via `barto-cli secrets set BARTO_CLI_BARTOS__API_KEY` (see SECRETS.md).
 #
 # api_key  — Bearer token sent as Authorization: Bearer <token> on WebSocket upgrade.
 #            Must match api_key in bartos.toml.
-#            Set via: BARTO_CLI_BARTOS_API_KEY env var
+#            Set via: BARTO_CLI_BARTOS__API_KEY env var
 
 [tracing.stdout]
 # with_target = false

@@ -841,11 +841,11 @@ those variables from a secure store at startup.
 | HMAC-SHA256 key | bartos | `BARTOS_HMAC_KEY` |
 | Ed25519 private key | bartos | `BARTOS_SIGNING_KEY` |
 | Bearer token | bartos | `BARTOS_API_KEY` |
-| MariaDB password | bartos | `BARTOS_MARIADB_PASSWORD` |
+| MariaDB password | bartos | `BARTOS_MARIADB__PASSWORD` |
 | HMAC-SHA256 key | bartoc | `BARTOC_HMAC_KEY` |
 | Ed25519 public key | bartoc | `BARTOC_SERVER_PUBLIC_KEY` |
-| Bearer token | bartoc | `BARTOC_BARTOS_API_KEY` |
-| Bearer token | barto-cli | `BARTO_CLI_BARTOS_API_KEY` |
+| Bearer token | bartoc | `BARTOC_BARTOS__API_KEY` |
+| Bearer token | barto-cli | `BARTO_CLI_BARTOS__API_KEY` |
 
 ### bartos — systemd credentials (Linux)
 
@@ -855,7 +855,7 @@ they are sealed to a machine-specific key.
 
 ```sh
 # Interactive setup — generates SetCredentialEncrypted= lines to paste into the service:
-barto-secrets-init
+bartos-secrets-init
 
 # Manual — encrypt one secret at a time:
 printf 'MY_HMAC_KEY' | systemd-creds encrypt --name=hmac_key -
@@ -867,25 +867,47 @@ Add the output to `/etc/systemd/system/bartos.service.d/secrets.conf`, then:
 systemctl daemon-reload && systemctl restart bartos
 ```
 
-### bartoc and barto-cli — platform keychain
+### bartoc — systemd credentials or platform keychain
 
-bartoc and barto-cli run as user processes.  Secrets are stored in the **platform
-keychain**, which is auto-unlocked at login (GNOME Keyring / KWallet on Linux,
-Login Keychain on macOS, PasswordVault on Windows).
+bartoc runs as a systemd user service.  The right secret storage depends on when the
+service starts relative to an interactive login:
+
+| Scenario | Method |
+|---|---|
+| Lingering service (starts at boot, before login) | `bartoc-secrets-init` → systemd user credentials |
+| Desktop only (always logged in before service starts) | `barto-cli secrets set` → platform keychain |
+
+`bartoc-launcher` checks systemd credentials first, then falls back to the platform keychain for any gaps.
+
+```sh
+# For lingering services — encrypts secrets and prints SetCredentialEncrypted= lines:
+bartoc-secrets-init
+# Add the output to ~/.config/systemd/user/bartoc.service.d/secrets.conf, then:
+systemctl --user daemon-reload && systemctl --user restart bartoc
+```
+
+For desktop-only use, store secrets with `barto-cli secrets set` (see next section).
+
+### barto-cli — platform keychain
+
+barto-cli reads secrets from the **platform keychain** (GNOME Keyring / KWallet on Linux,
+Login Keychain on macOS, PasswordVault on Windows), which is auto-unlocked at login.
 
 ```sh
 # Store secrets once:
 barto-cli secrets set BARTOC_HMAC_KEY
 barto-cli secrets set BARTOC_SERVER_PUBLIC_KEY
-barto-cli secrets set BARTOC_BARTOS_API_KEY
-barto-cli secrets set BARTO_CLI_BARTOS_API_KEY
+barto-cli secrets set BARTOC_BARTOS__API_KEY
+barto-cli secrets set BARTO_CLI_BARTOS__API_KEY
 
 # Check what is stored:
 barto-cli secrets list
 ```
 
-The `bartoc-launcher` script (installed at `/usr/lib/bartoc/bartoc-launcher`) reads
-the keychain at service start and exports secrets as env vars before starting bartoc.
+The `barto-cli-launcher` (installed at `/usr/bin/barto-cli`) loads `BARTO_CLI_BARTOS__API_KEY`
+from the keychain before exec-ing the real binary at `/usr/lib/barto-cli/barto-cli`.  If that
+secret is not stored separately, it falls back to `BARTOC_BARTOS__API_KEY` — useful when bartos
+uses a single shared API key for both bartoc and barto-cli connections.
 
 See [SECRETS.md](SECRETS.md) for the complete setup guide, including platform-specific
 details, TPM2 detection, generating new key material, and migrating away from

@@ -27,8 +27,11 @@ sha256sums_aarch64=('41c1b6fd6c3bed7d207936ebc920875cdaaca24768211e58932f5fa6885
 package() {
     install -Dm755 "bartoc-${CARCH}" "$pkgdir/usr/bin/bartoc"
 
-    # Launcher script (reads keychain secrets, exports as env vars)
+    # Launcher script (loads secrets from systemd credentials or platform keychain)
     install -Dm755 "bartoc/bartoc-launcher" "$pkgdir/usr/lib/bartoc/bartoc-launcher"
+
+    # Interactive setup helper for systemd user credentials (lingering services)
+    install -Dm755 "bartoc/bartoc-secrets-init" "$pkgdir/usr/bin/bartoc-secrets-init"
 
     # Man page
     install -Dm644 bartoc/bartoc.1 "$pkgdir/usr/share/man/man1/bartoc.1"

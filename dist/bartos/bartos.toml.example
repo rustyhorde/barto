@@ -1,7 +1,7 @@
 # bartos configuration
 # Default location: ~/.config/bartos/bartos.toml
 # Override with: bartos --config-absolute-path /path/to/config.toml
-# Environment variables: BARTOS_<FIELD> (e.g. BARTOS_MARIADB_PASSWORD)
+# Environment variables: BARTOS_<FIELD> (e.g. BARTOS_MARIADB__PASSWORD)
 #
 # SECRETS: Do NOT put secret values in this file.
 # Use systemd credentials instead — see SECRETS.md or run `barto-secrets-init`.
@@ -11,13 +11,13 @@
 #   BARTOS_HMAC_KEY          — shared HMAC-SHA256 key (must match bartoc)
 #   BARTOS_SIGNING_KEY       — Ed25519 private key (base64-encoded)
 #   BARTOS_API_KEY           — Bearer token for WebSocket upgrade
-#   BARTOS_MARIADB_PASSWORD  — MariaDB password (can also stay in [mariadb] below)
+#   BARTOS_MARIADB__PASSWORD  — MariaDB password (can also stay in [mariadb] below)
 
 [mariadb]
 host = "localhost"
 # port = 3306
 username = "barto"
-# password is set via BARTOS_MARIADB_PASSWORD env var (systemd credential)
+# password is set via BARTOS_MARIADB__PASSWORD env var (systemd credential)
 # password = "changeme"
 database = "barto"
 # options = "ssl-mode=disabled"

@@ -40,9 +40,15 @@ contents:
     file_info:
       mode: 0755
 
-  # Launcher script (loads secrets from GNOME Keyring / KWallet)
+  # Launcher script (loads secrets: systemd credentials first, then GNOME Keyring / KWallet)
   - src: dist/bartoc/bartoc-launcher
     dst: /usr/lib/bartoc/bartoc-launcher
+    file_info:
+      mode: 0755
+
+  # Secrets init helper for systemd user credentials (lingering services)
+  - src: dist/bartoc/bartoc-secrets-init
+    dst: /usr/bin/bartoc-secrets-init
     file_info:
       mode: 0755
 
