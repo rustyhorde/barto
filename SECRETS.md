@@ -99,7 +99,7 @@ whether bartoc starts before or after an interactive user login:
 
 | Scenario | Recommended method |
 |---|---|
-| Lingering service (starts at boot, no login required) | `bartoc-secrets-init` → systemd user credentials |
+| Lingering service (starts at boot, no login required) | `bartoc-secrets-init` → systemd user credentials (requires systemd ≥ 256) |
 | Desktop only (user always logged in before service starts) | `barto-cli secrets set` → platform keychain |
 
 Both methods are supported simultaneously — `bartoc-launcher` checks systemd
@@ -112,7 +112,7 @@ login.  The GNOME Keyring is not unlocked at that point, so `secret-tool` cannot
 read secrets.  Use systemd user credentials instead:
 
 ```sh
-# Interactive setup — encrypts secrets and prints SetCredentialEncrypted= lines:
+# Interactive setup (systemd >= 256 required):
 bartoc-secrets-init
 ```
 
@@ -139,22 +139,55 @@ Then reload:
 systemctl --user daemon-reload && systemctl --user restart bartoc
 ```
 
-Requires systemd ≥ 250 (systemd ≥ 256 uses `--user` for user-scoped encryption; older versions omit the flag).
+Requires systemd ≥ 256.  Encrypted credentials in user services are not supported on older versions — the user manager cannot decrypt machine-key blobs at startup (`status=243/CREDENTIALS`).  For systemd 250–255, see the age-encrypted secrets section below, or use the platform keychain approach.
+
+#### Lingering services — age-encrypted secrets (systemd 250–255)
+
+For systems where upgrading to systemd ≥ 256 is not possible, `age` provides
+encryption-at-rest without root or TPM2.  Install `age` first:
+
+```sh
+# Arch:
+sudo pacman -S age
+# Debian/Ubuntu:
+sudo apt install age
+# Fedora:
+sudo dnf install age
+```
+
+Then run the interactive setup:
+
+```sh
+bartoc-age-secrets-init
+```
+
+This generates `~/.config/bartoc/age-identity` (0600) and
+`~/.config/bartoc/secrets.age` (0600).  Enable the alternative service unit
+(mutually exclusive with `bartoc.service`):
+
+```sh
+systemctl --user disable --now bartoc.service   # if currently active
+systemctl --user enable  --now bartoc-age.service
+systemctl --user daemon-reload
+```
+
+**Security**: `~/.config/bartoc/age-identity` (private key) and
+`~/.config/bartoc/secrets.age` are both required to decrypt.  An attacker with
+full read access to `~/.config/bartoc/` can decrypt — comparable to 0600
+plaintext file security, but no plaintext secrets file exists on disk.  For
+stronger at-rest protection, upgrade to systemd ≥ 256.
+
+To update a secret later, re-run `bartoc-age-secrets-init` (existing values are
+preserved for any prompt you leave blank).
 
 #### Manual setup
 
 ```sh
 # Encrypt each secret (replace YOUR_VALUE with the actual secret):
-
-# systemd >= 256: --user scopes the blob to this user's service context
+# Requires systemd >= 256 — user service credential encryption is not supported on older versions.
 printf 'YOUR_VALUE' | systemd-creds encrypt --user --name=hmac_key          - -
 printf 'YOUR_VALUE' | systemd-creds encrypt --user --name=server_public_key - -
 printf 'YOUR_VALUE' | systemd-creds encrypt --user --name=api_key           - -
-
-# systemd 250–255: omit --user (machine-key encryption, still works in user services)
-printf 'YOUR_VALUE' | systemd-creds encrypt --name=hmac_key          - -
-printf 'YOUR_VALUE' | systemd-creds encrypt --name=server_public_key - -
-printf 'YOUR_VALUE' | systemd-creds encrypt --name=api_key           - -
 ```
 
 Create a drop-in file `~/.config/systemd/user/bartoc.service.d/secrets.conf`:

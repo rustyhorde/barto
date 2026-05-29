@@ -18,10 +18,12 @@ overrides:
     suggests:
       - logrotate
       - xz-utils
+      - age
   rpm:
     suggests:
       - logrotate
       - xz
+      - age
 
 scripts:
   postinstall: packaging/nfpm/scripts/bartoc-post-install.sh
@@ -51,6 +53,22 @@ contents:
     dst: /usr/bin/bartoc-secrets-init
     file_info:
       mode: 0755
+
+  # age-encrypted secrets launcher (for systemd 250-255 systems)
+  - src: dist/bartoc/bartoc-age-launcher
+    dst: /usr/lib/bartoc/bartoc-age-launcher
+    file_info:
+      mode: 0755
+
+  # age-encrypted secrets init helper
+  - src: packaging/nfpm/scripts/bartoc-age-secrets-init
+    dst: /usr/bin/bartoc-age-secrets-init
+    file_info:
+      mode: 0755
+
+  # Systemd user service variant for age-encrypted secrets (systemd 250-255)
+  - src: dist/bartoc/bartoc-age.service
+    dst: /usr/lib/systemd/user/bartoc-age.service
 
   # Man page
   - src: dist/bartoc/bartoc.1

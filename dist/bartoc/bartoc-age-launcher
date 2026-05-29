@@ -1,0 +1,82 @@
+#!/bin/sh
+# Decrypts ~/.config/bartoc/secrets.age using the age identity key, exports
+# BARTOC_* env vars, then execs bartoc.  Falls back to platform keychain
+# (GNOME Keyring / KWallet via secret-tool) for any secrets not loaded from age.
+#
+# Use this launcher with bartoc-age.service on systems with systemd 250-255
+# that cannot use SetCredentialEncrypted= in user services.  Set up the
+# encrypted secrets file once with bartoc-age-secrets-init.
+#
+# See SECRETS.md for the full setup workflow.
+set -e
+
+cfg="${XDG_CONFIG_HOME:-$HOME/.config}/bartoc"
+identity="$cfg/age-identity"
+secrets_age="$cfg/secrets.age"
+
+# Primary: age-encrypted secrets file (works for lingering services at boot)
+if command -v age > /dev/null 2>&1 \
+        && [ -f "$identity" ] && [ -f "$secrets_age" ]; then
+    age_out=$(age -d -i "$identity" "$secrets_age" 2>/dev/null || true)
+    IFS="
+"
+    for line in $age_out; do
+        [ -z "$line" ] && continue
+        key="${line%%=*}"
+        val="${line#*=}"
+        case "$key" in
+            BARTOC_HMAC_KEY)
+                if [ -z "${BARTOC_HMAC_KEY:-}" ]; then
+                    BARTOC_HMAC_KEY="$val"
+                    export BARTOC_HMAC_KEY
+                fi
+                ;;
+            BARTOC_SERVER_PUBLIC_KEY)
+                if [ -z "${BARTOC_SERVER_PUBLIC_KEY:-}" ]; then
+                    BARTOC_SERVER_PUBLIC_KEY="$val"
+                    export BARTOC_SERVER_PUBLIC_KEY
+                fi
+                ;;
+            BARTOC_BARTOS__API_KEY)
+                if [ -z "${BARTOC_BARTOS__API_KEY:-}" ]; then
+                    BARTOC_BARTOS__API_KEY="$val"
+                    export BARTOC_BARTOS__API_KEY
+                fi
+                ;;
+        esac
+    done
+    unset IFS
+fi
+
+# Fallback: platform keychain (fills any gaps not covered by age secrets)
+load_secret() {
+    secret-tool lookup service barto username "$1" 2>/dev/null || true
+}
+
+if command -v secret-tool > /dev/null 2>&1; then
+    if [ -z "${BARTOC_HMAC_KEY:-}" ]; then
+        val=$(load_secret BARTOC_HMAC_KEY)
+        if [ -n "$val" ]; then
+            BARTOC_HMAC_KEY="$val"
+            export BARTOC_HMAC_KEY
+        fi
+    fi
+
+    if [ -z "${BARTOC_SERVER_PUBLIC_KEY:-}" ]; then
+        val=$(load_secret BARTOC_SERVER_PUBLIC_KEY)
+        if [ -n "$val" ]; then
+            BARTOC_SERVER_PUBLIC_KEY="$val"
+            export BARTOC_SERVER_PUBLIC_KEY
+        fi
+    fi
+
+    if [ -z "${BARTOC_BARTOS__API_KEY:-}" ]; then
+        val=$(load_secret BARTOC_BARTOS__API_KEY)
+        if [ -n "$val" ]; then
+            BARTOC_BARTOS__API_KEY="$val"
+            export BARTOC_BARTOS__API_KEY
+        fi
+    fi
+fi
+
+exec /usr/bin/bartoc "$@"
