@@ -34,7 +34,7 @@ const KNOWN_SECRETS: &[(&str, &str)] = &[
         "Ed25519 public key to verify messages from bartos",
     ),
     (
-        "BARTOC_BARTOS_API_KEY",
+        "BARTOC_BARTOS__API_KEY",
         "Bearer token for bartoc WebSocket connection",
     ),
     (

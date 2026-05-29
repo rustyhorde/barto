@@ -137,7 +137,7 @@ service uses this launcher automatically.
 To verify your keychain is accessible:
 
 ```sh
-secret-tool lookup service barto key BARTOC_HMAC_KEY
+secret-tool lookup service barto username BARTOC_HMAC_KEY
 ```
 
 #### macOS — Login Keychain

@@ -505,7 +505,7 @@ checksum = "f2032f911046de80f0a198e0901378627c33f59ea0ac00e363d481118bd70a53"
 
 [[package]]
 name = "barto-cli"
-version = "1.4.3"
+version = "1.4.4"
 dependencies = [
  "anyhow",
  "apple-native-keyring-store",
@@ -537,7 +537,7 @@ dependencies = [
 
 [[package]]
 name = "bartoc"
-version = "1.4.3"
+version = "1.4.4"
 dependencies = [
  "anyhow",
  "bincode-next",
@@ -565,7 +565,7 @@ dependencies = [
 
 [[package]]
 name = "bartos"
-version = "1.4.3"
+version = "1.4.4"
 dependencies = [
  "actix-web",
  "actix-ws",
@@ -1140,12 +1140,12 @@ dependencies = [
 
 [[package]]
 name = "curve25519-dalek"
-version = "5.0.0-pre.6"
+version = "5.0.0-rc.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "335f1947f241137a14106b6f5acc5918a5ede29c9d71d3f2cb1678d5075d9fc3"
+checksum = "4f359e08ca85e7bd759e1fd933ff2bccd81864c60a8fba0e259c7f822b0924bf"
 dependencies = [
  "cfg-if 1.0.4",
- "cpufeatures 0.2.17",
+ "cpufeatures 0.3.0",
  "curve25519-dalek-derive",
  "digest 0.11.3",
  "fiat-crypto",
@@ -1350,9 +1350,9 @@ dependencies = [
 
 [[package]]
 name = "ed25519-dalek"
-version = "3.0.0-pre.7"
+version = "3.0.0-rc.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "20449acd54b660981ae5caa2bcb56d1fe7f25f2e37a38ec507400fab034d4bb6"
+checksum = "b011170fe4f04665565b4110afef66774fe9ffff278f3eb5b81cc73d26e27d60"
 dependencies = [
  "curve25519-dalek",
  "ed25519",
@@ -3079,7 +3079,7 @@ checksum = "09edd9e8b54e49e587e4f6295a7d29c3ea94d469cb40ab8ca70b288248a81db2"
 
 [[package]]
 name = "libbarto"
-version = "1.4.3"
+version = "1.4.4"
 dependencies = [
  "anyhow",
  "base64",
@@ -3103,7 +3103,7 @@ dependencies = [
  "serde",
  "sha2 0.11.0",
  "strip-ansi-escapes",
- "sysinfo 0.39.2",
+ "sysinfo 0.39.3",
  "tempfile",
  "thiserror 2.0.18",
  "time",
@@ -4593,9 +4593,9 @@ dependencies = [
 
 [[package]]
 name = "sysinfo"
-version = "0.39.2"
+version = "0.39.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "14311e7e9a03114cd4b65eedd54e8fed2945e17f08586ae97ef53bc0669f9581"
+checksum = "21d0d938c10fcda3e897e28aaddf4ab462375d411f4378cd63b1c945f69aba96"
 dependencies = [
  "libc",
  "memchr",
@@ -5682,7 +5682,7 @@ checksum = "1ffae5123b2d3fc086436f8834ae3ab053a283cfac8fe0a0b8eaae044768a4c4"
 
 [[package]]
 name = "xtask"
-version = "1.4.3"
+version = "1.4.4"
 dependencies = [
  "anyhow",
  "clap",

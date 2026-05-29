@@ -9,13 +9,13 @@
 # Store secrets once:
 #   barto-cli secrets set BARTOC_HMAC_KEY
 #   barto-cli secrets set BARTOC_SERVER_PUBLIC_KEY
-#   barto-cli secrets set BARTOC_BARTOS_API_KEY
+#   barto-cli secrets set BARTOC_BARTOS__API_KEY
 #
 # See SECRETS.md for the full setup workflow.
 set -e
 
 load_secret() {
-    secret-tool lookup service barto key "$1" 2>/dev/null || true
+    secret-tool lookup service barto username "$1" 2>/dev/null || true
 }
 
 if command -v secret-tool > /dev/null 2>&1; then
