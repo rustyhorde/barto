@@ -505,7 +505,7 @@ checksum = "f2032f911046de80f0a198e0901378627c33f59ea0ac00e363d481118bd70a53"
 
 [[package]]
 name = "barto-cli"
-version = "1.4.4"
+version = "1.4.5"
 dependencies = [
  "anyhow",
  "apple-native-keyring-store",
@@ -537,7 +537,7 @@ dependencies = [
 
 [[package]]
 name = "bartoc"
-version = "1.4.4"
+version = "1.4.5"
 dependencies = [
  "anyhow",
  "bincode-next",
@@ -565,7 +565,7 @@ dependencies = [
 
 [[package]]
 name = "bartos"
-version = "1.4.4"
+version = "1.4.5"
 dependencies = [
  "actix-web",
  "actix-ws",
@@ -3079,7 +3079,7 @@ checksum = "09edd9e8b54e49e587e4f6295a7d29c3ea94d469cb40ab8ca70b288248a81db2"
 
 [[package]]
 name = "libbarto"
-version = "1.4.4"
+version = "1.4.5"
 dependencies = [
  "anyhow",
  "base64",
@@ -5682,7 +5682,7 @@ checksum = "1ffae5123b2d3fc086436f8834ae3ab053a283cfac8fe0a0b8eaae044768a4c4"
 
 [[package]]
 name = "xtask"
-version = "1.4.4"
+version = "1.4.5"
 dependencies = [
  "anyhow",
  "clap",

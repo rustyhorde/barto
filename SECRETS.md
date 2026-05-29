@@ -141,6 +141,34 @@ systemctl --user daemon-reload && systemctl --user restart bartoc
 
 Requires systemd ≥ 252.
 
+#### Manual setup
+
+```sh
+# Encrypt each secret (replace YOUR_VALUE with the actual secret):
+printf 'YOUR_VALUE' | systemd-creds encrypt --name=hmac_key          - -
+printf 'YOUR_VALUE' | systemd-creds encrypt --name=server_public_key - -
+printf 'YOUR_VALUE' | systemd-creds encrypt --name=api_key           - -
+```
+
+Create a drop-in file `~/.config/systemd/user/bartoc.service.d/secrets.conf`:
+
+```ini
+[Service]
+SetCredentialEncrypted=hmac_key: \
+        <paste blob from systemd-creds encrypt>
+SetCredentialEncrypted=server_public_key: \
+        <paste blob>
+SetCredentialEncrypted=api_key: \
+        <paste blob>
+```
+
+Then reload:
+
+```sh
+systemctl --user daemon-reload
+systemctl --user restart bartoc
+```
+
 #### Desktop sessions — platform keychain
 
 `barto-cli secrets` is the cross-platform tool for managing client-side secrets.
