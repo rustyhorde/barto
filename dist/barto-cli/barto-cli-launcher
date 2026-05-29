@@ -28,9 +28,18 @@ if command -v secret-tool > /dev/null 2>&1; then
             export BARTO_CLI_BARTOS__API_KEY
         fi
     fi
+
+    # Fallback: shared key stored only once under BARTOC_BARTOS__API_KEY
+    if [ -z "${BARTO_CLI_BARTOS__API_KEY:-}" ]; then
+        val=$(load_secret BARTOC_BARTOS__API_KEY)
+        if [ -n "$val" ]; then
+            BARTO_CLI_BARTOS__API_KEY="$val"
+            export BARTO_CLI_BARTOS__API_KEY
+        fi
+    fi
 fi
 
-# Fall back to bartoc's key when co-located (same value stored once)
+# Final fallback: already-exported env var (e.g. set by parent process)
 if [ -z "${BARTO_CLI_BARTOS__API_KEY:-}" ] && [ -n "${BARTOC_BARTOS__API_KEY:-}" ]; then
     BARTO_CLI_BARTOS__API_KEY="$BARTOC_BARTOS__API_KEY"
     export BARTO_CLI_BARTOS__API_KEY

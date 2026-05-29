@@ -106,7 +106,9 @@ impl Source for Cli {
 
 impl PathDefaults for Cli {
     fn env_prefix(&self) -> String {
-        env!("CARGO_PKG_NAME").to_ascii_uppercase()
+        env!("CARGO_PKG_NAME")
+            .replace('-', "_")
+            .to_ascii_uppercase()
     }
 
     fn config_absolute_path(&self) -> Option<String> {
