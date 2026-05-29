@@ -1,0 +1,38 @@
+[Unit]
+Description=Barto Job Executor Client (age-encrypted secrets)
+Documentation=man:bartoc(1)
+After=network.target bartos.service
+Wants=network.target bartos.service
+
+[Service]
+Type=simple
+
+# Secrets via age-encrypted file — for systems with systemd 250-255 that
+# cannot use SetCredentialEncrypted= in user services.  Run
+# bartoc-age-secrets-init to generate:
+#   ~/.config/bartoc/age-identity  (age keypair, 0600)
+#   ~/.config/bartoc/secrets.age   (encrypted KEY=VALUE pairs, 0600)
+#
+# This service uses bartoc-age-launcher which decrypts secrets.age in memory
+# using the identity key and exports BARTOC_* env vars before exec-ing bartoc.
+# It falls back to the platform keychain (secret-tool) for any missing secrets.
+#
+# For systems with systemd >= 256, use bartoc.service with bartoc-secrets-init
+# and SetCredentialEncrypted= instead.
+
+ExecStart=/usr/lib/bartoc/bartoc-age-launcher \
+    --config-absolute-path %E/bartoc/bartoc.toml \
+    --tracing-absolute-path %S/bartoc/bartoc.log \
+    --redb-absolute-path %S/bartoc/bartoc.redb
+Restart=on-failure
+RestartSec=5s
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=bartoc
+
+# Systemd-managed directories (created with correct ownership on first start)
+ConfigurationDirectory=bartoc
+StateDirectory=bartoc
+
+[Install]
+WantedBy=default.target

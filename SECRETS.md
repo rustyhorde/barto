@@ -139,7 +139,46 @@ Then reload:
 systemctl --user daemon-reload && systemctl --user restart bartoc
 ```
 
-Requires systemd ≥ 256.  Encrypted credentials in user services are not supported on older versions — the user manager cannot decrypt machine-key blobs at startup (`status=243/CREDENTIALS`).  For systemd 250–255, use the platform keychain approach described below.
+Requires systemd ≥ 256.  Encrypted credentials in user services are not supported on older versions — the user manager cannot decrypt machine-key blobs at startup (`status=243/CREDENTIALS`).  For systemd 250–255, see the age-encrypted secrets section below, or use the platform keychain approach.
+
+#### Lingering services — age-encrypted secrets (systemd 250–255)
+
+For systems where upgrading to systemd ≥ 256 is not possible, `age` provides
+encryption-at-rest without root or TPM2.  Install `age` first:
+
+```sh
+# Arch:
+sudo pacman -S age
+# Debian/Ubuntu:
+sudo apt install age
+# Fedora:
+sudo dnf install age
+```
+
+Then run the interactive setup:
+
+```sh
+bartoc-age-secrets-init
+```
+
+This generates `~/.config/bartoc/age-identity` (0600) and
+`~/.config/bartoc/secrets.age` (0600).  Enable the alternative service unit
+(mutually exclusive with `bartoc.service`):
+
+```sh
+systemctl --user disable --now bartoc.service   # if currently active
+systemctl --user enable  --now bartoc-age.service
+systemctl --user daemon-reload
+```
+
+**Security**: `~/.config/bartoc/age-identity` (private key) and
+`~/.config/bartoc/secrets.age` are both required to decrypt.  An attacker with
+full read access to `~/.config/bartoc/` can decrypt — comparable to 0600
+plaintext file security, but no plaintext secrets file exists on disk.  For
+stronger at-rest protection, upgrade to systemd ≥ 256.
+
+To update a secret later, re-run `bartoc-age-secrets-init` (existing values are
+preserved for any prompt you leave blank).
 
 #### Manual setup
 

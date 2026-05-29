@@ -114,6 +114,11 @@ fn copy_extras(binary: &str, out_dir: &Path) -> Result<()> {
             out_dir.join("bartoc-secrets-init"),
         )
         .context("failed to copy bartoc-secrets-init")?;
+        fs::copy(
+            "packaging/nfpm/scripts/bartoc-age-secrets-init",
+            out_dir.join("bartoc-age-secrets-init"),
+        )
+        .context("failed to copy bartoc-age-secrets-init")?;
     }
 
     if binary == "bartos" {
