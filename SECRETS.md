@@ -139,15 +139,15 @@ Then reload:
 systemctl --user daemon-reload && systemctl --user restart bartoc
 ```
 
-Requires systemd ≥ 252.
+Requires systemd ≥ 256.
 
 #### Manual setup
 
 ```sh
 # Encrypt each secret (replace YOUR_VALUE with the actual secret):
-printf 'YOUR_VALUE' | systemd-creds encrypt --name=hmac_key          - -
-printf 'YOUR_VALUE' | systemd-creds encrypt --name=server_public_key - -
-printf 'YOUR_VALUE' | systemd-creds encrypt --name=api_key           - -
+printf 'YOUR_VALUE' | systemd-creds encrypt --user --name=hmac_key          - -
+printf 'YOUR_VALUE' | systemd-creds encrypt --user --name=server_public_key - -
+printf 'YOUR_VALUE' | systemd-creds encrypt --user --name=api_key           - -
 ```
 
 Create a drop-in file `~/.config/systemd/user/bartoc.service.d/secrets.conf`:
