@@ -265,7 +265,7 @@ jobs:
         run: |
           cargo wix --package bartoc --no-build `
             --target x86_64-pc-windows-msvc `
-            -e WixUtilExtension
+            --nocapture
 
       - name: Stage Windows release assets
         run: |
