@@ -88,6 +88,9 @@ impl BartocDatabase {
     pub(crate) fn new(config: &Config, db_tx: UnboundedSender<BartocMessage>) -> Result<Self> {
         let redb_path = config.redb_path().as_ref().ok_or(Error::NoRedbPath)?;
         trace!("Using redb database path: {}", redb_path.display());
+        if let Some(parent) = redb_path.parent() {
+            std::fs::create_dir_all(parent)?;
+        }
         let db = Database::create(config.redb_path().as_ref().ok_or(Error::NoRedbPath)?)?;
         let bartoc_name = config.name().clone();
         Ok(Self {

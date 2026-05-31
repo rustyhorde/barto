@@ -42,6 +42,8 @@ use tokio_tungstenite::{
     },
 };
 use tokio_util::sync::CancellationToken;
+#[cfg(windows)]
+use tracing::warn;
 use tracing::{error, info, trace};
 
 use crate::{
@@ -50,6 +52,44 @@ use crate::{
     error::Error,
     handler::{BartocMessage, Handler, stream::WsHandler},
 };
+
+/// Read the three bartoc secrets from Windows Credential Manager and set them
+/// as environment variables if not already set. Mirrors `bartoc-launcher.ps1`.
+#[cfg(windows)]
+fn load_windows_credentials() {
+    use keyring_core::Entry;
+    use windows_native_keyring_store::Store;
+
+    match Store::new() {
+        Ok(store) => keyring_core::set_default_store(store),
+        Err(e) => {
+            warn!("failed to connect to Windows Credential Manager: {e}");
+            return;
+        }
+    }
+
+    const SERVICE: &str = "barto";
+    const SECRETS: &[&str] = &[
+        "BARTOC_HMAC_KEY",
+        "BARTOC_SERVER_PUBLIC_KEY",
+        "BARTOC_BARTOS__API_KEY",
+    ];
+
+    for &key in SECRETS {
+        if std::env::var_os(key).is_some() {
+            continue;
+        }
+        match Entry::new(SERVICE, key).and_then(|e| e.get_password()) {
+            Ok(val) => {
+                std::env::set_var(key, val);
+                trace!("loaded secret {key} from Windows Credential Manager");
+            }
+            Err(_) => {
+                trace!("{key} not found in Windows Credential Manager");
+            }
+        }
+    }
+}
 
 pub(crate) use self::cli::Cli;
 
@@ -60,11 +100,17 @@ const HEADER_PREFIX: &str = r"██████╗  █████╗ ██�
 ██████╔╝██║  ██║██║  ██║   ██║   ╚██████╔╝╚██████╗
 ╚═════╝ ╚═╝  ╚═╝╚═╝  ╚═╝   ╚═╝    ╚═════╝  ╚═════╝";
 
-pub(crate) async fn run<I, T>(args: Option<I>) -> Result<()>
+pub(crate) async fn run<I, T>(
+    args: Option<I>,
+    service_token: Option<CancellationToken>,
+) -> Result<()>
 where
     I: IntoIterator<Item = T>,
     T: Into<OsString> + Clone,
 {
+    #[cfg(windows)]
+    load_windows_credentials();
+
     // Parse the command line
     let cli = if let Some(args) = args {
         Cli::try_parse_from(args)?
@@ -100,13 +146,33 @@ where
     let shutdown = Arc::new(AtomicBool::new(false));
 
     while retry_count > 0 {
+        if let Some(ref st) = service_token
+            && st.is_cancelled()
+        {
+            break;
+        }
         let sd_r = Arc::clone(&shutdown);
         let sd_c = Arc::clone(&shutdown);
-        let res = run_connection(&config, sd_c, &mut retry_count, &mut error_count).await;
+        let res = run_connection(
+            &config,
+            sd_c,
+            &mut retry_count,
+            &mut error_count,
+            service_token.as_ref(),
+        )
+        .await;
         if let Err(e) = res {
             error!("{e}");
         }
-        if handle_shutdown(&shutdown, sd_r, &mut retry_count, &mut error_count).await {
+        if handle_shutdown(
+            &shutdown,
+            sd_r,
+            &mut retry_count,
+            &mut error_count,
+            service_token.as_ref(),
+        )
+        .await
+        {
             break;
         }
     }
@@ -119,8 +185,11 @@ async fn run_connection(
     sd_c: Arc<AtomicBool>,
     retry_count: &mut u8,
     error_count: &mut u32,
+    service_token: Option<&CancellationToken>,
 ) -> Result<()> {
-    let token = CancellationToken::new();
+    let token = service_token
+        .map(CancellationToken::child_token)
+        .unwrap_or_default();
     let sig_token = token.clone();
     let stream_token = token.clone();
     let heartbeat_token = token.clone();
@@ -324,6 +393,7 @@ async fn handle_shutdown(
     sd_r: Arc<AtomicBool>,
     retry_count: &mut u8,
     error_count: &mut u32,
+    service_token: Option<&CancellationToken>,
 ) -> bool {
     let mut should_break = false;
     let sd = shutdown.load(Ordering::SeqCst);
@@ -331,7 +401,17 @@ async fn handle_shutdown(
     if sd {
         should_break = true;
     }
-    let retry_token = CancellationToken::new();
+    // If the service stop token was cancelled during the connection, don't retry.
+    if let Some(st) = service_token
+        && st.is_cancelled()
+    {
+        return true;
+    }
+    // Make the retry sleep cancellable by service stop: use a child of the
+    // service token so that an SCM Stop event unblocks the select immediately.
+    let retry_token = service_token
+        .map(CancellationToken::child_token)
+        .unwrap_or_default();
     let rt_c = retry_token.clone();
     let sighan_handle = spawn(async move { handle_signals(rt_c, sd_r).await });
     info!("retrying in {} seconds...", 2u64.pow(*error_count));

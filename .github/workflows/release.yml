@@ -218,11 +218,72 @@ jobs:
             bartoc-aarch64-apple-darwin.tar.gz
             barto-cli-aarch64-apple-darwin.tar.gz
 
+  # ── Build Windows release binaries ───────────────────────────────────────────
+  build-windows:
+    name: 🪟 Build Windows Binaries 🪟
+    runs-on: windows-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: Wandalen/wretry.action@71a909ebf09f3ffdc6f42a17bd54ecb43481da49 # v3.8.0
+        with:
+          action: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+          attempt_limit: 3
+          attempt_delay: 30000
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@3c5f7ea28cd621ae0bf5283f0e981fb97b8a7af9
+        with:
+          toolchain: "1.95.0"
+          targets: x86_64-pc-windows-msvc
+
+      - name: 💾 Install (cargo-binstall) 💾
+        uses: cargo-bins/cargo-binstall@1c2b96c2b86875d56caeec7b7ee9980812daf0d9 # main
+
+      - name: 💾 Install (cargo-wix) 💾
+        run: cargo binstall --no-confirm --no-symlinks cargo-wix
+
+      - name: Cache cargo registry
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+          key: windows-cargo-release-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Build bartoc (x86_64-pc-windows-msvc)
+        env:
+          VERGEN_IDEMPOTENT: "1"
+          SQLX_OFFLINE: "true"
+        run: |
+          cargo build --release --locked `
+            --target x86_64-pc-windows-msvc `
+            --bin bartoc
+
+      - name: Generate MSI
+        run: |
+          cargo wix --package bartoc --no-build `
+            --bin-path target\x86_64-pc-windows-msvc\release
+
+      - name: Stage Windows release assets
+        run: |
+          New-Item -ItemType Directory -Force -Path release-assets-windows
+          Copy-Item target\x86_64-pc-windows-msvc\release\bartoc.exe `
+            release-assets-windows\bartoc-x86_64-pc-windows-msvc.exe
+          Copy-Item (Get-Item target\wix\*.msi).FullName release-assets-windows\
+
+      - name: Upload Windows release assets
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: release-assets-windows
+          path: release-assets-windows/
+
   # ── Create GitHub pre-release (RC tags only) ────────────────────────────────
   pre-release:
     name: 🧪 Create GitHub Pre-Release 🧪
     if: "contains(github.ref_name, '-rc')"
-    needs: [build, build-macos]
+    needs: [build, build-macos, build-windows]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -239,6 +300,12 @@ jobs:
           name: release-assets-macos
           path: release-assets/
 
+      - name: Download Windows release assets
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          name: release-assets-windows
+          path: release-assets/
+
       - name: Create GitHub pre-release
         uses: softprops/action-gh-release@b4309332981a82ec1c5618f44dd2e27cc8bfbfda # v3
         with:
@@ -251,7 +318,7 @@ jobs:
   release:
     name: 📝 Create GitHub Release 📝
     if: "!contains(github.ref_name, '-rc')"
-    needs: [build, build-macos]
+    needs: [build, build-macos, build-windows]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -268,6 +335,12 @@ jobs:
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
           name: release-assets-macos
+          path: release-assets/
+
+      - name: Download Windows release assets
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          name: release-assets-windows
           path: release-assets/
 
       - name: Download source tarball from GitHub

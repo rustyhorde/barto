@@ -39,5 +39,10 @@ tracing-subscriber-init = { workspace = true }
 uuid = { workspace = true }
 webpki-roots = { workspace = true }
 
+[target.'cfg(windows)'.dependencies]
+keyring-core = { workspace = true }
+windows-native-keyring-store = { workspace = true }
+windows-service = { workspace = true }
+
 [build-dependencies]
 rustversion = { workspace = true }
