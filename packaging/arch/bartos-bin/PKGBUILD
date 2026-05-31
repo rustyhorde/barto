@@ -14,6 +14,7 @@ optdepends=('mariadb: local database server'
             'logrotate: periodic cleanup of rotated log files'
             'xz: xz compression of rotated log files')
 makedepends=()
+options=(!strip !debug)
 install=bartos.install
 
 _base="https://github.com/rustyhorde/barto/releases/download/v${pkgver}"

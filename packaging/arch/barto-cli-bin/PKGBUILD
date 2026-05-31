@@ -11,6 +11,7 @@ provides=('barto-cli')
 conflicts=('barto-cli')
 depends=()
 makedepends=()
+options=(!strip !debug)
 install=barto-cli.install
 
 _base="https://github.com/rustyhorde/barto/releases/download/v${pkgver}"
