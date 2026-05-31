@@ -102,17 +102,26 @@ whether bartoc starts before or after an interactive user login:
 | Lingering service (starts at boot, no login required) | `bartoc-secrets-init` → systemd user credentials (requires systemd ≥ 256) |
 | Desktop only (user always logged in before service starts) | `barto-cli secrets set` → platform keychain |
 
-Both methods are supported simultaneously — `bartoc-launcher` checks systemd
-credentials first, then falls back to the platform keychain for any gaps.
+Both methods are supported simultaneously.  **Systemd credentials take precedence
+over the platform keychain** — `bartoc-launcher` exports credentials from
+`$CREDENTIALS_DIRECTORY` first, then fills any remaining gaps from the platform
+keychain.  Either source is ultimately exported as environment variables before
+bartoc starts, which override any TOML configuration values.
 
-#### Lingering services — systemd user credentials
+#### Lingering services — systemd user credentials (systemd ≥ 256)
 
 When `loginctl enable-linger` is set, bartoc starts at boot before any interactive
 login.  The GNOME Keyring is not unlocked at that point, so `secret-tool` cannot
-read secrets.  Use systemd user credentials instead:
+read secrets.  Use systemd user credentials instead.
+
+> **Requires systemd ≥ 256.** Encrypted credentials in user services are not
+> supported on older versions — the user manager cannot decrypt machine-key blobs
+> at startup (`status=243/CREDENTIALS`).  For systemd 250–255, see the
+> age-encrypted secrets section below, or use the platform keychain approach.
+
+##### Interactive setup with `bartoc-secrets-init` (recommended)
 
 ```sh
-# Interactive setup (systemd >= 256 required):
 bartoc-secrets-init
 ```
 
@@ -139,12 +148,53 @@ Then reload:
 systemctl --user daemon-reload && systemctl --user restart bartoc
 ```
 
-Requires systemd ≥ 256.  Encrypted credentials in user services are not supported on older versions — the user manager cannot decrypt machine-key blobs at startup (`status=243/CREDENTIALS`).  For systemd 250–255, see the age-encrypted secrets section below, or use the platform keychain approach.
+##### Manual setup (alternative to `bartoc-secrets-init`)
+
+Use this if you prefer to encrypt secrets yourself rather than using the
+interactive script.  The result is identical — a `secrets.conf` drop-in holding
+`SetCredentialEncrypted=` blobs that `bartoc-launcher` reads at startup.
+
+```sh
+# Encrypt each secret (replace YOUR_VALUE with the actual secret):
+printf 'YOUR_VALUE' | systemd-creds encrypt --user --name=hmac_key          - -
+printf 'YOUR_VALUE' | systemd-creds encrypt --user --name=server_public_key - -
+printf 'YOUR_VALUE' | systemd-creds encrypt --user --name=api_key           - -
+```
+
+Create `~/.config/systemd/user/bartoc.service.d/secrets.conf`:
+
+```sh
+mkdir -p ~/.config/systemd/user/bartoc.service.d
+$EDITOR ~/.config/systemd/user/bartoc.service.d/secrets.conf
+```
+
+```ini
+[Service]
+SetCredentialEncrypted=hmac_key: \
+        <paste blob from systemd-creds encrypt>
+SetCredentialEncrypted=server_public_key: \
+        <paste blob>
+SetCredentialEncrypted=api_key: \
+        <paste blob>
+```
+
+Then reload:
+
+```sh
+systemctl --user daemon-reload
+systemctl --user restart bartoc
+```
 
 #### Lingering services — age-encrypted secrets (systemd 250–255)
 
 For systems where upgrading to systemd ≥ 256 is not possible, `age` provides
-encryption-at-rest without root or TPM2.  Install `age` first:
+encryption-at-rest without root or TPM2.  The two files produced by setup —
+`~/.config/bartoc/age-identity` (the private key) and `~/.config/bartoc/secrets.age`
+(the encrypted secrets bundle) — together serve the same role as `secrets.conf` does
+in a systemd ≥ 256 setup: `bartoc-age.service` uses the identity file to decrypt the
+secrets bundle at startup, then exports each value as an environment variable.
+
+Install `age` first:
 
 ```sh
 # Arch:
@@ -179,35 +229,6 @@ stronger at-rest protection, upgrade to systemd ≥ 256.
 
 To update a secret later, re-run `bartoc-age-secrets-init` (existing values are
 preserved for any prompt you leave blank).
-
-#### Manual setup
-
-```sh
-# Encrypt each secret (replace YOUR_VALUE with the actual secret):
-# Requires systemd >= 256 — user service credential encryption is not supported on older versions.
-printf 'YOUR_VALUE' | systemd-creds encrypt --user --name=hmac_key          - -
-printf 'YOUR_VALUE' | systemd-creds encrypt --user --name=server_public_key - -
-printf 'YOUR_VALUE' | systemd-creds encrypt --user --name=api_key           - -
-```
-
-Create a drop-in file `~/.config/systemd/user/bartoc.service.d/secrets.conf`:
-
-```ini
-[Service]
-SetCredentialEncrypted=hmac_key: \
-        <paste blob from systemd-creds encrypt>
-SetCredentialEncrypted=server_public_key: \
-        <paste blob>
-SetCredentialEncrypted=api_key: \
-        <paste blob>
-```
-
-Then reload:
-
-```sh
-systemctl --user daemon-reload
-systemctl --user restart bartoc
-```
 
 #### Desktop sessions — platform keychain
 

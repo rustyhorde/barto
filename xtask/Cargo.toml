@@ -12,7 +12,7 @@ edition = "2024"
 license = "MIT OR Apache-2.0"
 name = "xtask"
 repository = "https://github.com/rustyhorde/barto"
-version = "1.4.7"
+version = "1.4.8"
 rust-version = "1.95.0"
 
 [dependencies]
