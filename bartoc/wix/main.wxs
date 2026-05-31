@@ -1,0 +1,120 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  WiX installer for bartoc — the barto worker client.
+
+  Service account configuration (passed at install time or via msiexec):
+    SERVICEACCOUNT   — Windows account to run the service (default: LocalService)
+    SERVICEPASSWORD  — Password for the service account (leave empty for built-in accounts)
+
+  Example install with a specific user account:
+    msiexec /i bartoc-VERSION-x86_64.msi ^
+      SERVICEACCOUNT=".\bartoc_svc" SERVICEPASSWORD="s3cr3t" /l*v install.log
+
+  Secret management:
+    Run `barto-cli secrets set BARTOC_HMAC_KEY` (and the other two secrets) as the
+    service account user before starting the service.  bartoc reads secrets from the
+    Windows Credential Manager at startup when they are not already set as environment
+    variables.
+
+    See packaging/wix/README.Windows.md for the full setup guide.
+-->
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs"
+     xmlns:util="http://wixtoolset.org/schemas/v4/wxs/util">
+
+  <Package Name="bartoc"
+           Language="1033"
+           Version="$(var.Version)"
+           Manufacturer="Jason Ozias"
+           UpgradeCode="603E230A-F336-48C4-8E7C-0AE68445D111"
+           Scope="perMachine">
+
+    <MajorUpgrade DowngradeErrorMessage="A newer version of bartoc is already installed."/>
+    <MediaTemplate EmbedCab="yes"/>
+
+    <!-- Service account properties — override via msiexec command line -->
+    <Property Id="SERVICEACCOUNT" Value="NT AUTHORITY\LocalService"/>
+    <Property Id="SERVICEPASSWORD" Secure="yes"/>
+
+    <Property Id="ARPHELPLINK" Value="https://github.com/rustyhorde/barto/issues"/>
+    <Property Id="ARPURLINFOABOUT" Value="https://github.com/rustyhorde/barto"/>
+
+    <!-- ── Directory layout ───────────────────────────────────────────────── -->
+    <StandardDirectory Id="ProgramFiles64Folder">
+      <Directory Id="BARTO_DIR" Name="barto">
+        <Directory Id="APPLICATIONFOLDER" Name="bartoc">
+
+          <Component Id="bartoc_binary"
+                     Guid="7C048458-9406-4777-9E98-8C5127794DA9"
+                     Bitness="always64">
+            <File Id="bartoc_exe"
+                  Name="bartoc.exe"
+                  Source="$(var.CargoTargetBinDir)\bartoc.exe"
+                  KeyPath="yes"/>
+
+            <!--
+              The service is configured to run as [SERVICEACCOUNT].
+              The service flag puts bartoc into SCM dispatch mode;
+              remaining arguments point config/redb at %ProgramData%\bartoc\.
+            -->
+            <ServiceInstall Id="BartocService"
+                            Name="bartoc"
+                            DisplayName="Barto Worker Client"
+                            Description="Executes scheduled jobs and reports results to a bartos instance."
+                            Type="ownProcess"
+                            Start="auto"
+                            ErrorControl="normal"
+                            Account="[SERVICEACCOUNT]"
+                            Password="[SERVICEPASSWORD]"
+                            Arguments="--service --config-absolute-path &quot;[CommonAppDataFolder]bartoc\bartoc.toml&quot; --tracing-absolute-path &quot;[CommonAppDataFolder]bartoc\bartoc.log&quot; --redb-absolute-path &quot;[CommonAppDataFolder]bartoc\bartoc.redb&quot;">
+              <!-- Delayed auto-start via MsiServiceConfig. -->
+              <ServiceConfig OnInstall="yes"
+                             OnReinstall="yes"
+                             DelayedAutoStart="yes"/>
+              <!-- Restart on first two failures. -->
+              <util:ServiceConfig FirstFailureActionType="restart"
+                                  SecondFailureActionType="restart"
+                                  ThirdFailureActionType="none"
+                                  RestartServiceDelayInSeconds="10"
+                                  ResetPeriodInDays="1"/>
+            </ServiceInstall>
+
+            <ServiceControl Id="StartBartocService"
+                            Name="bartoc"
+                            Start="install"
+                            Stop="both"
+                            Remove="uninstall"
+                            Wait="yes"/>
+          </Component>
+
+        </Directory>
+      </Directory>
+    </StandardDirectory>
+
+    <!-- %ProgramData%\bartoc\ — example config and PS1 launcher -->
+    <StandardDirectory Id="CommonAppDataFolder">
+      <Directory Id="BARTOC_DATA_DIR" Name="bartoc">
+
+        <Component Id="bartoc_config_files"
+                   Guid="E9DEFC07-E3D0-45F5-91D9-94ABAC93A80F"
+                   Bitness="always64">
+          <File Id="bartoc_toml_example"
+                Name="bartoc.toml.example"
+                Source="packaging\arch\bartoc\examples\bartoc.toml.example"/>
+          <File Id="bartoc_launcher_ps1"
+                Name="bartoc-launcher.ps1"
+                Source="packaging\scripts\bartoc-launcher.ps1"/>
+        </Component>
+
+      </Directory>
+    </StandardDirectory>
+
+    <!-- ── Features ──────────────────────────────────────────────────────── -->
+    <Feature Id="MainFeature"
+             Title="bartoc"
+             Level="1">
+      <ComponentRef Id="bartoc_binary"/>
+      <ComponentRef Id="bartoc_config_files"/>
+    </Feature>
+
+  </Package>
+</Wix>

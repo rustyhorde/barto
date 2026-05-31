@@ -238,19 +238,29 @@ mod db;
 mod error;
 mod handler;
 mod runtime;
+#[cfg(windows)]
+mod service;
 
 use std::process::exit;
 
-use anyhow::Result;
 use libbarto::{clap_or_error, success};
 
-use crate::runtime::run;
+fn main() {
+    #[cfg(windows)]
+    if std::env::args_os().any(|a| a.as_encoded_bytes() == b"--service") {
+        if let Err(e) = service::start() {
+            eprintln!("bartoc: service dispatcher failed: {e}");
+            exit(1);
+        }
+        return;
+    }
 
-#[tokio::main]
-async fn main() -> Result<()> {
+    let rt = tokio::runtime::Builder::new_multi_thread()
+        .enable_all()
+        .build()
+        .expect("failed to build tokio runtime");
     exit(
-        run::<Vec<&str>, &str>(None)
-            .await
+        rt.block_on(runtime::run::<Vec<&str>, &str>(None, None))
             .map_or_else(clap_or_error, success),
     )
 }

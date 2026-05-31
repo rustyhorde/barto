@@ -57,3 +57,6 @@ vergen-gix = { version = "10.0.0-beta.8", features = [
 ] }
 vergen-pretty = { version = "10.0.0-beta.8", features = ["serde"] }
 webpki-roots = "1.0.7"
+keyring-core = "1.0.0"
+windows-native-keyring-store = "1.1.0"
+windows-service = "0.8.1"

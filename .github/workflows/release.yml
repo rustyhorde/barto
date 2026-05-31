@@ -16,7 +16,7 @@ env:
 name: 🚀 Release 🚀
 
 jobs:
-  # ── Build release binaries ───────────────────────────────────────────────────
+  # ── Build Linux release binaries ─────────────────────────────────────────────
   build:
     name: 🔨 Build Linux Binaries 🔨
     runs-on: ubuntu-latest
@@ -158,19 +158,162 @@ jobs:
           name: release-assets
           path: release-assets/
 
+  # ── Build macOS release binaries ─────────────────────────────────────────────
+  build-macos:
+    name: 🍎 Build macOS Binaries 🍎
+    runs-on: macos-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: Wandalen/wretry.action@71a909ebf09f3ffdc6f42a17bd54ecb43481da49 # v3.8.0
+        with:
+          action: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+          attempt_limit: 3
+          attempt_delay: 30000
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@3c5f7ea28cd621ae0bf5283f0e981fb97b8a7af9
+        with:
+          toolchain: "1.95.0"
+          targets: aarch64-apple-darwin
+
+      - name: Cache cargo registry
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+          key: macos-cargo-release-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Build aarch64-apple-darwin
+        env:
+          VERGEN_IDEMPOTENT: "1"
+          SQLX_OFFLINE: "true"
+        run: |
+          cargo build --release --locked \
+            --target aarch64-apple-darwin \
+            --bin bartoc --bin barto-cli
+
+      - name: Generate xtask dist artifacts
+        run: |
+          cargo xtask dist bartoc
+          cargo xtask dist barto-cli
+
+      - name: Bundle macOS tarballs
+        run: |
+          cp packaging/scripts/bartoc-launcher-macos.sh dist/bartoc/
+
+          cp target/aarch64-apple-darwin/release/bartoc dist/bartoc/
+          tar -czf bartoc-aarch64-apple-darwin.tar.gz -C dist/bartoc .
+
+          cp target/aarch64-apple-darwin/release/barto-cli dist/barto-cli/
+          tar -czf barto-cli-aarch64-apple-darwin.tar.gz -C dist/barto-cli .
+
+      - name: Upload macOS release assets
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: release-assets-macos
+          path: |
+            bartoc-aarch64-apple-darwin.tar.gz
+            barto-cli-aarch64-apple-darwin.tar.gz
+
+  # ── Build Windows release binaries ───────────────────────────────────────────
+  build-windows:
+    name: 🪟 Build Windows Binaries 🪟
+    runs-on: windows-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: Wandalen/wretry.action@71a909ebf09f3ffdc6f42a17bd54ecb43481da49 # v3.8.0
+        with:
+          action: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+          attempt_limit: 3
+          attempt_delay: 30000
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@3c5f7ea28cd621ae0bf5283f0e981fb97b8a7af9
+        with:
+          toolchain: "1.95.0"
+          targets: x86_64-pc-windows-msvc
+
+      - name: 💾 Install (WiX 7) 💾
+        run: |
+          dotnet tool install --global wix --version "7.0.0"
+          wix eula accept wix7
+          wix extension add --global WixToolset.Util.wixext/7.0.0
+
+      - name: Cache cargo registry
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+          key: windows-cargo-release-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Build bartoc (x86_64-pc-windows-msvc)
+        env:
+          VERGEN_IDEMPOTENT: "1"
+          SQLX_OFFLINE: "true"
+        run: |
+          cargo build --release --locked `
+            --target x86_64-pc-windows-msvc `
+            --bin bartoc
+
+      - name: Generate MSI
+        run: |
+          $version = (cargo metadata --no-deps --format-version 1 |
+            ConvertFrom-Json).packages |
+            Where-Object name -eq bartoc |
+            Select-Object -ExpandProperty version
+          $binDir = (Resolve-Path 'target\x86_64-pc-windows-msvc\release').Path
+          New-Item -ItemType Directory -Force -Path target\wix | Out-Null
+          wix build bartoc\wix\main.wxs `
+            -ext WixToolset.Util.wixext `
+            -d Version=$version `
+            -d CargoTargetBinDir=$binDir `
+            -arch x64 `
+            -o target\wix\bartoc-$version-x86_64.msi
+
+      - name: Stage Windows release assets
+        run: |
+          New-Item -ItemType Directory -Force -Path release-assets-windows
+          Copy-Item target\x86_64-pc-windows-msvc\release\bartoc.exe `
+            release-assets-windows\bartoc-x86_64-pc-windows-msvc.exe
+          Copy-Item (Get-Item target\wix\*.msi).FullName release-assets-windows\
+
+      - name: Upload Windows release assets
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: release-assets-windows
+          path: release-assets-windows/
+
   # ── Create GitHub pre-release (RC tags only) ────────────────────────────────
   pre-release:
     name: 🧪 Create GitHub Pre-Release 🧪
     if: "contains(github.ref_name, '-rc')"
-    needs: build
+    needs: [build, build-macos, build-windows]
     runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
-      - name: Download release assets
+      - name: Download Linux release assets
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
           name: release-assets
+          path: release-assets/
+
+      - name: Download macOS release assets
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          name: release-assets-macos
+          path: release-assets/
+
+      - name: Download Windows release assets
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          name: release-assets-windows
           path: release-assets/
 
       - name: Create GitHub pre-release
@@ -185,17 +328,29 @@ jobs:
   release:
     name: 📝 Create GitHub Release 📝
     if: "!contains(github.ref_name, '-rc')"
-    needs: build
+    needs: [build, build-macos, build-windows]
     runs-on: ubuntu-latest
     permissions:
       contents: write
     outputs:
       tarball_sha256: ${{ steps.sha256.outputs.tarball_sha256 }}
     steps:
-      - name: Download release assets
+      - name: Download Linux release assets
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
           name: release-assets
+          path: release-assets/
+
+      - name: Download macOS release assets
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          name: release-assets-macos
+          path: release-assets/
+
+      - name: Download Windows release assets
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          name: release-assets-windows
           path: release-assets/
 
       - name: Download source tarball from GitHub
@@ -415,6 +570,78 @@ jobs:
           git diff-index --quiet HEAD 2>/dev/null || git commit -m "Update to v${PKGVER}"
 
           # Push with retry
+          for attempt in 1 2 3; do
+            if git push origin master; then
+              break
+            fi
+            if [[ $attempt -lt 3 ]]; then
+              echo "Push attempt ${attempt} failed, retrying in 10s..."
+              sleep 10
+            else
+              echo "All push attempts failed."
+              exit 1
+            fi
+          done
+
+  # ── Update Homebrew tap ───────────────────────────────────────────────────────
+  update-homebrew:
+    name: 🍺 Update Homebrew Tap 🍺
+    if: "!contains(github.ref_name, '-rc')"
+    needs: [build, build-macos, release]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: Wandalen/wretry.action@71a909ebf09f3ffdc6f42a17bd54ecb43481da49 # v3.8.0
+        with:
+          action: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+          attempt_limit: 3
+          attempt_delay: 30000
+
+      - name: Download macOS release assets
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          name: release-assets-macos
+          path: release-assets-macos/
+
+      - name: Compute checksums
+        id: checksums
+        run: |
+          echo "bartoc=$(sha256sum release-assets-macos/bartoc-aarch64-apple-darwin.tar.gz | awk '{print $1}')" \
+            >> "$GITHUB_OUTPUT"
+          echo "barto_cli=$(sha256sum release-assets-macos/barto-cli-aarch64-apple-darwin.tar.gz | awk '{print $1}')" \
+            >> "$GITHUB_OUTPUT"
+
+      - name: Generate formula files
+        env:
+          PKGVER: ${{ needs.build.outputs.pkgver }}
+          BARTOC_MACOS_SHA256: ${{ steps.checksums.outputs.bartoc }}
+          BARTO_CLI_MACOS_SHA256: ${{ steps.checksums.outputs.barto_cli }}
+        run: |
+          sed -e "s/PKGVER/${PKGVER}/g" \
+              -e "s/BARTOC_MACOS_SHA256/${BARTOC_MACOS_SHA256}/" \
+              packaging/homebrew/bartoc.rb.tmpl > bartoc.rb
+          sed -e "s/PKGVER/${PKGVER}/g" \
+              -e "s/BARTO_CLI_MACOS_SHA256/${BARTO_CLI_MACOS_SHA256}/" \
+              packaging/homebrew/barto-cli.rb.tmpl > barto-cli.rb
+
+      - name: Push to Homebrew tap
+        env:
+          HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+          PKGVER: ${{ needs.build.outputs.pkgver }}
+        run: |
+          set -euo pipefail
+
+          git clone "https://oauth2:${HOMEBREW_TAP_TOKEN}@github.com/rustyhorde/homebrew-barto.git" /tmp/tap
+          cp bartoc.rb    /tmp/tap/Formula/bartoc.rb
+          cp barto-cli.rb /tmp/tap/Formula/barto-cli.rb
+          cd /tmp/tap
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add Formula/
+          git diff-index --quiet HEAD || git commit -m "Update to v${PKGVER}"
+
           for attempt in 1 2 3; do
             if git push origin master; then
               break
