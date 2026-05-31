@@ -34,6 +34,10 @@ fn service_main(_arguments: Vec<OsString>) {
     }
 }
 
+#[cfg_attr(
+    all(feature = "unstable", nightly),
+    allow(non_exhaustive_omitted_patterns)
+)]
 fn run_service() -> Result<()> {
     let stop_token = CancellationToken::new();
     let stop_token_handler = stop_token.clone();

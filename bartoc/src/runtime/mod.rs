@@ -56,9 +56,17 @@ use crate::{
 /// Read the three bartoc secrets from Windows Credential Manager and set them
 /// as environment variables if not already set. Mirrors `bartoc-launcher.ps1`.
 #[cfg(windows)]
+#[allow(unsafe_code)]
 fn load_windows_credentials() {
     use keyring_core::Entry;
     use windows_native_keyring_store::Store;
+
+    const SERVICE: &str = "barto";
+    const SECRETS: &[&str] = &[
+        "BARTOC_HMAC_KEY",
+        "BARTOC_SERVER_PUBLIC_KEY",
+        "BARTOC_BARTOS__API_KEY",
+    ];
 
     match Store::new() {
         Ok(store) => keyring_core::set_default_store(store),
@@ -68,20 +76,14 @@ fn load_windows_credentials() {
         }
     }
 
-    const SERVICE: &str = "barto";
-    const SECRETS: &[&str] = &[
-        "BARTOC_HMAC_KEY",
-        "BARTOC_SERVER_PUBLIC_KEY",
-        "BARTOC_BARTOS__API_KEY",
-    ];
-
     for &key in SECRETS {
         if std::env::var_os(key).is_some() {
             continue;
         }
         match Entry::new(SERVICE, key).and_then(|e| e.get_password()) {
             Ok(val) => {
-                std::env::set_var(key, val);
+                // Safety: called before any threads are spawned, so no concurrent env reads.
+                unsafe { std::env::set_var(key, val) };
                 trace!("loaded secret {key} from Windows Credential Manager");
             }
             Err(_) => {
