@@ -12,14 +12,35 @@ if $IS_UPGRADE; then
         for _lf in /var/lib/systemd/linger/*; do
             [ -f "$_lf" ] || continue
             _user=$(basename "$_lf")
-            for _svc in bartoc bartoc-age bartoc-logrotate.timer; do
-                if systemctl --user -M "${_user}@.host" is-enabled --quiet "$_svc" 2>/dev/null; then
-                    echo "==> Restarting ${_svc} service for ${_user}..."
-                    systemctl --user -M "${_user}@.host" daemon-reload 2>/dev/null || true
-                    systemctl --user -M "${_user}@.host" restart "$_svc" 2>/dev/null || true
-                    echo "==> ${_svc} restarted successfully."
+            systemctl --user -M "${_user}@.host" daemon-reload 2>/dev/null || true
+            if systemctl --user -M "${_user}@.host" is-enabled --quiet bartoc 2>/dev/null; then
+                echo "==> Restarting bartoc service for ${_user}..."
+                if systemctl --user -M "${_user}@.host" restart bartoc; then
+                    echo "==> bartoc restarted successfully."
+                else
+                    echo "==> Warning: failed to restart bartoc for ${_user}. Restart manually: systemctl --user restart bartoc"
                 fi
-            done
+            elif systemctl --user -M "${_user}@.host" is-enabled --quiet bartoc-age 2>/dev/null; then
+                echo "==> Restarting bartoc-age service for ${_user}..."
+                if systemctl --user -M "${_user}@.host" restart bartoc-age; then
+                    echo "==> bartoc-age restarted successfully."
+                else
+                    echo "==> Warning: failed to restart bartoc-age for ${_user}. Restart manually: systemctl --user restart bartoc-age"
+                fi
+            else
+                echo ""
+                echo "==> bartoc upgraded."
+                echo "    Run 'systemctl --user daemon-reload && systemctl --user enable --now bartoc' when ready."
+                echo ""
+            fi
+            if systemctl --user -M "${_user}@.host" is-enabled --quiet bartoc-logrotate.timer 2>/dev/null; then
+                echo "==> Restarting bartoc-logrotate.timer for ${_user}..."
+                if systemctl --user -M "${_user}@.host" restart bartoc-logrotate.timer 2>/dev/null; then
+                    echo "==> bartoc-logrotate.timer restarted successfully."
+                else
+                    echo "==> Warning: failed to restart bartoc-logrotate.timer for ${_user}."
+                fi
+            fi
         done
     fi
 else
