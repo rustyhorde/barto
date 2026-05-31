@@ -46,3 +46,6 @@ windows-service = { workspace = true }
 
 [build-dependencies]
 rustversion = { workspace = true }
+
+[package.metadata.wix]
+extensions = ["WixUtilExtension"]

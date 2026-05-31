@@ -264,7 +264,8 @@ jobs:
       - name: Generate MSI
         run: |
           cargo wix --package bartoc --no-build `
-            --target x86_64-pc-windows-msvc
+            --target x86_64-pc-windows-msvc `
+            -e WixUtilExtension
 
       - name: Stage Windows release assets
         run: |
