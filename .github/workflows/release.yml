@@ -238,10 +238,11 @@ jobs:
           toolchain: "1.95.0"
           targets: x86_64-pc-windows-msvc
 
-      - name: 💾 Install (WiX 4) 💾
+      - name: 💾 Install (WiX 7) 💾
         run: |
-          dotnet tool install --global wix --version "4.0.6"
-          wix extension add --global WixToolset.Util.wixext/4.0.6
+          dotnet tool install --global wix --version "7.0.0"
+          wix extension add --global WixToolset.Util.wixext/7.0.0
+          wix eula accept wix7
 
       - name: Cache cargo registry
         uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5
