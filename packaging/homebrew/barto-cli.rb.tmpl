@@ -1,0 +1,26 @@
+class BartoCli < Formula
+  desc "CLI tool for querying and managing a bartos instance"
+  homepage "https://github.com/rustyhorde/barto"
+  license any_of: ["MIT", "Apache-2.0"]
+  version "PKGVER"
+
+  on_macos do
+    if Hardware::CPU.arm?
+      url "https://github.com/rustyhorde/barto/releases/download/vPKGVER/barto-cli-aarch64-apple-darwin.tar.gz"
+      sha256 "BARTO_CLI_MACOS_SHA256"
+    end
+  end
+
+  def install
+    bin.install "barto-cli"
+    bash_completion.install "barto-cli.bash" => "barto-cli"
+    zsh_completion.install "_barto-cli"
+    fish_completion.install "barto-cli.fish"
+    man1.install "barto-cli.1"
+    (etc/"barto-cli").install "barto-cli.toml.example" if File.exist?("barto-cli.toml.example")
+  end
+
+  test do
+    system bin/"barto-cli", "--version"
+  end
+end
