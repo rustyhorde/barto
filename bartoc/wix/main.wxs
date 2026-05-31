@@ -62,8 +62,8 @@
 
               <!--
                 The service is configured to run as [SERVICEACCOUNT].
-                Arguments include --service so bartoc enters SCM dispatch mode,
-                and point config/redb at %ProgramData%\bartoc\.
+                The service flag puts bartoc into SCM dispatch mode;
+                remaining arguments point config/redb at %ProgramData%\bartoc\.
               -->
               <ServiceInstall Id="BartocService"
                               Name="bartoc"
