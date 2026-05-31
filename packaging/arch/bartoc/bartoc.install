@@ -41,16 +41,19 @@ post_upgrade() {
             echo "==> Restarting bartoc service for ${_user}..."
             systemctl --user -M "${_user}@.host" restart bartoc
             echo "==> bartoc restarted successfully."
-            return
         elif systemctl --user -M "${_user}@.host" is-enabled --quiet bartoc-age 2>/dev/null; then
             echo "==> Restarting bartoc-age service for ${_user}..."
             systemctl --user -M "${_user}@.host" restart bartoc-age
             echo "==> bartoc-age restarted successfully."
-            return
+        else
+            echo ""
+            echo "==> bartoc upgraded to $1."
+            echo "    Run 'systemctl --user daemon-reload && systemctl --user enable --now bartoc' when ready."
+            echo ""
+        fi
+        if systemctl --user -M "${_user}@.host" is-enabled --quiet bartoc-logrotate.timer 2>/dev/null; then
+            echo "==> Restarting bartoc-logrotate.timer for ${_user}..."
+            systemctl --user -M "${_user}@.host" restart bartoc-logrotate.timer 2>/dev/null || true
         fi
     fi
-    echo ""
-    echo "==> bartoc upgraded to $1."
-    echo "    Run 'systemctl --user daemon-reload && systemctl --user enable --now bartoc' when ready."
-    echo ""
 }

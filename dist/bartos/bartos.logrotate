@@ -1,4 +1,4 @@
-/var/log/bartos/bartos.log* {
+/var/log/bartos/bartos.log.????-??-?? {
     daily
     missingok
     notifempty
@@ -6,6 +6,9 @@
     compress
     compresscmd /usr/bin/xz
     compressext .xz
-    maxage 7
-    rotate 0
+    rotate 7
+    sharedscripts
+    postrotate
+        find /var/log/bartos -name 'bartos.log.*.xz' -mtime +7 -delete 2>/dev/null || true
+    endscript
 }

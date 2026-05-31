@@ -12,7 +12,7 @@ if $IS_UPGRADE; then
         for _lf in /var/lib/systemd/linger/*; do
             [ -f "$_lf" ] || continue
             _user=$(basename "$_lf")
-            for _svc in bartoc bartoc-age; do
+            for _svc in bartoc bartoc-age bartoc-logrotate.timer; do
                 if systemctl --user -M "${_user}@.host" is-enabled --quiet "$_svc" 2>/dev/null; then
                     echo "==> Restarting ${_svc} service for ${_user}..."
                     systemctl --user -M "${_user}@.host" daemon-reload 2>/dev/null || true
