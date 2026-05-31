@@ -238,11 +238,10 @@ jobs:
           toolchain: "1.95.0"
           targets: x86_64-pc-windows-msvc
 
-      - name: 💾 Install (cargo-binstall) 💾
-        uses: cargo-bins/cargo-binstall@1c2b96c2b86875d56caeec7b7ee9980812daf0d9 # main
-
-      - name: 💾 Install (cargo-wix) 💾
-        run: cargo binstall --no-confirm --no-symlinks cargo-wix
+      - name: 💾 Install (WiX 4) 💾
+        run: |
+          dotnet tool install --global wix --version "4.0.6"
+          wix extension add --global WixToolset.Util.wixext/4.0.6
 
       - name: Cache cargo registry
         uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5
@@ -263,9 +262,18 @@ jobs:
 
       - name: Generate MSI
         run: |
-          cargo wix --package bartoc --no-build `
-            --target x86_64-pc-windows-msvc `
-            --nocapture
+          $version = (cargo metadata --no-deps --format-version 1 |
+            ConvertFrom-Json).packages |
+            Where-Object name -eq bartoc |
+            Select-Object -ExpandProperty version
+          $binDir = (Resolve-Path 'target\x86_64-pc-windows-msvc\release').Path
+          New-Item -ItemType Directory -Force -Path target\wix | Out-Null
+          wix build bartoc\wix\main.wxs `
+            -ext WixToolset.Util.wixext `
+            -d Version=$version `
+            -d CargoTargetBinDir=$binDir `
+            -arch x64 `
+            -o target\wix\bartoc-$version-x86_64.msi
 
       - name: Stage Windows release assets
         run: |
