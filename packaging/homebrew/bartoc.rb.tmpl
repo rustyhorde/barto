@@ -1,0 +1,49 @@
+class Bartoc < Formula
+  desc "Remote worker client for the barto job scheduling system"
+  homepage "https://github.com/rustyhorde/barto"
+  license any_of: ["MIT", "Apache-2.0"]
+  version "PKGVER"
+
+  on_macos do
+    if Hardware::CPU.arm?
+      url "https://github.com/rustyhorde/barto/releases/download/vPKGVER/bartoc-aarch64-apple-darwin.tar.gz"
+      sha256 "BARTOC_MACOS_SHA256"
+    end
+  end
+
+  def install
+    bin.install "bartoc"
+    bin.install "bartoc-launcher-macos.sh" => "bartoc-launcher-macos"
+    bash_completion.install "bartoc.bash" => "bartoc"
+    zsh_completion.install "_bartoc"
+    fish_completion.install "bartoc.fish"
+    man1.install "bartoc.1"
+    (etc/"bartoc").install "bartoc.toml.example" if File.exist?("bartoc.toml.example")
+  end
+
+  service do
+    run [opt_bin/"bartoc-launcher-macos"]
+    keep_alive true
+    log_path var/"log/bartoc.log"
+    error_log_path var/"log/bartoc.err"
+  end
+
+  def caveats
+    <<~EOS
+      Copy the example config to get started:
+        cp #{etc}/bartoc/bartoc.toml.example ~/.config/bartoc/bartoc.toml
+
+      Store secrets via barto-cli:
+        barto-cli secrets set BARTOC_HMAC_KEY
+        barto-cli secrets set BARTOC_SERVER_PUBLIC_KEY
+        barto-cli secrets set BARTOC_BARTOS__API_KEY
+
+      Run as a background service:
+        brew services start bartoc
+    EOS
+  end
+
+  test do
+    system bin/"bartoc", "--version"
+  end
+end
