@@ -15,6 +15,8 @@ license: MIT OR Apache-2.0
 
 overrides:
   deb:
+    recommends:
+      - locales
     suggests:
       - logrotate
       - xz-utils
@@ -26,6 +28,7 @@ overrides:
       - age
 
 scripts:
+  preinstall: packaging/nfpm/scripts/bartoc-pre-install.sh
   postinstall: packaging/nfpm/scripts/bartoc-post-install.sh
   preremove: packaging/nfpm/scripts/bartoc-pre-remove.sh
 
