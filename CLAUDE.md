@@ -60,7 +60,7 @@ on_calendar = "Mon *,*,01 00:00:00" # first day of every month on Monday
 Built-in shortcuts: `minutely`, `hourly`, `daily`, `weekly`, `monthly`, `quarterly`, `semiannually`, `yearly`.
 
 ### Configuration
-- TOML files at `~/.config/{bartos,bartoc,barto-cli}/*.toml` (path overridable via CLI arg)
+- TOML files at the platform config dir — `~/.config/` on Linux, `~/Library/Application Support/` on macOS — under `{bartos,bartoc,barto-cli}/<name>.toml` (path overridable via `-c`/`--config-absolute-path` CLI arg)
 - `BARTO_*` env vars override TOML values
 - Config structs use `bon::Builder` + `getset`
 - `bartos` schedules are defined as `[schedules.<client_name>]` sections linking to `bartoc` instances by name

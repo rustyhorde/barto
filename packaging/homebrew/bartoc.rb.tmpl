@@ -22,7 +22,7 @@ class Bartoc < Formula
   end
 
   service do
-    run [opt_bin/"bartoc-launcher-macos"]
+    run [opt_bin/"bartoc-launcher-macos", "-vv"]
     keep_alive true
     log_path var/"log/bartoc.log"
     error_log_path var/"log/bartoc.err"
@@ -31,14 +31,15 @@ class Bartoc < Formula
   def caveats
     <<~EOS
       Copy the example config to get started:
-        cp #{etc}/bartoc/bartoc.toml.example ~/.config/bartoc/bartoc.toml
+        mkdir -p "$HOME/Library/Application Support/bartoc"
+        cp #{etc}/bartoc/bartoc.toml.example "$HOME/Library/Application Support/bartoc/bartoc.toml"
 
       Store secrets via barto-cli:
         barto-cli secrets set BARTOC_HMAC_KEY
         barto-cli secrets set BARTOC_SERVER_PUBLIC_KEY
         barto-cli secrets set BARTOC_BARTOS__API_KEY
 
-      Run as a background service:
+      Run as a background service (do NOT use sudo):
         brew services start bartoc
     EOS
   end
