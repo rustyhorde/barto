@@ -125,7 +125,13 @@ fn build_message(command: &Commands) -> Result<Message> {
             )?
         }
         Commands::Cleanup => encode_to_vec(BartoCli::Cleanup, standard())?,
-        Commands::Clients => encode_to_vec(BartoCli::Clients, standard())?,
+        Commands::Clients { versions } => {
+            if *versions {
+                encode_to_vec(BartoCli::ClientVersions, standard())?
+            } else {
+                encode_to_vec(BartoCli::Clients, standard())?
+            }
+        }
         Commands::Query { query } => encode_to_vec(
             BartoCli::Query {
                 query: query.clone(),
