@@ -724,6 +724,27 @@ jobs:
           mkdir -p apt/dists/stable/main/binary-arm64
           mkdir -p /tmp/apt-ftparchive-cache
 
+          cat > apt-ftparchive.conf << 'APTCONF'
+          Dir {
+            ArchiveDir "apt";
+            CacheDir "/tmp/apt-ftparchive-cache";
+          };
+
+          Default {
+            Packages::Compress ". gzip xz";
+          };
+
+          BinDirectory "pool/main" {
+            Packages "dists/stable/main/binary-amd64/Packages";
+            Architecture "amd64";
+          };
+
+          BinDirectory "pool/main" {
+            Packages "dists/stable/main/binary-arm64/Packages";
+            Architecture "arm64";
+          };
+          APTCONF
+
           apt-ftparchive generate apt-ftparchive.conf
 
           apt-ftparchive \
