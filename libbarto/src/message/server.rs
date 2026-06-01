@@ -99,6 +99,8 @@ pub enum BartosToBartoCli {
     ListCommands(Vec<String>),
     /// Result of a command data by name operation
     Cmd(BTreeMap<String, Vec<ListOutput>>),
+    /// Running versions of all connected clients (name → version)
+    ClientVersions(BTreeMap<String, String>),
 }
 
 impl<Context> Decode<Context> for BartosToBartoCli {
@@ -146,9 +148,13 @@ impl<Context> Decode<Context> for BartosToBartoCli {
                 let cmd_data: BTreeMap<String, Vec<ListOutput>> = Decode::decode(decoder)?;
                 Ok(BartosToBartoCli::Cmd(cmd_data))
             }
+            10 => {
+                let versions_data: BTreeMap<String, String> = Decode::decode(decoder)?;
+                Ok(BartosToBartoCli::ClientVersions(versions_data))
+            }
             _ => Err(DecodeError::UnexpectedVariant {
                 type_name: "BartosToBartoCli",
-                allowed: &bincode_next::error::AllowedEnumVariants::Range { min: 0, max: 9 },
+                allowed: &bincode_next::error::AllowedEnumVariants::Range { min: 0, max: 10 },
                 found: variant,
             }),
         }
@@ -204,9 +210,13 @@ impl<'de, Context> BorrowDecode<'de, Context> for BartosToBartoCli {
                     BorrowDecode::borrow_decode(decoder)?;
                 Ok(BartosToBartoCli::Cmd(cmd_data))
             }
+            10 => {
+                let versions_data: BTreeMap<String, String> = BorrowDecode::borrow_decode(decoder)?;
+                Ok(BartosToBartoCli::ClientVersions(versions_data))
+            }
             _ => Err(DecodeError::UnexpectedVariant {
                 type_name: "BartosToBartoCli",
-                allowed: &bincode_next::error::AllowedEnumVariants::Range { min: 0, max: 9 },
+                allowed: &bincode_next::error::AllowedEnumVariants::Range { min: 0, max: 10 },
                 found: variant,
             }),
         }
@@ -255,6 +265,10 @@ impl Encode for BartosToBartoCli {
             BartosToBartoCli::Cmd(cmd_data) => {
                 9u32.encode(encoder)?;
                 cmd_data.encode(encoder)
+            }
+            BartosToBartoCli::ClientVersions(versions_data) => {
+                10u32.encode(encoder)?;
+                versions_data.encode(encoder)
             }
         }
     }
@@ -436,6 +450,23 @@ mod tests {
     fn test_bartos_to_bartocli_info_json_roundtrip() {
         let json_data = r#"{"version":"1.0.0","build":"test"}"#.to_string();
         let original = BartosToBartoCli::InfoJson(json_data);
+
+        let encoded = encode_to_vec(&original, standard()).unwrap();
+        let (decoded, _): (BartosToBartoCli, usize) =
+            decode_from_slice(&encoded, standard()).unwrap();
+        let (borrowed_decoded, _): (BartosToBartoCli, usize) =
+            borrow_decode_from_slice(&encoded, standard()).unwrap();
+
+        assert_eq!(original, decoded);
+        assert_eq!(original, borrowed_decoded);
+    }
+
+    #[test]
+    fn test_bartos_to_bartocli_client_versions_roundtrip() {
+        let mut versions = BTreeMap::new();
+        let _old = versions.insert("client-a".to_string(), "1.4.9".to_string());
+        let _old = versions.insert("client-b".to_string(), "1.5.0".to_string());
+        let original = BartosToBartoCli::ClientVersions(versions);
 
         let encoded = encode_to_vec(&original, standard()).unwrap();
         let (decoded, _): (BartosToBartoCli, usize) =

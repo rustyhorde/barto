@@ -88,6 +88,9 @@ impl Handler {
                 BartosToBartoCli::Updates(updates) => Self::handle_updates(updates),
                 BartosToBartoCli::Cleanup(deleted) => Self::handle_cleanup(deleted),
                 BartosToBartoCli::Clients(clients) => Self::handle_clients(&clients),
+                BartosToBartoCli::ClientVersions(versions) => {
+                    Self::handle_client_versions(&versions);
+                }
                 BartosToBartoCli::Query(map) => Self::handle_query(map),
                 BartosToBartoCli::List(list) => {
                     let _ = Self::handle_list(&list, false);
@@ -194,6 +197,24 @@ impl Handler {
                 BOLD_GREEN.apply_to(cd.name().clone()),
                 BOLD_GREEN.apply_to(cd.ip().clone()),
                 BOLD_BLUE.apply_to(cd)
+            );
+        }
+        println!();
+        println!(
+            "{} {}",
+            BOLD_GREEN.apply_to("Total clients:"),
+            BOLD_YELLOW.apply_to(client_count)
+        );
+    }
+
+    fn handle_client_versions(versions: &BTreeMap<String, String>) {
+        let max_name = versions.keys().map(String::len).max().unwrap_or(0);
+        let client_count = versions.len();
+        for (name, version) in versions {
+            println!(
+                "{:>max_name$}: {}",
+                BOLD_GREEN.apply_to(name),
+                BOLD_BLUE.apply_to(version)
             );
         }
         println!();

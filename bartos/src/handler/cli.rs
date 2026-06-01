@@ -58,6 +58,7 @@ impl BinaryMessageHandler {
             BartoCli::Cmd { cmd_name } => {
                 self.handle_command_all(&cmd_name, session, queryable).await
             }
+            BartoCli::ClientVersions => self.handle_client_versions(session).await,
         }
     }
 
@@ -116,6 +117,26 @@ impl BinaryMessageHandler {
             .collect::<HashMap<UuidWrapper, ClientData>>();
         let clients = BartosToBartoCli::Clients(mapped_clients);
         let encoded = encode_to_vec(&clients, standard())?;
+        session.binary(encoded).await?;
+        Ok(())
+    }
+
+    async fn handle_client_versions(&mut self, session: &mut Session) -> Result<()> {
+        info!("received client versions message");
+        let clients = self.clients_mutex.lock().await;
+        let versions = clients
+            .clients()
+            .values()
+            .map(|cd| {
+                let version = cd
+                    .bartoc_info()
+                    .as_ref()
+                    .map_or_else(|| "unknown".to_string(), |bi| bi.version().clone());
+                (cd.name().clone(), version)
+            })
+            .collect::<BTreeMap<String, String>>();
+        let msg = BartosToBartoCli::ClientVersions(versions);
+        let encoded = encode_to_vec(&msg, standard())?;
         session.binary(encoded).await?;
         Ok(())
     }

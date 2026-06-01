@@ -40,6 +40,10 @@ pub struct BartocInfo {
     #[get = "pub"]
     #[builder(default = System::kernel_version().unwrap_or_default())]
     kernel_version: String,
+    /// The bartoc binary version
+    #[get = "pub"]
+    #[builder(default = env!("CARGO_PKG_VERSION").to_string())]
+    version: String,
 }
 
 #[cfg(test)]
@@ -50,6 +54,7 @@ impl Mock for BartocInfo {
             .hostname("mock_host".to_string())
             .os_version("1.0.0".to_string())
             .kernel_version("5.10.0".to_string())
+            .version("0.0.1".to_string())
             .build()
     }
 }
@@ -61,6 +66,7 @@ impl<Context> Decode<Context> for BartocInfo {
             hostname: Decode::decode(decoder)?,
             os_version: Decode::decode(decoder)?,
             kernel_version: Decode::decode(decoder)?,
+            version: Decode::decode(decoder)?,
         })
     }
 }
@@ -74,6 +80,7 @@ impl<'de, Context> BorrowDecode<'de, Context> for BartocInfo {
             hostname: BorrowDecode::borrow_decode(decoder)?,
             os_version: BorrowDecode::borrow_decode(decoder)?,
             kernel_version: BorrowDecode::borrow_decode(decoder)?,
+            version: BorrowDecode::borrow_decode(decoder)?,
         })
     }
 }
@@ -84,6 +91,7 @@ impl Encode for BartocInfo {
         Encode::encode(&self.hostname, encoder)?;
         Encode::encode(&self.os_version, encoder)?;
         Encode::encode(&self.kernel_version, encoder)?;
+        Encode::encode(&self.version, encoder)?;
         Ok(())
     }
 }
@@ -92,8 +100,8 @@ impl Display for BartocInfo {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "{} {} {}",
-            self.name, self.os_version, self.kernel_version
+            "{} {} {} v{}",
+            self.name, self.os_version, self.kernel_version, self.version
         )
     }
 }
@@ -171,6 +179,7 @@ mod test {
             .hostname("test_host".to_string())
             .os_version("1.0.0".to_string())
             .kernel_version("5.10.0".to_string())
+            .version("1.2.3".to_string())
             .build();
         let encoded = encode_to_vec(bartoc_info.clone(), standard())?;
         let (decoded, _): (BartocInfo, _) = decode_from_slice(&encoded, standard())?;
@@ -187,6 +196,7 @@ mod test {
             .hostname("test_host".to_string())
             .os_version("1.0.0".to_string())
             .kernel_version("5.10.0".to_string())
+            .version("1.2.3".to_string())
             .build();
         let client_data = ClientData::builder()
             .name("client1".to_string())
@@ -208,9 +218,10 @@ mod test {
             .hostname("test_host".to_string())
             .os_version("1.0.0".to_string())
             .kernel_version("5.10.0".to_string())
+            .version("1.2.3".to_string())
             .build();
         let formatted = format!("{bartoc_info}");
-        assert_eq!(formatted, "test_client 1.0.0 5.10.0");
+        assert_eq!(formatted, "test_client 1.0.0 5.10.0 v1.2.3");
     }
 
     #[test]
@@ -220,6 +231,7 @@ mod test {
             .hostname("test_host".to_string())
             .os_version("1.0.0".to_string())
             .kernel_version("5.10.0".to_string())
+            .version("1.2.3".to_string())
             .build();
         let client_data_with_info = ClientData::builder()
             .name("client1".to_string())
@@ -227,7 +239,7 @@ mod test {
             .bartoc_info(bartoc_info)
             .build();
         let formatted = format!("{client_data_with_info}");
-        assert_eq!(formatted, "test_client 1.0.0 5.10.0");
+        assert_eq!(formatted, "test_client 1.0.0 5.10.0 v1.2.3");
         let client_data_without_info = ClientData::builder()
             .name("client2".to_string())
             .ip("192.168.1.2".to_string())

@@ -21,6 +21,112 @@ All services are configured via TOML files located at `~/.config/<service>/<serv
 
 1.95.0
 
+## Installation
+
+### Arch Linux (AUR)
+
+Install pre-compiled binary packages with `paru`:
+
+```bash
+paru -S bartos-bin bartoc-bin barto-cli-bin
+```
+
+Or build from source:
+
+```bash
+paru -S bartos bartoc barto-cli
+```
+
+### Debian/Ubuntu
+
+Install via the APT repository (recommended — enables `apt upgrade`):
+
+```bash
+curl -fsSL https://rustyhorde.github.io/barto-packages/gpg.key \
+  | sudo gpg --dearmor -o /etc/apt/keyrings/barto.gpg
+echo "deb [signed-by=/etc/apt/keyrings/barto.gpg] \
+  https://rustyhorde.github.io/barto-packages/apt stable main" \
+  | sudo tee /etc/apt/sources.list.d/barto.list
+sudo apt update
+sudo apt install bartoc barto-cli
+```
+
+Or download and install a one-off `.deb` from [GitHub Releases](https://github.com/rustyhorde/barto/releases/latest).
+Replace `VERSION` with the desired release and `ARCH` with `amd64` or `arm64`:
+
+```bash
+VERSION=1.4.8
+ARCH=amd64
+curl -LO "https://github.com/rustyhorde/barto/releases/download/v${VERSION}/bartos_${VERSION}_${ARCH}.deb"
+curl -LO "https://github.com/rustyhorde/barto/releases/download/v${VERSION}/bartoc_${VERSION}_${ARCH}.deb"
+curl -LO "https://github.com/rustyhorde/barto/releases/download/v${VERSION}/barto-cli_${VERSION}_${ARCH}.deb"
+sudo dpkg -i bartos_${VERSION}_${ARCH}.deb bartoc_${VERSION}_${ARCH}.deb barto-cli_${VERSION}_${ARCH}.deb
+```
+
+### RPM-based (Fedora, RHEL, etc.)
+
+Install via the DNF/YUM repository (recommended — enables `dnf upgrade`):
+
+```bash
+sudo dnf config-manager \
+  --add-repo https://rustyhorde.github.io/barto-packages/rpm/barto.repo
+sudo dnf install bartoc barto-cli
+```
+
+Or download and install a one-off `.rpm` from [GitHub Releases](https://github.com/rustyhorde/barto/releases/latest).
+Replace `VERSION` with the desired release and `ARCH` with `x86_64` or `aarch64`:
+
+```bash
+VERSION=1.4.8
+ARCH=x86_64
+curl -LO "https://github.com/rustyhorde/barto/releases/download/v${VERSION}/bartos-${VERSION}-1.${ARCH}.rpm"
+curl -LO "https://github.com/rustyhorde/barto/releases/download/v${VERSION}/bartoc-${VERSION}-1.${ARCH}.rpm"
+curl -LO "https://github.com/rustyhorde/barto/releases/download/v${VERSION}/barto-cli-${VERSION}-1.${ARCH}.rpm"
+sudo rpm -i bartos-${VERSION}-1.${ARCH}.rpm bartoc-${VERSION}-1.${ARCH}.rpm barto-cli-${VERSION}-1.${ARCH}.rpm
+```
+
+### macOS (Homebrew)
+
+`bartoc` and `barto-cli` are available via the `rustyhorde/barto` tap (`bartos` is a Linux server component):
+
+```bash
+brew tap rustyhorde/barto
+brew install bartoc
+brew install barto-cli
+```
+
+To start `bartoc` as a background service:
+
+```bash
+brew services start bartoc
+```
+
+### Windows (MSI)
+
+Download `bartoc-VERSION-x86_64.msi` from [GitHub Releases](https://github.com/rustyhorde/barto/releases/latest) and run:
+
+```powershell
+msiexec /i bartoc-1.4.8-x86_64.msi /l*v bartoc-install.log
+```
+
+See [README.Windows.md](packaging/wix/README.Windows.md) for service configuration details.
+
+### Cargo
+
+```bash
+cargo install --locked bartos
+cargo install --locked bartoc
+cargo install --locked barto-cli
+```
+
+To upgrade a previously installed version, add `--force`:
+
+```bash
+cargo install --locked --force bartos
+cargo install --locked --force bartoc
+cargo install --locked --force barto-cli
+```
+
 ## `bartos` - The barto server
 
 [![Crates.io](https://img.shields.io/crates/v/bartos.svg)](https://crates.io/crates/bartos)

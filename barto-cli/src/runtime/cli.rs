@@ -167,7 +167,11 @@ pub(crate) enum Commands {
     #[clap(about = "Perform cleanup of old database entries")]
     Cleanup,
     #[clap(about = "List the currently connected clients")]
-    Clients,
+    Clients {
+        /// Show the bartoc binary version for each connected client
+        #[clap(long, help = "Show the bartoc version for each client")]
+        versions: bool,
+    },
     #[clap(about = "Run a query on bartos")]
     Query {
         /// The query to run on bartos

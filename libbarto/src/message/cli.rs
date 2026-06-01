@@ -57,6 +57,8 @@ pub enum BartoCli {
         /// The name of the command to display output for
         cmd_name: String,
     },
+    /// A request to list the running versions of all connected clients
+    ClientVersions,
 }
 
 impl<Context> Decode<Context> for BartoCli {
@@ -92,9 +94,10 @@ impl<Context> Decode<Context> for BartoCli {
                 let cmd_name: String = Decode::decode(decoder)?;
                 Ok(BartoCli::Cmd { cmd_name })
             }
+            9 => Ok(BartoCli::ClientVersions),
             _ => Err(DecodeError::UnexpectedVariant {
                 type_name: "BartoCli",
-                allowed: &AllowedEnumVariants::Range { min: 0, max: 8 },
+                allowed: &AllowedEnumVariants::Range { min: 0, max: 9 },
                 found: variant,
             }),
         }
@@ -136,9 +139,10 @@ impl<'de, Context> BorrowDecode<'de, Context> for BartoCli {
                 let cmd_name: String = BorrowDecode::borrow_decode(decoder)?;
                 Ok(BartoCli::Cmd { cmd_name })
             }
+            9 => Ok(BartoCli::ClientVersions),
             _ => Err(DecodeError::UnexpectedVariant {
                 type_name: "BartoCli",
-                allowed: &AllowedEnumVariants::Range { min: 0, max: 8 },
+                allowed: &AllowedEnumVariants::Range { min: 0, max: 9 },
                 found: variant,
             }),
         }
@@ -177,6 +181,7 @@ impl Encode for BartoCli {
                 8u32.encode(encoder)?;
                 cmd_name.encode(encoder)
             }
+            BartoCli::ClientVersions => 9u32.encode(encoder),
         }
     }
 }
@@ -323,6 +328,7 @@ mod test {
             BartoCli::Cmd {
                 cmd_name: "status".to_string(),
             },
+            BartoCli::ClientVersions,
         ];
 
         for command in &commands {
