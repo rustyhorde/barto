@@ -13,6 +13,14 @@
 # See SECRETS.md for the full setup workflow.
 set -e
 
+if [ "$(id -u)" -eq 0 ]; then
+    echo "bartoc-launcher-macos: must not run as root." >&2
+    echo "Remove the system daemon and start as your user:" >&2
+    echo "  sudo brew services stop bartoc" >&2
+    echo "  brew services start bartoc" >&2
+    exit 1
+fi
+
 load_secret() {
     security find-generic-password -s barto -a "$1" -w 2>/dev/null || true
 }
@@ -41,4 +49,4 @@ if [ -z "${BARTOC_BARTOS__API_KEY:-}" ]; then
     fi
 fi
 
-exec bartoc "$@"
+exec "$(dirname "$0")/bartoc" "$@"

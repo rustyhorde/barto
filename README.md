@@ -44,7 +44,7 @@ Install via the APT repository (recommended — enables `apt upgrade`):
 ```bash
 curl -fsSL https://rustyhorde.github.io/barto-packages/gpg.key \
   | sudo gpg --dearmor -o /etc/apt/keyrings/barto.gpg
-echo "deb [signed-by=/etc/apt/keyrings/barto.gpg] \
+echo "deb [arch=amd64,arm64 signed-by=/etc/apt/keyrings/barto.gpg] \
   https://rustyhorde.github.io/barto-packages/apt stable main" \
   | sudo tee /etc/apt/sources.list.d/barto.list
 sudo apt update
