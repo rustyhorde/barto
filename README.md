@@ -39,7 +39,19 @@ paru -S bartos bartoc barto-cli
 
 ### Debian/Ubuntu
 
-Download and install the `.deb` packages from [GitHub Releases](https://github.com/rustyhorde/barto/releases/latest).
+Install via the APT repository (recommended — enables `apt upgrade`):
+
+```bash
+curl -fsSL https://rustyhorde.github.io/barto-packages/gpg.key \
+  | sudo gpg --dearmor -o /etc/apt/keyrings/barto.gpg
+echo "deb [signed-by=/etc/apt/keyrings/barto.gpg] \
+  https://rustyhorde.github.io/barto-packages/apt stable main" \
+  | sudo tee /etc/apt/sources.list.d/barto.list
+sudo apt update
+sudo apt install bartoc barto-cli
+```
+
+Or download and install a one-off `.deb` from [GitHub Releases](https://github.com/rustyhorde/barto/releases/latest).
 Replace `VERSION` with the desired release and `ARCH` with `amd64` or `arm64`:
 
 ```bash
@@ -53,7 +65,15 @@ sudo dpkg -i bartos_${VERSION}_${ARCH}.deb bartoc_${VERSION}_${ARCH}.deb barto-c
 
 ### RPM-based (Fedora, RHEL, etc.)
 
-Download and install the `.rpm` packages from [GitHub Releases](https://github.com/rustyhorde/barto/releases/latest).
+Install via the DNF/YUM repository (recommended — enables `dnf upgrade`):
+
+```bash
+sudo dnf config-manager \
+  --add-repo https://rustyhorde.github.io/barto-packages/rpm/barto.repo
+sudo dnf install bartoc barto-cli
+```
+
+Or download and install a one-off `.rpm` from [GitHub Releases](https://github.com/rustyhorde/barto/releases/latest).
 Replace `VERSION` with the desired release and `ARCH` with `x86_64` or `aarch64`:
 
 ```bash
