@@ -36,8 +36,8 @@ jobs:
           attempt_limit: 3
           attempt_delay: 30000
       - name: 💣 Audit 💣
-        # v0.2.0
-        uses: rustyhorde/audit-check@f7875ca3428c17cce4d5a141ea1128568db8b6c2
+        # v0.3.0
+        uses: rustyhorde/audit-check@dc53da984fb49660674b6ddcdd6a32a1905f0c2f
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           deny: warnings
