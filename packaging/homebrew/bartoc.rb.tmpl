@@ -21,6 +21,18 @@ class Bartoc < Formula
     (etc/"bartoc").install "bartoc.toml.example" if File.exist?("bartoc.toml.example")
   end
 
+  def post_install
+    plist_label = "homebrew.mxcl.bartoc"
+    plist_path  = "#{Dir.home}/Library/LaunchAgents/#{plist_label}.plist"
+    return unless system("/bin/launchctl", "list", plist_label,
+                         out: File::NULL, err: File::NULL)
+
+    ohai "Restarting bartoc service to apply update..."
+    system "/bin/launchctl", "unload", plist_path
+    system "/bin/launchctl", "load", plist_path
+    ohai "bartoc restarted successfully."
+  end
+
   service do
     run [opt_bin/"bartoc-launcher-macos", "-vv"]
     keep_alive true
