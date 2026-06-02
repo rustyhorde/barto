@@ -18,7 +18,7 @@ This installs bartoc as a Windows service running under `NT AUTHORITY\LocalServi
 
 ### Install with a dedicated service account (recommended for production)
 
-1. Create a local Windows account for the service:
+1. Create a local Windows account for the service (**requires an Administrator terminal**):
    ```
    net user bartoc_svc YOUR_PASSWORD /add
    ```
@@ -29,6 +29,10 @@ This installs bartoc as a Windows service running under `NT AUTHORITY\LocalServi
      SERVICEACCOUNT=".\bartoc_svc" SERVICEPASSWORD="YOUR_PASSWORD" ^
      /l*v bartoc-install.log
    ```
+
+   The MSI registers the service and sets directory permissions but does **not** start
+   it — the service remains stopped until step 5 so that secrets and config can be
+   configured first.
 
 3. Log on as `bartoc_svc` and set the secrets:
    ```
@@ -42,6 +46,14 @@ This installs bartoc as a Windows service running under `NT AUTHORITY\LocalServi
    copy "%ProgramData%\bartoc\bartoc.toml.example" "%ProgramData%\bartoc\bartoc.toml"
    notepad "%ProgramData%\bartoc\bartoc.toml"
    ```
+
+   **File paths used by the service** (baked into the service arguments at install time):
+
+   | Purpose | Path |
+   |---------|------|
+   | Configuration | `%ProgramData%\bartoc\bartoc.toml` |
+   | Log file | `%ProgramData%\bartoc\bartoc.log` (created on first start) |
+   | Local database | `%ProgramData%\bartoc\bartoc.redb` (created on first start) |
 
 5. Start the service:
    ```
@@ -93,6 +105,27 @@ sc stop bartoc        # graceful stop
 sc start bartoc       # start
 sc delete bartoc      # remove (stop first)
 ```
+
+## Upgrading
+
+The MSI installer handles in-place upgrades automatically. Run the new MSI the same
+way as the original install:
+
+```
+msiexec /i bartoc-NEW-VERSION-x86_64.msi ^
+  SERVICEACCOUNT=".\bartoc_svc" SERVICEPASSWORD="YOUR_PASSWORD" ^
+  /l*v bartoc-upgrade.log
+```
+
+The installer stops the running service before replacing files and leaves it stopped
+after the upgrade completes. Restart it once the upgrade finishes:
+
+```
+sc start bartoc
+```
+
+> **Note:** Secrets (Windows Credential Manager) and config (`%ProgramData%\bartoc\bartoc.toml`)
+> are preserved across upgrades — no re-configuration is needed.
 
 ## Uninstall (MSI)
 
