@@ -305,6 +305,7 @@ pub use self::config::StatusTableName;
 pub use self::config::Tls;
 pub use self::config::Tracing;
 pub use self::config::load;
+pub use self::config::resolve_config_path;
 pub use self::db::bincode::Bincode;
 pub use self::error::Error;
 pub use self::error::clap_or_error;

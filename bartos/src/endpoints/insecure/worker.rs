@@ -6,6 +6,8 @@
 // option. All files in the project carrying such notice may not be copied,
 // modified, or distributed except according to those terms.
 
+use std::collections::BTreeMap;
+
 use actix_web::{
     HttpRequest, Responder, Result,
     error::ErrorInternalServerError,
@@ -16,14 +18,14 @@ use actix_ws::{AggregatedMessage, Session, handle};
 use bincode_next::{config::standard, decode_from_slice, encode_to_vec};
 use futures_util::StreamExt as _;
 use libbarto::{
-    Bartoc, BartosToBartoc, Initialize, Output, OutputKind, OutputTableName, Status,
+    Bartoc, BartosToBartoc, Initialize, Output, OutputKind, OutputTableName, Schedules, Status,
     StatusTableName, UuidWrapper, hmac_sign, parse_hmac_key, parse_signing_key, parse_ts_ping,
     sign_payload,
 };
 use sqlx::MySqlPool;
 use tokio::{
     select,
-    sync::Mutex,
+    sync::{Mutex, RwLock, broadcast},
     time::{Duration, Instant, interval},
 };
 use tokio_util::sync::CancellationToken;
@@ -36,6 +38,7 @@ use crate::{
     endpoints::insecure::{Name, bearer_auth_ok},
 };
 
+#[allow(clippy::too_many_arguments)]
 pub(crate) async fn worker(
     request: HttpRequest,
     body: Payload,
@@ -44,6 +47,8 @@ pub(crate) async fn worker(
     config: Data<Config>,
     pool: Data<MySqlPool>,
     clients: Data<Mutex<Clients>>,
+    live_schedules: Data<RwLock<BTreeMap<String, Schedules>>>,
+    reload_bcast: Data<broadcast::Sender<()>>,
 ) -> Result<impl Responder> {
     let describe = name.describe(&request);
     info!("worker connection from '{describe}'");
@@ -59,6 +64,9 @@ pub(crate) async fn worker(
     let mut init_session = session.clone();
     let config_c = config.clone();
     let clients_c = clients.clone();
+    // Capture client name before it is moved into initialize()
+    let client_name = name.name();
+    let mut reload_rx = reload_bcast.subscribe();
     if let Err(e) = initialize(id, &mut init_session, request, name, config, clients).await {
         error!("unable to initialize worker session: {e}");
         let _ = init_session.close(None).await;
@@ -87,42 +95,8 @@ pub(crate) async fn worker(
                     match res {
                         Some(Ok(msg)) => {
                             last_heartbeat = Instant::now();
-                            match msg {
-                                AggregatedMessage::Text(_byte_string) => error!("unexpected text message"),
-                                AggregatedMessage::Binary(bytes) => {
-                                    handle_binary(id, bytes, &config_c, pool.as_ref(), clients_c.clone()).await.unwrap_or_else(|e| {
-                                        error!("unable to handle binary message: {e}");
-                                    });
-                                },
-                                AggregatedMessage::Ping(bytes) => {
-                                    trace!("handling ping message");
-                                    if let Some(dur) = parse_ts_ping(&bytes) {
-                                        trace!("ping duration: {}s", dur.as_secs_f64());
-                                    }
-                                    if let Err(e) = ws_session.pong(&bytes).await {
-                                        error!("unable to send pong: {e}");
-                                    }
-                                }
-                                AggregatedMessage::Pong(bytes) => {
-                                    trace!("handling pong message");
-                                    if let Some(dur) = parse_ts_ping(&bytes) {
-                                        trace!("pong duration: {}s", dur.as_secs_f64());
-                                    }
-                                }
-                                AggregatedMessage::Close(close_reason) => {
-                                    trace!("handling close message");
-                                    if let Some(cr) = &close_reason {
-                                        let code = u16::from(cr.code);
-                                        if let Some(desc) = &cr.description {
-                                            trace!("close reason: code={code} reason={desc}");
-                                        } else {
-                                            trace!("close reason: code={code} no reason given");
-                                        }
-                                    } else {
-                                        trace!("close reason: none");
-                                    }
-                                    break;
-                                }
+                            if handle_ws_msg(id, msg, &config_c, pool.as_ref(), clients_c.clone(), &mut ws_session).await {
+                                break;
                             }
                         }
                         Some(Err(e)) => {
@@ -132,6 +106,19 @@ pub(crate) async fn worker(
                         None => {
                             trace!("websocket stream closed");
                             break;
+                        }
+                    }
+                }
+                reload = reload_rx.recv() => {
+                    if reload.is_ok() {
+                        let schedules_guard = live_schedules.read().await;
+                        let schedules = schedules_guard.get(&client_name).cloned();
+                        drop(schedules_guard);
+                        let init_bytes = build_init_bytes(id, schedules, &config_c);
+                        if let Err(e) = ws_session.binary(init_bytes).await {
+                            error!("unable to send updated schedules to '{describe}': {e}");
+                        } else {
+                            info!("sent updated schedules to '{describe}'");
                         }
                     }
                 }
@@ -146,6 +133,96 @@ pub(crate) async fn worker(
     });
 
     Ok(response)
+}
+
+/// Returns `true` if the loop should break (connection close or unrecoverable error).
+async fn handle_ws_msg(
+    id: Uuid,
+    msg: AggregatedMessage,
+    config: &Config,
+    pool: &MySqlPool,
+    clients: Data<Mutex<Clients>>,
+    ws_session: &mut Session,
+) -> bool {
+    match msg {
+        AggregatedMessage::Text(_) => error!("unexpected text message"),
+        AggregatedMessage::Binary(bytes) => {
+            handle_binary(id, bytes, config, pool, clients)
+                .await
+                .unwrap_or_else(|e| {
+                    error!("unable to handle binary message: {e}");
+                });
+        }
+        AggregatedMessage::Ping(bytes) => {
+            trace!("handling ping message");
+            if let Some(dur) = parse_ts_ping(&bytes) {
+                trace!("ping duration: {}s", dur.as_secs_f64());
+            }
+            if let Err(e) = ws_session.pong(&bytes).await {
+                error!("unable to send pong: {e}");
+            }
+        }
+        AggregatedMessage::Pong(bytes) => {
+            trace!("handling pong message");
+            if let Some(dur) = parse_ts_ping(&bytes) {
+                trace!("pong duration: {}s", dur.as_secs_f64());
+            }
+        }
+        AggregatedMessage::Close(close_reason) => {
+            trace!("handling close message");
+            if let Some(cr) = &close_reason {
+                let code = u16::from(cr.code);
+                if let Some(desc) = &cr.description {
+                    trace!("close reason: code={code} reason={desc}");
+                } else {
+                    trace!("close reason: code={code} no reason given");
+                }
+            } else {
+                trace!("close reason: none");
+            }
+            return true;
+        }
+    }
+    false
+}
+
+/// Builds and returns the encoded (and optionally signed) Initialize payload.
+/// Returns an empty vec when there are no schedules for this client.
+fn build_init_bytes(id: Uuid, schedules: Option<Schedules>, config: &Config) -> Vec<u8> {
+    let Some(schedules) = schedules else {
+        return vec![];
+    };
+    let count = schedules.schedules().len();
+    trace!("building initialize payload with {count} schedules");
+    let uuid = UuidWrapper(id);
+    let init = Initialize::builder().id(uuid).schedules(schedules).build();
+    let payload = match encode_to_vec(BartosToBartoc::Initialize(init), standard()) {
+        Ok(p) => p,
+        Err(e) => {
+            error!("unable to encode initialize message: {e}");
+            return vec![];
+        }
+    };
+    let payload = if let Some(hmac_key_str) = config.hmac_key() {
+        trace!("wrapping initialize message with HMAC-SHA256 envelope");
+        hmac_sign(&parse_hmac_key(hmac_key_str), &payload)
+    } else {
+        payload
+    };
+    if let Some(sk_b64) = config.signing_key() {
+        match parse_signing_key(sk_b64) {
+            Ok(sk) => {
+                trace!("signing initialize message with Ed25519 key");
+                sign_payload(&sk, &payload)
+            }
+            Err(e) => {
+                error!("invalid signing key, sending unsigned: {e}");
+                payload
+            }
+        }
+    } else {
+        payload
+    }
 }
 
 async fn initialize(
@@ -164,44 +241,15 @@ async fn initialize(
     }
     let _old = clients.add_client(id, &name.name(), &Name::ip(&request));
     let name = name.name();
-    let schedules_opt = config.schedules().get(&name);
-    let init_bytes = if let Some(schedules) = schedules_opt {
-        let count = schedules.schedules().len();
+    let schedules_opt = config.schedules().get(&name).cloned();
+    let init_bytes = build_init_bytes(id, schedules_opt, &config);
+    if !init_bytes.is_empty() {
+        let count = config
+            .schedules()
+            .get(&name)
+            .map_or(0, |s| s.schedules().len());
         info!("sending bartoc '{describe}' {count} schedules");
-        let uuid = UuidWrapper(id);
-        let init = Initialize::builder()
-            .id(uuid)
-            .schedules(schedules.clone())
-            .build();
-        let payload = encode_to_vec(BartosToBartoc::Initialize(init), standard()).map_err(|e| {
-            error!("unable to encode initialization message: {e}");
-            ErrorInternalServerError("internal server error")
-        })?;
-        // Layer 4: HMAC-SHA256 authenticated envelope (applied before Ed25519 signing).
-        let payload = if let Some(hmac_key_str) = config.hmac_key() {
-            trace!("wrapping initialization message with HMAC-SHA256 envelope");
-            hmac_sign(&parse_hmac_key(hmac_key_str), &payload)
-        } else {
-            payload
-        };
-        // Layer 5: Ed25519 signature (outermost layer).
-        if let Some(sk_b64) = config.signing_key() {
-            match parse_signing_key(sk_b64) {
-                Ok(sk) => {
-                    trace!("signing initialization message with Ed25519 key");
-                    sign_payload(&sk, &payload)
-                }
-                Err(e) => {
-                    error!("invalid signing key, sending unsigned: {e}");
-                    payload
-                }
-            }
-        } else {
-            payload
-        }
-    } else {
-        vec![]
-    };
+    }
     session.binary(init_bytes).await.map_err(|e| {
         error!("unable to send initialization message: {e}");
         ErrorInternalServerError("internal server error")

@@ -67,10 +67,10 @@ fn run_service() -> Result<()> {
         .filter(|a| a.as_encoded_bytes() != b"--service")
         .collect();
 
-    let rt = tokio::runtime::Builder::new_multi_thread()
-        .enable_all()
-        .build()?;
-
+    // Report Running before the potentially-slow tokio runtime initialization
+    // (enable_all() calls WSAStartup, which can hang on systems with a pending
+    // reboot).  Reporting Running first prevents the SCM/installer from timing
+    // out waiting for StartPending to resolve.
     status_handle.set_service_status(ServiceStatus {
         service_type: ServiceType::OWN_PROCESS,
         current_state: ServiceState::Running,
@@ -81,7 +81,11 @@ fn run_service() -> Result<()> {
         process_id: None,
     })?;
 
-    let result = rt.block_on(crate::runtime::run(Some(filtered_args), Some(stop_token)));
+    let result = tokio::runtime::Builder::new_multi_thread()
+        .enable_all()
+        .build()
+        .map_err(anyhow::Error::from)
+        .and_then(|rt| rt.block_on(crate::runtime::run(Some(filtered_args), Some(stop_token))));
 
     status_handle.set_service_status(ServiceStatus {
         service_type: ServiceType::OWN_PROCESS,

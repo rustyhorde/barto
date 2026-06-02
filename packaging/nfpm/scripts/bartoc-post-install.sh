@@ -8,41 +8,40 @@ if [ "$1" = "configure" ] && [ -n "${2:-}" ]; then IS_UPGRADE=true; fi
 if [ "$1" = "2" ]; then IS_UPGRADE=true; fi
 
 if $IS_UPGRADE; then
-    if [ -d /var/lib/systemd/linger ]; then
-        for _lf in /var/lib/systemd/linger/*; do
-            [ -f "$_lf" ] || continue
-            _user=$(basename "$_lf")
-            systemctl --user -M "${_user}@.host" daemon-reload 2>/dev/null || true
-            if systemctl --user -M "${_user}@.host" is-enabled --quiet bartoc 2>/dev/null; then
-                echo "==> Restarting bartoc service for ${_user}..."
-                if systemctl --user -M "${_user}@.host" restart bartoc; then
-                    echo "==> bartoc restarted successfully."
-                else
-                    echo "==> Warning: failed to restart bartoc for ${_user}. Restart manually: systemctl --user restart bartoc"
-                fi
-            elif systemctl --user -M "${_user}@.host" is-enabled --quiet bartoc-age 2>/dev/null; then
-                echo "==> Restarting bartoc-age service for ${_user}..."
-                if systemctl --user -M "${_user}@.host" restart bartoc-age; then
-                    echo "==> bartoc-age restarted successfully."
-                else
-                    echo "==> Warning: failed to restart bartoc-age for ${_user}. Restart manually: systemctl --user restart bartoc-age"
-                fi
+    for _run_path in /run/user/*/; do
+        [ -d "$_run_path" ] || continue
+        _uid=$(basename "$_run_path")
+        _user=$(id -nu "$_uid" 2>/dev/null) || continue
+        systemctl --user -M "${_user}@.host" daemon-reload 2>/dev/null || true
+        if systemctl --user -M "${_user}@.host" is-enabled --quiet bartoc 2>/dev/null; then
+            echo "==> Restarting bartoc service for ${_user}..."
+            if systemctl --user -M "${_user}@.host" restart bartoc; then
+                echo "==> bartoc restarted successfully."
             else
-                echo ""
-                echo "==> bartoc upgraded."
-                echo "    Run 'systemctl --user daemon-reload && systemctl --user enable --now bartoc' when ready."
-                echo ""
+                echo "==> Warning: failed to restart bartoc for ${_user}. Restart manually: systemctl --user restart bartoc"
             fi
-            if systemctl --user -M "${_user}@.host" is-enabled --quiet bartoc-logrotate.timer 2>/dev/null; then
-                echo "==> Restarting bartoc-logrotate.timer for ${_user}..."
-                if systemctl --user -M "${_user}@.host" restart bartoc-logrotate.timer 2>/dev/null; then
-                    echo "==> bartoc-logrotate.timer restarted successfully."
-                else
-                    echo "==> Warning: failed to restart bartoc-logrotate.timer for ${_user}."
-                fi
+        elif systemctl --user -M "${_user}@.host" is-enabled --quiet bartoc-age 2>/dev/null; then
+            echo "==> Restarting bartoc-age service for ${_user}..."
+            if systemctl --user -M "${_user}@.host" restart bartoc-age; then
+                echo "==> bartoc-age restarted successfully."
+            else
+                echo "==> Warning: failed to restart bartoc-age for ${_user}. Restart manually: systemctl --user restart bartoc-age"
             fi
-        done
-    fi
+        else
+            echo ""
+            echo "==> bartoc upgraded."
+            echo "    Run 'systemctl --user daemon-reload && systemctl --user enable --now bartoc' when ready."
+            echo ""
+        fi
+        if systemctl --user -M "${_user}@.host" is-enabled --quiet bartoc-logrotate.timer 2>/dev/null; then
+            echo "==> Restarting bartoc-logrotate.timer for ${_user}..."
+            if systemctl --user -M "${_user}@.host" restart bartoc-logrotate.timer 2>/dev/null; then
+                echo "==> bartoc-logrotate.timer restarted successfully."
+            else
+                echo "==> Warning: failed to restart bartoc-logrotate.timer for ${_user}."
+            fi
+        fi
+    done
 else
     echo ""
     echo "==> bartoc installed successfully!"

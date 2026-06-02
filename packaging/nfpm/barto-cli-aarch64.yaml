@@ -13,7 +13,13 @@ description: |
 homepage: https://github.com/rustyhorde/barto
 license: MIT OR Apache-2.0
 
+overrides:
+  deb:
+    recommends:
+      - locales
+
 scripts:
+  preinstall: packaging/nfpm/scripts/barto-cli-pre-install.sh
   postinstall: packaging/nfpm/scripts/barto-cli-post-install.sh
 
 deb:

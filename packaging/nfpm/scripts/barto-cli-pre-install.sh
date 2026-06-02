@@ -1,20 +1,6 @@
 #!/bin/sh
 set -e
 
-if ! getent group bartos >/dev/null 2>&1; then
-    groupadd --system bartos
-fi
-
-if ! getent passwd bartos >/dev/null 2>&1; then
-    useradd --system \
-        --gid bartos \
-        --home-dir /var/lib/bartos \
-        --no-create-home \
-        --shell /sbin/nologin \
-        --comment "bartos service user" \
-        bartos
-fi
-
 # Generate the configured locale if missing; suppresses Perl locale warnings
 # from the man-db dpkg trigger that fires after /usr/share/man files land.
 if [ -d /usr/share/i18n/locales ] && [ -n "${LANG:-}" ] && command -v localedef >/dev/null 2>&1; then

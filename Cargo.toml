@@ -17,6 +17,7 @@ ed25519-dalek = { version = "3.0.0-rc.0", features = ["serde"] }
 futures-util = { version = "0.3.32", default-features = false, features = [
   "std",
 ] }
+notify-debouncer-mini = { version = "0.7", default-features = false }
 getset = "0.1.6"
 hmac = "0.13.0"
 redb = "4.1.0"

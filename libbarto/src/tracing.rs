@@ -137,7 +137,6 @@ where
     Ok((full_path, file_path))
 }
 
-#[allow(clippy::unnecessary_wraps)]
 fn default_tracing_absolute_path<D>(defaults: &D) -> Result<PathBuf>
 where
     D: PathDefaults,

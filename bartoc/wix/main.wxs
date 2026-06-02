@@ -80,7 +80,6 @@
 
             <ServiceControl Id="StartBartocService"
                             Name="bartoc"
-                            Start="install"
                             Stop="both"
                             Remove="uninstall"
                             Wait="yes"/>
@@ -97,6 +96,10 @@
         <Component Id="bartoc_config_files"
                    Guid="E9DEFC07-E3D0-45F5-91D9-94ABAC93A80F"
                    Bitness="always64">
+          <!-- Grant the service account write access so it can create bartoc.log and bartoc.redb. -->
+          <CreateFolder>
+            <util:PermissionEx User="[SERVICEACCOUNT]" GenericAll="yes"/>
+          </CreateFolder>
           <File Id="bartoc_toml_example"
                 Name="bartoc.toml.example"
                 Source="packaging\arch\bartoc\examples\bartoc.toml.example"/>
