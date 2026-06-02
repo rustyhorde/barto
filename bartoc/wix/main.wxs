@@ -120,13 +120,19 @@
         - Deferred so it runs after CreateFolders in the install script (an immediate CA
           placed After="CreateFolders" fires during the sequence scan, before
           InstallFinalize actually creates the folder).
-        - WixQuietExec64 spawns powershell as a child process that inherits the full
-          elevated token — not subject to the CA sandbox LSA restrictions.
         - For deferred WixQuietExec64, the SetProperty Id must match the CA Id so the
           resolved command line is passed as CustomActionData.
+
+      The `.\` machine-qualifier prefix in SERVICEACCOUNT (e.g. ".\bartoc_svc") also
+      fails LookupAccountName inside the elevated CA sandbox with ERROR_NONE_MAPPED.
+      Fix: the PowerShell command replaces any leading `.\` with `$env:COMPUTERNAME\`
+      before calling icacls, converting ".\bartoc_svc" -> "HOSTNAME\bartoc_svc".
+      Built-in accounts like "NT AUTHORITY\LocalService" are unaffected (no `.\` prefix).
+      String concatenation is used instead of interpolation to avoid nested double
+      quotes in the SetProperty value.
     -->
     <SetProperty Id="SetBartocDataDirAcl"
-                 Value="&quot;[System64Folder]WindowsPowerShell\v1.0\powershell.exe&quot; -NonInteractive -NoProfile -Command &quot;icacls &apos;[BARTOC_DATA_DIR]&apos; /grant &apos;[SERVICEACCOUNT]:(OI)(CI)F&apos; /T; exit $LASTEXITCODE&quot;"
+                 Value="&quot;[System64Folder]WindowsPowerShell\v1.0\powershell.exe&quot; -NonInteractive -NoProfile -Command &quot;$acct = &apos;[SERVICEACCOUNT]&apos; -replace &apos;^\.\\&apos;, ($env:COMPUTERNAME + &apos;\&apos;); icacls &apos;[BARTOC_DATA_DIR]&apos; /grant ($acct + &apos;:(OI)(CI)F&apos;) /T; exit $LASTEXITCODE&quot;"
                  Sequence="execute"
                  Before="SetBartocDataDirAcl"/>
 
