@@ -417,6 +417,21 @@ where
         .with_context(|| Error::ConfigDeserialize)
 }
 
+/// Returns the resolved path to the config file for the given defaults.
+///
+/// Useful for callers that need to watch the config file for changes.
+///
+/// # Errors
+///
+/// Returns an error if the platform config directory cannot be determined or if
+/// an explicit `config_absolute_path` cannot be converted to a valid path.
+pub fn resolve_config_path<D>(defaults: &D) -> Result<PathBuf>
+where
+    D: PathDefaults,
+{
+    config_file_path(defaults)
+}
+
 fn config_file_path<D>(defaults: &D) -> Result<PathBuf>
 where
     D: PathDefaults,

@@ -161,6 +161,7 @@ impl Handler {
                 match btb {
                     BartosToBartoc::Initialize(initialize) => {
                         trace!("received initialize message from bartos");
+                        self.rt_map.clear();
                         let schedules = initialize.schedules().schedules();
                         let id = initialize.id().0;
                         info!("bartoc id: {id}");

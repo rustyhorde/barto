@@ -9,10 +9,12 @@
 mod cli;
 
 use std::{
+    collections::BTreeMap,
     env,
     ffi::OsString,
     io::{Write, stdout},
     net::{IpAddr, SocketAddr},
+    sync::mpsc as std_mpsc,
     time::Duration,
 };
 
@@ -23,16 +25,24 @@ use actix_web::{
 };
 use anyhow::{Context, Result};
 use clap::Parser;
-use libbarto::{header, init_tracing, key_fingerprint, load, load_tls_config, parse_signing_key};
+use libbarto::{
+    Realtime, Schedules, header, init_tracing, key_fingerprint, load, load_tls_config,
+    parse_signing_key, resolve_config_path,
+};
+use notify_debouncer_mini::{DebounceEventResult, new_debouncer, notify::RecursiveMode};
 use rustls::crypto::ring::default_provider;
 use sqlx::MySqlPool;
+#[cfg(not(unix))]
+use tokio::signal::ctrl_c;
 #[cfg(unix)]
 use tokio::signal::unix::{SignalKind, signal};
-use tokio::{select, spawn, sync::Mutex, time::sleep};
+use tokio::{
+    select, spawn,
+    sync::{Mutex, RwLock, broadcast, mpsc, oneshot},
+    time::sleep,
+};
 use tokio_util::sync::CancellationToken;
-use tracing::{info, trace, warn};
-#[cfg(not(unix))]
-use {tokio::signal::ctrl_c, tracing::error};
+use tracing::{error, info, trace, warn};
 
 use crate::{common::Clients, config::Config, endpoints::insecure::insecure_config, error::Error};
 
@@ -45,6 +55,7 @@ const HEADER_PREFIX: &str = r"██████╗  █████╗ ██�
 ██████╔╝██║  ██║██║  ██║   ██║   ╚██████╔╝███████║
 ╚═════╝ ╚═╝  ╚═╝╚═╝  ╚═╝   ╚═╝    ╚═════╝ ╚══════╝";
 
+#[allow(clippy::too_many_lines)]
 pub(crate) async fn run<I, T>(args: Option<I>) -> Result<()>
 where
     I: IntoIterator<Item = T>,
@@ -66,7 +77,7 @@ where
     trace!("configuration loaded");
     trace!("tracing initialized");
 
-    // Display the bartoc header
+    // Display the bartos header
     let writer: Option<&mut dyn Write> = if config.enable_std_output() {
         Some(&mut stdout())
     } else {
@@ -117,7 +128,6 @@ where
     let server_token = token.clone();
     let app_token = token.clone();
     let app_token_data = Data::new(app_token);
-    let sighan_handle = spawn(async move { handle_signals(token).await });
 
     // Setup the database pool
     let url = config.mariadb().connection_string();
@@ -131,6 +141,126 @@ where
     // Setup the client data
     let clients = Clients::builder().build();
     let clients_data = Data::new(Mutex::new(clients));
+
+    // Live schedules: updated on config reload, read by worker WS handlers
+    let live_schedules_data: Data<RwLock<BTreeMap<String, Schedules>>> =
+        Data::new(RwLock::new(config.schedules().clone()));
+
+    // Broadcast channel: notifies all open worker WS connections to re-send Initialize
+    let (reload_bcast_tx, _) = broadcast::channel::<()>(16);
+    let reload_bcast_data = Data::new(reload_bcast_tx.clone());
+
+    // Internal trigger channel: file watcher and SIGHUP both send here
+    let (reload_trigger_tx, mut reload_trigger_rx) = mpsc::channel::<()>(4);
+
+    // Reload task: receives triggers, validates and applies the updated config
+    let cli_reload = cli.clone();
+    let live_schedules_reload = live_schedules_data.clone();
+    let reload_bcast_tx_task = reload_bcast_tx.clone();
+    let _reload_handle = spawn(async move {
+        while reload_trigger_rx.recv().await.is_some() {
+            match load::<Cli, Config, Cli>(&cli_reload, &cli_reload) {
+                Err(e) => error!("config reload failed, keeping existing schedules: {e}"),
+                Ok(new_config) => {
+                    let mut valid = true;
+                    for (client, sched_group) in new_config.schedules() {
+                        for sched in sched_group.schedules() {
+                            if Realtime::try_from(sched.on_calendar().as_str()).is_err() {
+                                error!(
+                                    "invalid on_calendar '{}' for client '{client}', aborting reload",
+                                    sched.on_calendar()
+                                );
+                                valid = false;
+                            }
+                        }
+                    }
+                    if valid {
+                        *live_schedules_reload.write().await = new_config.schedules().clone();
+                        let _ = reload_bcast_tx_task.send(());
+                        info!("config reloaded, schedules pushed to all connected clients");
+                    }
+                }
+            }
+        }
+    });
+
+    // File watcher: a std bridge thread feeds a tokio channel so we can select! on cancellation.
+    // We use a std thread because notify's callback is sync; a tokio mpsc bridges to async code.
+    let config_path = resolve_config_path(&cli).with_context(|| Error::ConfigLoad)?;
+    let watch_dir = config_path
+        .parent()
+        .ok_or_else(|| anyhow::anyhow!("config path has no parent directory"))?
+        .to_owned();
+    let (watcher_tokio_tx, mut watcher_tokio_rx) = mpsc::channel::<DebounceEventResult>(4);
+    let (watcher_ready_tx, watcher_ready_rx) = oneshot::channel::<Result<(), String>>();
+    let _watcher_thread = std::thread::spawn(move || {
+        let (std_tx, std_rx) = std_mpsc::channel::<DebounceEventResult>();
+        let mut debouncer = match new_debouncer(Duration::from_millis(400), std_tx) {
+            Ok(d) => d,
+            Err(e) => {
+                drop(watcher_ready_tx.send(Err(format!("{e}"))));
+                return;
+            }
+        };
+        if let Err(e) = debouncer
+            .watcher()
+            .watch(&watch_dir, RecursiveMode::NonRecursive)
+        {
+            drop(watcher_ready_tx.send(Err(format!("{e}"))));
+            return;
+        }
+        drop(watcher_ready_tx.send(Ok(())));
+        loop {
+            match std_rx.recv_timeout(Duration::from_secs(1)) {
+                Ok(result) => {
+                    if watcher_tokio_tx.blocking_send(result).is_err() {
+                        break; // tokio receiver dropped — server is shutting down
+                    }
+                }
+                Err(std_mpsc::RecvTimeoutError::Timeout) => {
+                    if watcher_tokio_tx.is_closed() {
+                        break;
+                    }
+                }
+                Err(std_mpsc::RecvTimeoutError::Disconnected) => break,
+            }
+        }
+    });
+
+    match watcher_ready_rx.await {
+        Ok(Ok(())) => info!("watching config file: {}", config_path.display()),
+        Ok(Err(e)) => warn!("config file watcher unavailable, SIGHUP reload still works: {e}"),
+        Err(_) => warn!("config file watcher thread failed to start"),
+    }
+
+    let reload_trigger_tx_fw = reload_trigger_tx.clone();
+    let server_token_fw = server_token.clone();
+    let _watcher_handle = spawn(async move {
+        loop {
+            select! {
+                () = server_token_fw.cancelled() => break,
+                res = watcher_tokio_rx.recv() => {
+                    match res {
+                        Some(Ok(events)) => {
+                            if events.iter().any(|e| e.path == config_path) {
+                                info!("config file changed, triggering reload");
+                                let _ = reload_trigger_tx_fw.send(()).await;
+                            }
+                        }
+                        Some(Err(e)) => {
+                            warn!("file watcher error: {e}");
+                        }
+                        None => break,
+                    }
+                }
+            }
+        }
+        // dropping watcher_tokio_rx here closes the channel → bridge thread exits
+    });
+
+    // Signal handler: SIGINT/SIGTERM cancel the server; SIGHUP triggers config reload
+    let reload_trigger_tx_sig = reload_trigger_tx.clone();
+    let sighan_handle = spawn(async move { handle_signals(token, reload_trigger_tx_sig).await });
 
     // Startup the server
     info!(
@@ -152,6 +282,8 @@ where
             .app_data(config_data.clone())
             .app_data(pool_data.clone())
             .app_data(clients_data.clone())
+            .app_data(live_schedules_data.clone())
+            .app_data(reload_bcast_data.clone())
             .wrap(Compress::default())
             .service(scope("/v1").configure(insecure_config))
     })
@@ -179,32 +311,38 @@ where
 }
 
 #[cfg(unix)]
-async fn handle_signals(token: CancellationToken) -> Result<()> {
+async fn handle_signals(token: CancellationToken, reload_tx: mpsc::Sender<()>) -> Result<()> {
     let mut sigint = signal(SignalKind::interrupt())?;
     let mut sigterm = signal(SignalKind::terminate())?;
     let mut sighup = signal(SignalKind::hangup())?;
 
-    select! {
-        () = token.cancelled() => {
-            trace!("cancellation token triggered, shutting down signal handler");
-        }
-        _ = sigint.recv() => {
-            trace!("received SIGINT, shutting down bartoc");
-            token.cancel();
-        }
-        _ = sigterm.recv() => {
-            trace!("received SIGTERM, shutting down bartoc");
-            token.cancel();
-        }
-        _ = sighup.recv() => {
-            trace!("received SIGHUP, reloading configuration");
+    loop {
+        select! {
+            () = token.cancelled() => {
+                trace!("cancellation token triggered, shutting down signal handler");
+                break;
+            }
+            _ = sigint.recv() => {
+                trace!("received SIGINT, shutting down bartos");
+                token.cancel();
+                break;
+            }
+            _ = sigterm.recv() => {
+                trace!("received SIGTERM, shutting down bartos");
+                token.cancel();
+                break;
+            }
+            _ = sighup.recv() => {
+                info!("received SIGHUP, triggering config reload");
+                let _ = reload_tx.send(()).await;
+            }
         }
     }
     Ok(())
 }
 
 #[cfg(not(unix))]
-async fn handle_signals(token: CancellationToken) -> Result<()> {
+async fn handle_signals(token: CancellationToken, _reload_tx: mpsc::Sender<()>) -> Result<()> {
     select! {
         () = token.cancelled() => {
             trace!("cancellation token triggered, shutting down signal handler");
@@ -215,7 +353,7 @@ async fn handle_signals(token: CancellationToken) -> Result<()> {
                 error!("unable to listen for CTRL-C: {e}");
                 Err(e.into())
             } else {
-                trace!("received CTRL-C, shutting down bartoc");
+                trace!("received CTRL-C, shutting down bartos");
                 token.cancel();
                 Ok(())
             }

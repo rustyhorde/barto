@@ -25,6 +25,7 @@ bon = { workspace = true }
 clap = { workspace = true }
 config = { workspace = true }
 futures-util = { workspace = true }
+notify-debouncer-mini = { workspace = true }
 getset = { workspace = true }
 libbarto = { version = "1.5.2", path = "../libbarto" }
 regex = "1.12.3"
