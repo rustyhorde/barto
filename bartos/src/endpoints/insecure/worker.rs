@@ -38,7 +38,7 @@ use crate::{
     endpoints::insecure::{Name, bearer_auth_ok},
 };
 
-#[allow(clippy::too_many_arguments, clippy::too_many_lines)]
+#[allow(clippy::too_many_arguments)]
 pub(crate) async fn worker(
     request: HttpRequest,
     body: Payload,
@@ -95,42 +95,8 @@ pub(crate) async fn worker(
                     match res {
                         Some(Ok(msg)) => {
                             last_heartbeat = Instant::now();
-                            match msg {
-                                AggregatedMessage::Text(_byte_string) => error!("unexpected text message"),
-                                AggregatedMessage::Binary(bytes) => {
-                                    handle_binary(id, bytes, &config_c, pool.as_ref(), clients_c.clone()).await.unwrap_or_else(|e| {
-                                        error!("unable to handle binary message: {e}");
-                                    });
-                                },
-                                AggregatedMessage::Ping(bytes) => {
-                                    trace!("handling ping message");
-                                    if let Some(dur) = parse_ts_ping(&bytes) {
-                                        trace!("ping duration: {}s", dur.as_secs_f64());
-                                    }
-                                    if let Err(e) = ws_session.pong(&bytes).await {
-                                        error!("unable to send pong: {e}");
-                                    }
-                                }
-                                AggregatedMessage::Pong(bytes) => {
-                                    trace!("handling pong message");
-                                    if let Some(dur) = parse_ts_ping(&bytes) {
-                                        trace!("pong duration: {}s", dur.as_secs_f64());
-                                    }
-                                }
-                                AggregatedMessage::Close(close_reason) => {
-                                    trace!("handling close message");
-                                    if let Some(cr) = &close_reason {
-                                        let code = u16::from(cr.code);
-                                        if let Some(desc) = &cr.description {
-                                            trace!("close reason: code={code} reason={desc}");
-                                        } else {
-                                            trace!("close reason: code={code} no reason given");
-                                        }
-                                    } else {
-                                        trace!("close reason: none");
-                                    }
-                                    break;
-                                }
+                            if handle_ws_msg(id, msg, &config_c, pool.as_ref(), clients_c.clone(), &mut ws_session).await {
+                                break;
                             }
                         }
                         Some(Err(e)) => {
@@ -167,6 +133,57 @@ pub(crate) async fn worker(
     });
 
     Ok(response)
+}
+
+/// Returns `true` if the loop should break (connection close or unrecoverable error).
+async fn handle_ws_msg(
+    id: Uuid,
+    msg: AggregatedMessage,
+    config: &Config,
+    pool: &MySqlPool,
+    clients: Data<Mutex<Clients>>,
+    ws_session: &mut Session,
+) -> bool {
+    match msg {
+        AggregatedMessage::Text(_) => error!("unexpected text message"),
+        AggregatedMessage::Binary(bytes) => {
+            handle_binary(id, bytes, config, pool, clients)
+                .await
+                .unwrap_or_else(|e| {
+                    error!("unable to handle binary message: {e}");
+                });
+        }
+        AggregatedMessage::Ping(bytes) => {
+            trace!("handling ping message");
+            if let Some(dur) = parse_ts_ping(&bytes) {
+                trace!("ping duration: {}s", dur.as_secs_f64());
+            }
+            if let Err(e) = ws_session.pong(&bytes).await {
+                error!("unable to send pong: {e}");
+            }
+        }
+        AggregatedMessage::Pong(bytes) => {
+            trace!("handling pong message");
+            if let Some(dur) = parse_ts_ping(&bytes) {
+                trace!("pong duration: {}s", dur.as_secs_f64());
+            }
+        }
+        AggregatedMessage::Close(close_reason) => {
+            trace!("handling close message");
+            if let Some(cr) = &close_reason {
+                let code = u16::from(cr.code);
+                if let Some(desc) = &cr.description {
+                    trace!("close reason: code={code} reason={desc}");
+                } else {
+                    trace!("close reason: code={code} no reason given");
+                }
+            } else {
+                trace!("close reason: none");
+            }
+            return true;
+        }
+    }
+    false
 }
 
 /// Builds and returns the encoded (and optionally signed) Initialize payload.

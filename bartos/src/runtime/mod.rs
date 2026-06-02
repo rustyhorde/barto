@@ -14,12 +14,14 @@ use std::{
     ffi::OsString,
     io::{Write, stdout},
     net::{IpAddr, SocketAddr},
+    path::PathBuf,
     sync::mpsc as std_mpsc,
     time::Duration,
 };
 
 use actix_web::{
     App, HttpServer,
+    dev::Server,
     middleware::Compress,
     web::{Data, scope},
 };
@@ -30,7 +32,7 @@ use libbarto::{
     parse_signing_key, resolve_config_path,
 };
 use notify_debouncer_mini::{DebounceEventResult, new_debouncer, notify::RecursiveMode};
-use rustls::crypto::ring::default_provider;
+use rustls::{ServerConfig, crypto::ring::default_provider};
 use sqlx::MySqlPool;
 #[cfg(not(unix))]
 use tokio::signal::ctrl_c;
@@ -39,6 +41,7 @@ use tokio::signal::unix::{SignalKind, signal};
 use tokio::{
     select, spawn,
     sync::{Mutex, RwLock, broadcast, mpsc, oneshot},
+    task::JoinHandle,
     time::sleep,
 };
 use tokio_util::sync::CancellationToken;
@@ -48,6 +51,15 @@ use crate::{common::Clients, config::Config, endpoints::insecure::insecure_confi
 
 use self::cli::Cli;
 
+struct WebAppData {
+    token: Data<CancellationToken>,
+    config: Data<Config>,
+    pool: Data<MySqlPool>,
+    clients: Data<Mutex<Clients>>,
+    live_schedules: Data<RwLock<BTreeMap<String, Schedules>>>,
+    reload_bcast: Data<broadcast::Sender<()>>,
+}
+
 const HEADER_PREFIX: &str = r"██████╗  █████╗ ██████╗ ████████╗ ██████╗ ███████╗
 ██╔══██╗██╔══██╗██╔══██╗╚══██╔══╝██╔═══██╗██╔════╝
 ██████╔╝███████║██████╔╝   ██║   ██║   ██║███████╗
@@ -55,35 +67,85 @@ const HEADER_PREFIX: &str = r"██████╗  █████╗ ██�
 ██████╔╝██║  ██║██║  ██║   ██║   ╚██████╔╝███████║
 ╚═════╝ ╚═╝  ╚═╝╚═╝  ╚═╝   ╚═╝    ╚═════╝ ╚══════╝";
 
-#[allow(clippy::too_many_lines)]
 pub(crate) async fn run<I, T>(args: Option<I>) -> Result<()>
 where
     I: IntoIterator<Item = T>,
     T: Into<OsString> + Clone,
 {
-    // Parse the command line
     let cli = if let Some(args) = args {
         Cli::try_parse_from(args)?
     } else {
         Cli::try_parse()?
     };
-
-    // Load the configuration
     let config = load::<Cli, Config, Cli>(&cli, &cli).with_context(|| Error::ConfigLoad)?;
-    // Initialize tracing
     init_tracing(&config, config.tracing().file(), &cli, None)
         .with_context(|| Error::TracingInit)?;
-
     trace!("configuration loaded");
     trace!("tracing initialized");
+    display_startup_info(&config)?;
 
-    // Display the bartos header
+    let workers = usize::from(*config.actix().workers());
+    let tls_opt = resolve_tls_config(&config)?;
+    let bartos_port = *config.actix().port();
+    let bartos_host = config.actix().ip().clone();
+
+    let token = CancellationToken::new();
+    let server_token = token.clone();
+
+    let url = config.mariadb().connection_string();
+    info!(
+        "connecting to database at: {}",
+        config.mariadb().disp_connection_string()
+    );
+    let (reload_bcast_tx, _) = broadcast::channel::<()>(16);
+    let (reload_trigger_tx, reload_trigger_rx) = mpsc::channel::<()>(4);
+    let live_schedules_data: Data<RwLock<BTreeMap<String, Schedules>>> =
+        Data::new(RwLock::new(config.schedules().clone()));
+
+    let _reload_handle = spawn_reload_task(
+        cli.clone(),
+        live_schedules_data.clone(),
+        reload_trigger_rx,
+        reload_bcast_tx.clone(),
+    );
+
+    let config_path = resolve_config_path(&cli).with_context(|| Error::ConfigLoad)?;
+    let _watcher_handle =
+        setup_file_watcher(config_path, server_token.clone(), reload_trigger_tx.clone()).await?;
+
+    let reload_trigger_tx_sig = reload_trigger_tx.clone();
+    let sighan_handle = spawn(async move { handle_signals(token, reload_trigger_tx_sig).await });
+
+    let web_app_data = WebAppData {
+        token: Data::new(server_token.clone()),
+        config: Data::new(config),
+        pool: Data::new(MySqlPool::connect(&url).await?),
+        clients: Data::new(Mutex::new(Clients::builder().build())),
+        live_schedules: live_schedules_data,
+        reload_bcast: Data::new(reload_bcast_tx),
+    };
+    let server = build_http_server(web_app_data, workers, &bartos_host, bartos_port, tls_opt)?;
+
+    select! {
+        () = server_token.cancelled() => {
+            trace!("cancellation token triggered, shutting down bartos");
+            // sleep to allow existing connections to send close messages
+            sleep(Duration::from_secs(1)).await;
+        }
+        _ = server => {}
+    }
+
+    let _res = sighan_handle.await?;
+    Ok(())
+}
+
+fn display_startup_info(config: &Config) -> Result<()> {
     let writer: Option<&mut dyn Write> = if config.enable_std_output() {
         Some(&mut stdout())
     } else {
         None
     };
-    header::<Config, dyn Write>(&config, HEADER_PREFIX, writer)?;
+    header::<Config, dyn Write>(config, HEADER_PREFIX, writer)?;
     info!("{} configured!", env!("CARGO_PKG_NAME"));
     if let Some(sk_b64) = config.signing_key() {
         match parse_signing_key(sk_b64) {
@@ -96,70 +158,35 @@ where
     } else {
         info!("Ed25519 signing key not configured — messages will be unsigned");
     }
-
-    // Setup the default crypto provider
     match default_provider().install_default() {
         Ok(()) => trace!("crypto provider initialized"),
         Err(_e) => warn!("crypto provider already initialized"),
     }
+    Ok(())
+}
 
-    // Add config to app data
-    let config_c = config.clone();
-    let config_data = Data::new(config_c);
-
-    let workers = usize::from(*config.actix().workers());
-    let tls_opt = if let Some(actix_tls) = config.actix().tls() {
-        // Load the TLS server configuration
+fn resolve_tls_config(config: &Config) -> Result<Option<(SocketAddr, ServerConfig)>> {
+    if let Some(actix_tls) = config.actix().tls() {
         let server_config = load_tls_config(actix_tls)?;
-        // Setup the socket address
-        let port = actix_tls.port();
-        let ip = actix_tls.ip();
-        let ip_addr: IpAddr = ip.parse().with_context(|| Error::InvalidIp)?;
-        Some((SocketAddr::from((ip_addr, port)), server_config))
+        let ip_addr: IpAddr = actix_tls.ip().parse().with_context(|| Error::InvalidIp)?;
+        Ok(Some((
+            SocketAddr::from((ip_addr, actix_tls.port())),
+            server_config,
+        )))
     } else {
-        None
-    };
+        Ok(None)
+    }
+}
 
-    let bartos_port = *config.actix().port();
-    let bartos_host = config.actix().ip();
-
-    // Setup the signal handling
-    let token = CancellationToken::new();
-    let server_token = token.clone();
-    let app_token = token.clone();
-    let app_token_data = Data::new(app_token);
-
-    // Setup the database pool
-    let url = config.mariadb().connection_string();
-    info!(
-        "connecting to database at: {}",
-        config.mariadb().disp_connection_string()
-    );
-    let pool = MySqlPool::connect(&url).await?;
-    let pool_data = Data::new(pool);
-
-    // Setup the client data
-    let clients = Clients::builder().build();
-    let clients_data = Data::new(Mutex::new(clients));
-
-    // Live schedules: updated on config reload, read by worker WS handlers
-    let live_schedules_data: Data<RwLock<BTreeMap<String, Schedules>>> =
-        Data::new(RwLock::new(config.schedules().clone()));
-
-    // Broadcast channel: notifies all open worker WS connections to re-send Initialize
-    let (reload_bcast_tx, _) = broadcast::channel::<()>(16);
-    let reload_bcast_data = Data::new(reload_bcast_tx.clone());
-
-    // Internal trigger channel: file watcher and SIGHUP both send here
-    let (reload_trigger_tx, mut reload_trigger_rx) = mpsc::channel::<()>(4);
-
-    // Reload task: receives triggers, validates and applies the updated config
-    let cli_reload = cli.clone();
-    let live_schedules_reload = live_schedules_data.clone();
-    let reload_bcast_tx_task = reload_bcast_tx.clone();
-    let _reload_handle = spawn(async move {
+fn spawn_reload_task(
+    cli: Cli,
+    live_schedules: Data<RwLock<BTreeMap<String, Schedules>>>,
+    mut reload_trigger_rx: mpsc::Receiver<()>,
+    reload_bcast_tx: broadcast::Sender<()>,
+) -> JoinHandle<()> {
+    spawn(async move {
         while reload_trigger_rx.recv().await.is_some() {
-            match load::<Cli, Config, Cli>(&cli_reload, &cli_reload) {
+            match load::<Cli, Config, Cli>(&cli, &cli) {
                 Err(e) => error!("config reload failed, keeping existing schedules: {e}"),
                 Ok(new_config) => {
                     let mut valid = true;
@@ -175,18 +202,23 @@ where
                         }
                     }
                     if valid {
-                        *live_schedules_reload.write().await = new_config.schedules().clone();
-                        let _ = reload_bcast_tx_task.send(());
+                        *live_schedules.write().await = new_config.schedules().clone();
+                        let _ = reload_bcast_tx.send(());
                         info!("config reloaded, schedules pushed to all connected clients");
                     }
                 }
             }
         }
-    });
+    })
+}
 
-    // File watcher: a std bridge thread feeds a tokio channel so we can select! on cancellation.
-    // We use a std thread because notify's callback is sync; a tokio mpsc bridges to async code.
-    let config_path = resolve_config_path(&cli).with_context(|| Error::ConfigLoad)?;
+// File watcher: a std bridge thread feeds a tokio channel so we can select! on cancellation.
+// We use a std thread because notify's callback is sync; a tokio mpsc bridges to async code.
+async fn setup_file_watcher(
+    config_path: PathBuf,
+    server_token: CancellationToken,
+    reload_trigger_tx: mpsc::Sender<()>,
+) -> Result<JoinHandle<()>> {
     let watch_dir = config_path
         .parent()
         .ok_or_else(|| anyhow::anyhow!("config path has no parent directory"))?
@@ -226,25 +258,21 @@ where
             }
         }
     });
-
     match watcher_ready_rx.await {
         Ok(Ok(())) => info!("watching config file: {}", config_path.display()),
         Ok(Err(e)) => warn!("config file watcher unavailable, SIGHUP reload still works: {e}"),
         Err(_) => warn!("config file watcher thread failed to start"),
     }
-
-    let reload_trigger_tx_fw = reload_trigger_tx.clone();
-    let server_token_fw = server_token.clone();
-    let _watcher_handle = spawn(async move {
+    Ok(spawn(async move {
         loop {
             select! {
-                () = server_token_fw.cancelled() => break,
+                () = server_token.cancelled() => break,
                 res = watcher_tokio_rx.recv() => {
                     match res {
                         Some(Ok(events)) => {
                             if events.iter().any(|e| e.path == config_path) {
                                 info!("config file changed, triggering reload");
-                                let _ = reload_trigger_tx_fw.send(()).await;
+                                let _ = reload_trigger_tx.send(()).await;
                             }
                         }
                         Some(Err(e)) => {
@@ -256,58 +284,47 @@ where
             }
         }
         // dropping watcher_tokio_rx here closes the channel → bridge thread exits
-    });
+    }))
+}
 
-    // Signal handler: SIGINT/SIGTERM cancel the server; SIGHUP triggers config reload
-    let reload_trigger_tx_sig = reload_trigger_tx.clone();
-    let sighan_handle = spawn(async move { handle_signals(token, reload_trigger_tx_sig).await });
-
-    // Startup the server
-    info!(
-        "Starting {} on {bartos_host}:{bartos_port}",
-        env!("CARGO_PKG_NAME")
-    );
-    if let Some(actix_tls) = config.actix().tls() {
-        info!(
-            "Starting {} TLS on {}:{}",
-            env!("CARGO_PKG_NAME"),
-            actix_tls.ip(),
-            actix_tls.port()
-        );
+fn build_http_server(
+    app_data: WebAppData,
+    workers: usize,
+    host: &str,
+    port: u16,
+    tls_opt: Option<(SocketAddr, ServerConfig)>,
+) -> Result<Server> {
+    info!("Starting {} on {host}:{port}", env!("CARGO_PKG_NAME"));
+    if let Some((addr, _)) = &tls_opt {
+        info!("Starting {} TLS on {addr}", env!("CARGO_PKG_NAME"));
     }
-
+    let WebAppData {
+        token,
+        config,
+        pool,
+        clients,
+        live_schedules,
+        reload_bcast,
+    } = app_data;
     let server = HttpServer::new(move || {
         App::new()
-            .app_data(app_token_data.clone())
-            .app_data(config_data.clone())
-            .app_data(pool_data.clone())
-            .app_data(clients_data.clone())
-            .app_data(live_schedules_data.clone())
-            .app_data(reload_bcast_data.clone())
+            .app_data(token.clone())
+            .app_data(config.clone())
+            .app_data(pool.clone())
+            .app_data(clients.clone())
+            .app_data(live_schedules.clone())
+            .app_data(reload_bcast.clone())
             .wrap(Compress::default())
             .service(scope("/v1").configure(insecure_config))
     })
     .workers(workers)
-    .bind((bartos_host.as_str(), bartos_port))?;
-
+    .bind((host, port))?;
     let server = if let Some((addr, server_config)) = tls_opt {
         server.bind_rustls_0_23(addr, server_config)?
     } else {
         server
     };
-
-    select! {
-        () = server_token.cancelled() => {
-            trace!("cancellation token triggered, shutting down bartos");
-            // sleep to allow existing connections to send close messages
-            sleep(Duration::from_secs(1)).await;
-        }
-        _ = server.run() => {
-        }
-    }
-
-    let _res = sighan_handle.await?;
-    Ok(())
+    Ok(server.run())
 }
 
 #[cfg(unix)]
