@@ -96,10 +96,8 @@
         <Component Id="bartoc_config_files"
                    Guid="E9DEFC07-E3D0-45F5-91D9-94ABAC93A80F"
                    Bitness="always64">
-          <!-- Grant the service account write access so it can create bartoc.log and bartoc.redb. -->
-          <CreateFolder>
-            <util:PermissionEx User="[SERVICEACCOUNT]" GenericAll="yes"/>
-          </CreateFolder>
+          <!-- ACL is applied by the SetBartocDataDirAcl custom action below. -->
+          <CreateFolder/>
           <File Id="bartoc_toml_example"
                 Name="bartoc.toml.example"
                 Source="packaging\arch\bartoc\examples\bartoc.toml.example"/>
@@ -110,6 +108,38 @@
 
       </Directory>
     </StandardDirectory>
+
+    <!-- ── ACL setup ─────────────────────────────────────────────────────── -->
+    <!--
+      util:PermissionEx / ExecSecureObjects uses LookupAccountName inside the WiX
+      "Elevated Non-remapped custom action server" sandbox, which restricts LSA access
+      and returns ERROR_NONE_MAPPED (0x80070534) for local accounts even when the
+      account exists.
+
+      Replace with icacls via WixQuietExec64 (deferred, Impersonate="no"):
+        - Deferred so it runs after CreateFolders in the install script (an immediate CA
+          placed After="CreateFolders" fires during the sequence scan, before
+          InstallFinalize actually creates the folder).
+        - WixQuietExec64 spawns powershell as a child process that inherits the full
+          elevated token — not subject to the CA sandbox LSA restrictions.
+        - For deferred WixQuietExec64, the SetProperty Id must match the CA Id so the
+          resolved command line is passed as CustomActionData.
+    -->
+    <SetProperty Id="SetBartocDataDirAcl"
+                 Value="&quot;[System64Folder]WindowsPowerShell\v1.0\powershell.exe&quot; -NonInteractive -NoProfile -Command &quot;icacls &apos;[BARTOC_DATA_DIR]&apos; /grant &apos;[SERVICEACCOUNT]:(OI)(CI)F&apos; /T; exit $LASTEXITCODE&quot;"
+                 Sequence="execute"
+                 Before="SetBartocDataDirAcl"/>
+
+    <CustomAction Id="SetBartocDataDirAcl"
+                  BinaryRef="Wix4UtilCA_X64"
+                  DllEntry="WixQuietExec64"
+                  Execute="deferred"
+                  Impersonate="no"
+                  Return="check"/>
+
+    <InstallExecuteSequence>
+      <Custom Action="SetBartocDataDirAcl" After="CreateFolders" Condition="NOT REMOVE"/>
+    </InstallExecuteSequence>
 
     <!-- ── Features ──────────────────────────────────────────────────────── -->
     <Feature Id="MainFeature"

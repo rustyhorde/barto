@@ -23,14 +23,18 @@ class Bartoc < Formula
 
   def post_install
     plist_label = "homebrew.mxcl.bartoc"
-    plist_path  = "#{Dir.home}/Library/LaunchAgents/#{plist_label}.plist"
-    return unless system("/bin/launchctl", "list", plist_label,
+    service_target = "gui/#{Process.uid}/#{plist_label}"
+
+    return unless system("/bin/launchctl", "print", service_target,
                          out: File::NULL, err: File::NULL)
 
     ohai "Restarting bartoc service to apply update..."
-    system "/bin/launchctl", "unload", plist_path
-    system "/bin/launchctl", "load", plist_path
-    ohai "bartoc restarted successfully."
+    if system("/bin/launchctl", "kickstart", "-k", service_target,
+              out: File::NULL, err: File::NULL)
+      ohai "bartoc restarted successfully."
+    else
+      opoo "Could not restart bartoc automatically. Run: brew services restart bartoc"
+    end
   end
 
   service do
