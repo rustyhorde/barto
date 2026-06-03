@@ -19,6 +19,16 @@ Barto is a 4-component websocket-based job scheduling system:
 
 **`bartoc` local database**: `bartoc` maintains a local `redb` embedded database (`output` and `status` tables) to buffer output/status data before forwarding to `bartos`. This is separate from the MariaDB in `bartos`.
 
+## Verification
+
+After any change to Rust source files or configuration files (`.toml`, `.env`, migrations), always run the full CI pipeline before declaring work complete:
+
+```bash
+scripts/run_all.fish --no-install --no-musl
+```
+
+This runs format check, nightly clippy (pedantic, all targets), tests, and coverage in one pass. Fix all errors before finishing.
+
 ## Commands
 
 ```bash
