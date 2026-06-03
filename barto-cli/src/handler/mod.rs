@@ -189,14 +189,26 @@ impl Handler {
     fn handle_clients(clients: &HashMap<UuidWrapper, ClientData>) {
         let mut client_datas = clients.values().cloned().collect::<Vec<ClientData>>();
         client_datas.sort_by(|a, b| a.name().cmp(b.name()));
-        let (max_name_label, max_ip_label) = Self::maxes_client_data(&client_datas);
+        let (max_name_label, max_ip_label, max_os_name, max_os_version, max_kernel, max_version) =
+            Self::maxes_client_data(&client_datas);
         let client_count = client_datas.len();
         for cd in client_datas {
+            let info_str = if let Some(info) = cd.bartoc_info() {
+                format!(
+                    "{:<max_os_name$} {:<max_os_version$} {:<max_kernel$} {:<max_version$}",
+                    info.name(),
+                    info.os_version(),
+                    info.kernel_version(),
+                    format!("v{}", info.version()),
+                )
+            } else {
+                cd.name().clone()
+            };
             println!(
                 "{:>max_name_label$} ({:>max_ip_label$}): {}",
                 BOLD_GREEN.apply_to(cd.name().clone()),
                 BOLD_GREEN.apply_to(cd.ip().clone()),
-                BOLD_BLUE.apply_to(cd)
+                BOLD_BLUE.apply_to(info_str)
             );
         }
         println!();
@@ -576,18 +588,27 @@ impl Handler {
         (max_col_label, max_val_label)
     }
 
-    fn maxes_client_data(client_data: &[ClientData]) -> (usize, usize) {
-        let mut max_name_label = 0;
-        let mut max_ip_label = 0;
+    fn maxes_client_data(client_data: &[ClientData]) -> (usize, usize, usize, usize, usize, usize) {
+        let (mut max_name_label, mut max_ip_label) = (0, 0);
+        let (mut max_os_name, mut max_os_version, mut max_kernel, mut max_version) = (0, 0, 0, 0);
         for cd in client_data {
-            if cd.name().len() > max_name_label {
-                max_name_label = cd.name().len();
-            }
-            if cd.ip().len() > max_ip_label {
-                max_ip_label = cd.ip().len();
+            max_name_label = max_name_label.max(cd.name().len());
+            max_ip_label = max_ip_label.max(cd.ip().len());
+            if let Some(info) = cd.bartoc_info() {
+                max_os_name = max_os_name.max(info.name().len());
+                max_os_version = max_os_version.max(info.os_version().len());
+                max_kernel = max_kernel.max(info.kernel_version().len());
+                max_version = max_version.max(info.version().len() + 1);
             }
         }
-        (max_name_label, max_ip_label)
+        (
+            max_name_label,
+            max_ip_label,
+            max_os_name,
+            max_os_version,
+            max_kernel,
+            max_version,
+        )
     }
 
     fn maxes(pretty_ext: &PrettyExt) -> (usize, usize) {
