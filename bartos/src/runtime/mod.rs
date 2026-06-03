@@ -12,6 +12,7 @@ use std::{
     collections::BTreeMap,
     env,
     ffi::OsString,
+    fs,
     io::{Write, stdout},
     net::{IpAddr, SocketAddr},
     path::PathBuf,
@@ -273,6 +274,7 @@ async fn setup_file_watcher(
         Err(_) => warn!("config file watcher thread failed to start"),
     }
     Ok(spawn(async move {
+        let mut last_mtime = fs::metadata(&config_path).and_then(|m| m.modified()).ok();
         loop {
             select! {
                 () = server_token.cancelled() => break,
@@ -280,8 +282,20 @@ async fn setup_file_watcher(
                     match res {
                         Some(Ok(events)) => {
                             if events.iter().any(|e| e.path == config_path) {
-                                info!("config file changed, triggering reload");
-                                let _ = reload_trigger_tx.send(()).await;
+                                let current_mtime = fs::metadata(&config_path)
+                                    .and_then(|m| m.modified())
+                                    .ok();
+                                let changed = match (last_mtime, current_mtime) {
+                                    (Some(last), Some(current)) => last != current,
+                                    _ => true,
+                                };
+                                if changed {
+                                    last_mtime = current_mtime;
+                                    info!("config file changed, triggering reload");
+                                    let _ = reload_trigger_tx.send(()).await;
+                                } else {
+                                    trace!("config file event but mtime unchanged, skipping");
+                                }
                             }
                         }
                         Some(Err(e)) => {
