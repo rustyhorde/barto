@@ -205,14 +205,14 @@ fn spawn_reload_task(
                     if valid {
                         let new_schedules = new_config.schedules().clone();
                         let mut schedules_guard = live_schedules.write().await;
-                        if *schedules_guard != new_schedules {
+                        if *schedules_guard == new_schedules {
+                            drop(schedules_guard);
+                            info!("config reloaded, schedules unchanged, skipping broadcast");
+                        } else {
                             *schedules_guard = new_schedules;
                             drop(schedules_guard);
                             let _ = reload_bcast_tx.send(());
                             info!("config reloaded, schedules pushed to all connected clients");
-                        } else {
-                            drop(schedules_guard);
-                            info!("config reloaded, schedules unchanged, skipping broadcast");
                         }
                     }
                 }
