@@ -3,4 +3,8 @@ Description=Rotate bartoc logs
 
 [Service]
 Type=oneshot
+# Resolve %S identically to bartoc.service (--tracing-absolute-path %S/bartoc/...)
+# so rotation always targets the directory bartoc actually logs to on this host,
+# whatever %S expands to (~/.local/state, ~/.config, ...).
+Environment=BARTOC_LOG_DIR=%S/bartoc
 ExecStart=/usr/lib/bartoc/bartoc-logrotate

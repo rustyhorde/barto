@@ -1,10 +1,26 @@
 #!/bin/sh
 set -e
-STATE_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/bartoc"
-CONF=$(mktemp)
-trap 'rm -f "$CONF"' EXIT
-cat > "$CONF" <<EOF
-$STATE_DIR/bartoc.log.????-??-?? {
+
+# Rotate bartoc's rolled log files (bartoc.log.YYYY-MM-DD).
+#
+# The directory bartoc logs to is not fixed: bartoc.service passes
+# --tracing-absolute-path %S/bartoc/bartoc.log, and the systemd %S (state
+# directory) specifier is resolved from the user's XDG environment. On most
+# hosts that is ~/.local/state, but on some it is ~/.config, and a manually
+# started bartoc with no --tracing-absolute-path falls back to bartoc's own
+# default of ~/.local/share/bartoc/logs. So we must not hardcode one path.
+#
+# Resolution order:
+#   1. $BARTOC_LOG_DIR  — exported by bartoc-logrotate.service as %S/bartoc, the
+#      same specifier the service uses, so it resolves to the exact directory
+#      bartoc logs to on this host.
+#   2. A scan of the well-known default directories, rotating any that actually
+#      contain rolled log files (for ad-hoc / non-systemd invocations).
+
+emit_stanza() {
+    dir=$1
+    cat <<EOF
+$dir/bartoc.log.????-??-?? {
     daily
     missingok
     notifempty
@@ -15,8 +31,44 @@ $STATE_DIR/bartoc.log.????-??-?? {
     rotate 7
     sharedscripts
     postrotate
-        find $STATE_DIR -name 'bartoc.log.*.xz' -mtime +7 -delete 2>/dev/null || true
+        find $dir -name 'bartoc.log.*.xz' -mtime +7 -delete 2>/dev/null || true
     endscript
 }
 EOF
-logrotate --state "$STATE_DIR/logrotate.status" "$CONF"
+}
+
+if [ -n "${BARTOC_LOG_DIR:-}" ]; then
+    DIRS=$BARTOC_LOG_DIR
+else
+    DIRS="${XDG_STATE_HOME:-$HOME/.local/state}/bartoc
+${XDG_CONFIG_HOME:-$HOME/.config}/bartoc
+${XDG_DATA_HOME:-$HOME/.local/share}/bartoc/logs
+/var/log/bartoc"
+fi
+
+CONF=$(mktemp)
+trap 'rm -f "$CONF"' EXIT
+
+found=0
+OLDIFS=$IFS
+IFS='
+'
+for dir in $DIRS; do
+    IFS=$OLDIFS
+    # Only rotate directories that actually hold rolled log files.
+    for f in "$dir"/bartoc.log.????-??-??; do
+        [ -e "$f" ] || continue
+        emit_stanza "$dir" >> "$CONF"
+        found=1
+        break
+    done
+    IFS='
+'
+done
+IFS=$OLDIFS
+
+[ "$found" = 1 ] || exit 0
+
+STATUS_DIR="${BARTOC_LOG_DIR:-${XDG_STATE_HOME:-$HOME/.local/state}/bartoc}"
+mkdir -p "$STATUS_DIR"
+logrotate --state "$STATUS_DIR/logrotate.status" "$CONF"

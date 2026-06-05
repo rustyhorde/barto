@@ -85,9 +85,18 @@ contents:
   - src: dist/bartos/bartos.service
     dst: /usr/lib/systemd/system/bartos.service
 
-  # Logrotate config
-  - src: dist/bartos/bartos.logrotate
-    dst: /etc/logrotate.d/bartos
+  # Log rotation helper script
+  - src: dist/bartos/bartos-logrotate
+    dst: /usr/lib/bartos/bartos-logrotate
+    file_info:
+      mode: 0755
+
+  # Systemd timer for log rotation
+  - src: dist/bartos/bartos-logrotate.service
+    dst: /usr/lib/systemd/system/bartos-logrotate.service
+
+  - src: dist/bartos/bartos-logrotate.timer
+    dst: /usr/lib/systemd/system/bartos-logrotate.timer
 
   # Example configuration
   - src: dist/bartos/bartos.toml.example
