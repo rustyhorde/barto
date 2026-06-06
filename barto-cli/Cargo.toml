@@ -10,7 +10,7 @@ license = "MIT OR Apache-2.0"
 name = "barto-cli"
 readme = "../README.md"
 repository = "https://github.com/rustyhorde/barto"
-version = "1.5.7"
+version = "1.5.8"
 rust-version = "1.95.0"
 
 [features]
@@ -27,7 +27,7 @@ count-digits = "0.5.1"
 futures-util = { workspace = true }
 getset = { workspace = true }
 keyring-core = "1.0.0"
-libbarto = { version = "1.5.7", path = "../libbarto" }
+libbarto = { version = "1.5.8", path = "../libbarto" }
 rpassword = { workspace = true }
 rustls = { workspace = true }
 serde = { workspace = true }

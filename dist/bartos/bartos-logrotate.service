@@ -1,0 +1,12 @@
+[Unit]
+Description=Rotate bartos logs
+
+[Service]
+Type=oneshot
+User=bartos
+Group=bartos
+# Resolve %L identically to bartos.service (--tracing-absolute-path %L/bartos/...)
+# so rotation always targets the directory bartos actually logs to.
+Environment=BARTOS_LOG_DIR=%L/bartos
+LogsDirectory=bartos
+ExecStart=/usr/lib/bartos/bartos-logrotate

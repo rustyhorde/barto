@@ -1,0 +1,69 @@
+#!/bin/sh
+set -e
+
+# Rotate bartos's rolled log files (bartos.log.YYYY-MM-DD).
+#
+# bartos.service passes --tracing-absolute-path %L/bartos/bartos.log; for a
+# system service %L resolves to /var/log, so the logs live in /var/log/bartos.
+# To keep rotation tied to that single source (and to cover non-standard runs)
+# the directory is resolved at runtime:
+#
+#   1. $BARTOS_LOG_DIR  — exported by bartos-logrotate.service as %L/bartos, the
+#      same specifier the service uses.
+#   2. A scan of the well-known default directories, rotating any that actually
+#      contain rolled log files (for ad-hoc / non-systemd invocations).
+
+emit_stanza() {
+    dir=$1
+    cat <<EOF
+$dir/bartos.log.????-??-?? {
+    daily
+    missingok
+    notifempty
+    nocreate
+    compress
+    compresscmd /usr/bin/xz
+    compressext .xz
+    rotate 7
+    sharedscripts
+    postrotate
+        find $dir -name 'bartos.log.*.xz' -mtime +7 -delete 2>/dev/null || true
+    endscript
+}
+EOF
+}
+
+if [ -n "${BARTOS_LOG_DIR:-}" ]; then
+    DIRS=$BARTOS_LOG_DIR
+else
+    DIRS="/var/log/bartos
+${XDG_STATE_HOME:-$HOME/.local/state}/bartos
+${XDG_DATA_HOME:-$HOME/.local/share}/bartos/logs"
+fi
+
+CONF=$(mktemp)
+trap 'rm -f "$CONF"' EXIT
+
+found=0
+OLDIFS=$IFS
+IFS='
+'
+for dir in $DIRS; do
+    IFS=$OLDIFS
+    # Only rotate directories that actually hold rolled log files.
+    for f in "$dir"/bartos.log.????-??-??; do
+        [ -e "$f" ] || continue
+        emit_stanza "$dir" >> "$CONF"
+        found=1
+        break
+    done
+    IFS='
+'
+done
+IFS=$OLDIFS
+
+[ "$found" = 1 ] || exit 0
+
+STATUS_DIR="${BARTOS_LOG_DIR:-/var/log/bartos}"
+mkdir -p "$STATUS_DIR"
+logrotate --state "$STATUS_DIR/logrotate.status" "$CONF"

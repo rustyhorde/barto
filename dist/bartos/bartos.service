@@ -10,7 +10,7 @@ User=bartos
 Group=bartos
 ExecStart=/usr/lib/bartos/bartos-launcher \
     --config-absolute-path /etc/bartos/bartos.toml \
-    --tracing-absolute-path /var/log/bartos/bartos.log
+    --tracing-absolute-path %L/bartos/bartos.log
 Restart=on-failure
 RestartSec=5s
 StandardOutput=journal

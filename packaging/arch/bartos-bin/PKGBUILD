@@ -57,9 +57,15 @@ package() {
     install -Dm644 bartos/bartos.service \
         "$pkgdir/usr/lib/systemd/system/bartos.service"
 
-    # Logrotate
-    install -Dm644 bartos/bartos.logrotate \
-        "$pkgdir/etc/logrotate.d/bartos"
+    # Log rotation helper script
+    install -Dm755 bartos/bartos-logrotate \
+        "$pkgdir/usr/lib/bartos/bartos-logrotate"
+
+    # Systemd timer for log rotation
+    install -Dm644 bartos/bartos-logrotate.service \
+        "$pkgdir/usr/lib/systemd/system/bartos-logrotate.service"
+    install -Dm644 bartos/bartos-logrotate.timer \
+        "$pkgdir/usr/lib/systemd/system/bartos-logrotate.timer"
 
     # Example config
     install -Dm644 bartos/bartos.toml.example \

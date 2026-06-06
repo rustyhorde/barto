@@ -15,6 +15,10 @@ if $IS_UPGRADE; then
         systemctl restart bartos
         echo "==> bartos restarted successfully."
     fi
+    if systemctl is-enabled --quiet bartos-logrotate.timer 2>/dev/null; then
+        echo "==> Restarting bartos-logrotate.timer..."
+        systemctl restart bartos-logrotate.timer 2>/dev/null || true
+    fi
 else
     echo ""
     echo "==> bartos installed successfully!"
@@ -32,6 +36,8 @@ else
     echo "    4. Enable and start the service:"
     echo "         systemctl daemon-reload"
     echo "         systemctl enable --now bartos"
+    echo "    5. Enable daily log rotation:"
+    echo "         systemctl enable --now bartos-logrotate.timer"
     echo "    Optional: TLS & Security"
     echo "         To enable TLS, set [actix.tls] in bartos.toml with cert_file_path and key_file_path."
     echo "         To require mutual TLS (client certs), also set client_ca_cert."
