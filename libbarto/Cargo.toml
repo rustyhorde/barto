@@ -41,6 +41,7 @@ sysinfo = { workspace = true }
 thiserror = { workspace = true }
 time = { workspace = true, features = [
     "formatting",
+    "local-offset",
     "macros",
     "serde",
     "serde-human-readable",

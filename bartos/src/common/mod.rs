@@ -13,6 +13,15 @@ use getset::Getters;
 use libbarto::{BartocInfo, ClientData};
 use uuid::Uuid;
 
+/// A signal broadcast from bartos to every connected bartoc worker task.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum WorkerSignal {
+    /// Re-send the (possibly updated) schedules to the worker.
+    Reload,
+    /// Ask the worker to clean up old entries from its local redb database.
+    Cleanup,
+}
+
 #[derive(Builder, Clone, Debug, Eq, Getters, PartialEq)]
 pub(crate) struct Clients {
     #[getset(get = "pub(crate)")]

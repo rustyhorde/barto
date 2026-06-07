@@ -9,15 +9,15 @@
 use std::time::Duration;
 
 use anyhow::Result;
-use libbarto::{Bincode, Data, Output, Status};
-use redb::{Database, TableDefinition};
+use libbarto::{Bincode, Data, Output, Status, midnight};
+use redb::{Database, ReadableTableMetadata, TableDefinition};
 use tokio::{
     select,
     sync::mpsc::{UnboundedReceiver, UnboundedSender},
     time::interval,
 };
 use tokio_util::sync::CancellationToken;
-use tracing::{error, trace};
+use tracing::{error, info, trace};
 
 use crate::{
     config::Config,
@@ -47,6 +47,7 @@ impl BartocDatabase {
     pub(crate) async fn monitor(
         &mut self,
         mut data_rx: UnboundedReceiver<Data>,
+        mut cleanup_rx: UnboundedReceiver<()>,
         output_token: CancellationToken,
     ) -> Result<()> {
         let mut interval = interval(Duration::from_mins(1));
@@ -55,6 +56,11 @@ impl BartocDatabase {
                 () = output_token.cancelled() => {
                     trace!("cancellation token triggered, shutting down output handler");
                     break;
+                }
+                _ = cleanup_rx.recv() => {
+                    if let Err(e) = self.cleanup_redb() {
+                        error!("unable to clean up redb tables: {e}");
+                    }
                 }
                 rx_opt = data_rx.recv() => {
                     if let Some(data) = rx_opt {
@@ -179,5 +185,30 @@ impl BartocDatabase {
         }
         write_txn.commit()?;
         Ok(())
+    }
+
+    /// Delete entries from both redb tables whose timestamp is older than today's midnight,
+    /// mirroring the date-based cleanup `bartos` performs on its `MariaDB` tables. The `output`
+    /// table is keyed by timestamp, while the `status` table keeps its timestamp in the value.
+    fn cleanup_redb(&mut self) -> Result<(u64, u64)> {
+        let cutoff = midnight()?;
+        info!("cleaning up redb records older than: {cutoff}");
+        let write_txn = self.db.begin_write()?;
+        let (output_deleted, status_deleted) = {
+            let mut output_table = write_txn.open_table(OUTPUT_TABLE)?;
+            let before = output_table.len()?;
+            output_table.retain(|key, _value| key.timestamp().0 >= cutoff)?;
+            let output_deleted = before - output_table.len()?;
+
+            let mut status_table = write_txn.open_table(STATUS_TABLE)?;
+            let before = status_table.len()?;
+            status_table.retain(|_key, value| value.timestamp().0 >= cutoff)?;
+            let status_deleted = before - status_table.len()?;
+            (output_deleted, status_deleted)
+        };
+        write_txn.commit()?;
+        info!("deleted {output_deleted} redb output rows");
+        info!("deleted {status_deleted} redb status rows");
+        Ok((output_deleted, status_deleted))
     }
 }

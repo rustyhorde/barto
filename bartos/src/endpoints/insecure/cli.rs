@@ -14,18 +14,22 @@ use actix_web::{
 use actix_ws::{AggregatedMessage, handle};
 use futures_util::StreamExt as _;
 use sqlx::MySqlPool;
-use tokio::{select, sync::Mutex};
+use tokio::{
+    select,
+    sync::{Mutex, broadcast},
+};
 use tokio_util::sync::CancellationToken;
 use tracing::{error, info, trace};
 
 use crate::{
-    common::Clients,
+    common::{Clients, WorkerSignal},
     config::Config,
     db::mysql::MySqlHandler,
     endpoints::insecure::{Name, bearer_auth_ok},
     handler::cli::BinaryMessageHandler,
 };
 
+#[allow(clippy::too_many_arguments)]
 pub(crate) async fn cli(
     request: HttpRequest,
     body: Payload,
@@ -34,6 +38,7 @@ pub(crate) async fn cli(
     config: Data<Config>,
     pool: Data<MySqlPool>,
     clients_mutex: Data<Mutex<Clients>>,
+    worker_bcast: Data<broadcast::Sender<WorkerSignal>>,
 ) -> Result<impl Responder> {
     let describe = name.describe(&request);
     info!("cli connection from '{describe}'");
@@ -48,6 +53,7 @@ pub(crate) async fn cli(
     let mut handler = BinaryMessageHandler::builder()
         .config(config.clone())
         .clients_mutex(clients_mutex.clone())
+        .worker_bcast(worker_bcast.clone())
         .build();
     let queryable = MySqlHandler::builder().pool(pool.clone()).build();
 

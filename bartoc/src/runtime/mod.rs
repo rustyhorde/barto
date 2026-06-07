@@ -32,7 +32,8 @@ use tokio::signal::unix::{SignalKind, signal};
 use tokio::{
     net::TcpStream,
     select, spawn,
-    sync::mpsc::{UnboundedSender, unbounded_channel},
+    sync::mpsc::{UnboundedReceiver, UnboundedSender, unbounded_channel},
+    task::JoinHandle,
     time::sleep,
 };
 use tokio_tungstenite::{
@@ -198,6 +199,7 @@ async fn run_connection(
     let output_token = token.clone();
     let (tx, mut rx) = unbounded_channel();
     let (data_tx, data_rx) = unbounded_channel();
+    let (cleanup_tx, cleanup_rx) = unbounded_channel();
     let url = format!(
         "{}://{}:{}/v1/ws/worker?name={}",
         config.bartos().prefix(),
@@ -221,8 +223,15 @@ async fn run_connection(
     *error_count = 0; // reset on successful connection
     trace!("retry and error counts reset");
     let (sink, mut stream) = ws_stream.split();
-    let mut handler =
-        setup_handler(sink, tx.clone(), data_tx.clone(), heartbeat_token, config).await?;
+    let mut handler = setup_handler(
+        sink,
+        tx.clone(),
+        data_tx.clone(),
+        cleanup_tx,
+        heartbeat_token,
+        config,
+    )
+    .await?;
     trace!("bartoc heartbeat started");
     let verifying_key = config
         .server_public_key()
@@ -254,13 +263,7 @@ async fn run_connection(
             }
         }
     });
-    let db_tx = tx.clone();
-    let mut db = BartocDatabase::new(config, db_tx)?;
-    let db_handle = spawn(async move {
-        if let Err(e) = db.monitor(data_rx, output_token).await {
-            error!("database handler error: {e}");
-        }
-    });
+    let db_handle = spawn_db_monitor(config, tx.clone(), data_rx, cleanup_rx, output_token)?;
     let sighan_handle = spawn(async move { handle_signals(sig_token, sd_c).await });
     info!(
         "{} bartoc v{} started!",
@@ -306,10 +309,26 @@ fn make_tls_connector(config: &Config) -> Result<Connector> {
     Ok(Connector::Rustls(Arc::new(tls)))
 }
 
+fn spawn_db_monitor(
+    config: &Config,
+    db_tx: UnboundedSender<BartocMessage>,
+    data_rx: UnboundedReceiver<Data>,
+    cleanup_rx: UnboundedReceiver<()>,
+    output_token: CancellationToken,
+) -> Result<JoinHandle<()>> {
+    let mut db = BartocDatabase::new(config, db_tx)?;
+    Ok(spawn(async move {
+        if let Err(e) = db.monitor(data_rx, cleanup_rx, output_token).await {
+            error!("database handler error: {e}");
+        }
+    }))
+}
+
 async fn setup_handler(
     sink: SplitSink<WebSocketStream<MaybeTlsStream<TcpStream>>, Message>,
     tx: UnboundedSender<BartocMessage>,
     data_tx: UnboundedSender<Data>,
+    cleanup_tx: UnboundedSender<()>,
     heartbeat_token: CancellationToken,
     config: &Config,
 ) -> Result<Handler> {
@@ -317,6 +336,7 @@ async fn setup_handler(
         .sink(sink)
         .tx(tx.clone())
         .data_tx(data_tx.clone())
+        .cleanup_tx(cleanup_tx)
         .token(heartbeat_token)
         .bartoc_name(config.name().clone())
         .maybe_missed_tick(config.missed_tick())

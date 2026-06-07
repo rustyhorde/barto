@@ -14,16 +14,21 @@ use anyhow::Result;
 use bincode_next::{config::standard, decode_from_slice, encode_to_vec};
 use bon::Builder;
 use libbarto::{BartoCli, BartosToBartoCli, CliUpdateKind, ClientData, ListOutput, UuidWrapper};
-use tokio::sync::Mutex;
+use tokio::sync::{Mutex, broadcast};
 use tracing::{info, trace};
 use vergen_pretty::{Pretty, PrettyExt, vergen_pretty_env};
 
-use crate::{common::Clients, config::Config, db::Queryable};
+use crate::{
+    common::{Clients, WorkerSignal},
+    config::Config,
+    db::Queryable,
+};
 
 #[derive(Builder, Clone, Debug)]
 pub(crate) struct BinaryMessageHandler {
     config: Data<Config>,
     clients_mutex: Data<Mutex<Clients>>,
+    worker_bcast: Data<broadcast::Sender<WorkerSignal>>,
 }
 
 impl BinaryMessageHandler {
@@ -101,7 +106,14 @@ impl BinaryMessageHandler {
         let counts = queryable.delete_data(self.config()).await?;
         info!("deleted {} output rows", counts.0);
         info!("deleted {} exit status rows", counts.1);
-        let cleanup = BartosToBartoCli::Cleanup(counts);
+        // Broadcast a cleanup signal to every connected bartoc worker. `send` returns the
+        // number of subscribed worker tasks (i.e. connected clients); treat no receivers as 0.
+        let clients_signaled = self
+            .worker_bcast
+            .send(WorkerSignal::Cleanup)
+            .unwrap_or_default();
+        info!("signaled {clients_signaled} connected clients to clean up");
+        let cleanup = BartosToBartoCli::Cleanup((counts.0, counts.1, clients_signaled));
         let encoded = encode_to_vec(&cleanup, standard())?;
         session.binary(encoded).await?;
         Ok(())

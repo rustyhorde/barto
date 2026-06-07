@@ -48,7 +48,12 @@ use tokio::{
 use tokio_util::sync::CancellationToken;
 use tracing::{error, info, trace, warn};
 
-use crate::{common::Clients, config::Config, endpoints::insecure::insecure_config, error::Error};
+use crate::{
+    common::{Clients, WorkerSignal},
+    config::Config,
+    endpoints::insecure::insecure_config,
+    error::Error,
+};
 
 use self::cli::Cli;
 
@@ -58,7 +63,7 @@ struct WebAppData {
     pool: Data<MySqlPool>,
     clients: Data<Mutex<Clients>>,
     live_schedules: Data<RwLock<BTreeMap<String, Schedules>>>,
-    reload_bcast: Data<broadcast::Sender<()>>,
+    worker_bcast: Data<broadcast::Sender<WorkerSignal>>,
 }
 
 const HEADER_PREFIX: &str = r"██████╗  █████╗ ██████╗ ████████╗ ██████╗ ███████╗
@@ -98,7 +103,7 @@ where
         "connecting to database at: {}",
         config.mariadb().disp_connection_string()
     );
-    let (reload_bcast_tx, _) = broadcast::channel::<()>(16);
+    let (worker_bcast_tx, _) = broadcast::channel::<WorkerSignal>(16);
     let (reload_trigger_tx, reload_trigger_rx) = mpsc::channel::<()>(4);
     let live_schedules_data: Data<RwLock<BTreeMap<String, Schedules>>> =
         Data::new(RwLock::new(config.schedules().clone()));
@@ -107,7 +112,7 @@ where
         cli.clone(),
         live_schedules_data.clone(),
         reload_trigger_rx,
-        reload_bcast_tx.clone(),
+        worker_bcast_tx.clone(),
     );
 
     let config_path = resolve_config_path(&cli).with_context(|| Error::ConfigLoad)?;
@@ -123,7 +128,7 @@ where
         pool: Data::new(MySqlPool::connect(&url).await?),
         clients: Data::new(Mutex::new(Clients::builder().build())),
         live_schedules: live_schedules_data,
-        reload_bcast: Data::new(reload_bcast_tx),
+        worker_bcast: Data::new(worker_bcast_tx),
     };
     let server = build_http_server(web_app_data, workers, &bartos_host, bartos_port, tls_opt)?;
 
@@ -183,7 +188,7 @@ fn spawn_reload_task(
     cli: Cli,
     live_schedules: Data<RwLock<BTreeMap<String, Schedules>>>,
     mut reload_trigger_rx: mpsc::Receiver<()>,
-    reload_bcast_tx: broadcast::Sender<()>,
+    worker_bcast_tx: broadcast::Sender<WorkerSignal>,
 ) -> JoinHandle<()> {
     spawn(async move {
         while reload_trigger_rx.recv().await.is_some() {
@@ -212,7 +217,7 @@ fn spawn_reload_task(
                         } else {
                             *schedules_guard = new_schedules;
                             drop(schedules_guard);
-                            let _ = reload_bcast_tx.send(());
+                            let _ = worker_bcast_tx.send(WorkerSignal::Reload);
                             info!("config reloaded, schedules pushed to all connected clients");
                         }
                     }
@@ -327,7 +332,7 @@ fn build_http_server(
         pool,
         clients,
         live_schedules,
-        reload_bcast,
+        worker_bcast,
     } = app_data;
     let server = HttpServer::new(move || {
         App::new()
@@ -336,7 +341,7 @@ fn build_http_server(
             .app_data(pool.clone())
             .app_data(clients.clone())
             .app_data(live_schedules.clone())
-            .app_data(reload_bcast.clone())
+            .app_data(worker_bcast.clone())
             .wrap(Compress::default())
             .service(scope("/v1").configure(insecure_config))
     })
