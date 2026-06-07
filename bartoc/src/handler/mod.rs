@@ -103,6 +103,8 @@ pub(crate) struct Handler {
     rt_monitor_handle: Option<JoinHandle<()>>,
     // the stdout queue
     data_tx: UnboundedSender<Data>,
+    // signals the redb monitor task to clean up old entries
+    cleanup_tx: UnboundedSender<()>,
     id: Option<UuidWrapper>,
     bartoc_name: String,
     missed_tick: Option<MissedTick>,
@@ -157,32 +159,7 @@ impl Handler {
                 }
                 Ok(())
             }
-            BartocMessage::BartosToBartoc(btb) => {
-                match btb {
-                    BartosToBartoc::Initialize(initialize) => {
-                        trace!("received initialize message from bartos");
-                        self.rt_map.clear();
-                        let schedules = initialize.schedules().schedules();
-                        let id = initialize.id().0;
-                        info!("bartoc id: {id}");
-                        self.id = Some(initialize.id());
-                        for schedule in schedules {
-                            if let Ok(rt) = Realtime::try_from(&schedule.on_calendar()[..]) {
-                                info!("bartoc schedule: {rt} -> {}", schedule.cmds().join(", "));
-                                *self.rt_map.entry(rt).or_default() =
-                                    (schedule.name().clone(), schedule.cmds().clone());
-                            } else {
-                                error!(
-                                    "unable to parse bartoc schedule: {}",
-                                    schedule.on_calendar()
-                                );
-                            }
-                        }
-                        self.rt_monitor();
-                    }
-                }
-                Ok(())
-            }
+            BartocMessage::BartosToBartoc(btb) => self.handle_bartos_to_bartoc(btb),
             BartocMessage::Data(data) => {
                 self.data_tx.send(data.clone())?;
                 Ok(())
@@ -206,6 +183,37 @@ impl Handler {
                 Ok(())
             }
         }
+    }
+
+    fn handle_bartos_to_bartoc(&mut self, btb: &BartosToBartoc) -> Result<()> {
+        match btb {
+            BartosToBartoc::Initialize(initialize) => {
+                trace!("received initialize message from bartos");
+                self.rt_map.clear();
+                let schedules = initialize.schedules().schedules();
+                let id = initialize.id().0;
+                info!("bartoc id: {id}");
+                self.id = Some(initialize.id());
+                for schedule in schedules {
+                    if let Ok(rt) = Realtime::try_from(&schedule.on_calendar()[..]) {
+                        info!("bartoc schedule: {rt} -> {}", schedule.cmds().join(", "));
+                        *self.rt_map.entry(rt).or_default() =
+                            (schedule.name().clone(), schedule.cmds().clone());
+                    } else {
+                        error!(
+                            "unable to parse bartoc schedule: {}",
+                            schedule.on_calendar()
+                        );
+                    }
+                }
+                self.rt_monitor();
+            }
+            BartosToBartoc::Cleanup => {
+                trace!("received cleanup message from bartos");
+                self.cleanup_tx.send(())?;
+            }
+        }
+        Ok(())
     }
 
     async fn send_message(&mut self, msg: Message) -> Result<()> {

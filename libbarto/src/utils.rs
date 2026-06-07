@@ -14,6 +14,7 @@ use std::{
 use anyhow::Result;
 use bytes::Bytes;
 use strip_ansi_escapes::strip;
+use time::{OffsetDateTime, macros::time};
 use unicode_width::UnicodeWidthStr as _;
 
 /// Convert a string to a `PathBuf`
@@ -24,6 +25,20 @@ use unicode_width::UnicodeWidthStr as _;
 #[allow(clippy::unnecessary_wraps)]
 pub fn to_path_buf(path: &String) -> Result<PathBuf> {
     Ok(PathBuf::from(path))
+}
+
+/// The cutoff timestamp used for date-based cleanup: today's local midnight.
+///
+/// Records with a timestamp older than this are considered stale and eligible for
+/// deletion. Both the `bartos` `MariaDB` cleanup and the `bartoc` redb cleanup use this so
+/// they apply identical semantics.
+///
+/// # Errors
+/// * Returns an error if the local UTC offset cannot be determined.
+///
+pub fn midnight() -> Result<OffsetDateTime> {
+    let now = OffsetDateTime::now_local()?;
+    Ok(now.replace_time(time!(0:0:0)))
 }
 
 /// Send a timestamp ping

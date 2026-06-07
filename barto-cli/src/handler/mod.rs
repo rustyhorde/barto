@@ -171,7 +171,7 @@ impl Handler {
         }
     }
 
-    fn handle_cleanup(deleted: (u64, u64)) {
+    fn handle_cleanup(deleted: (u64, u64, usize)) {
         println!(
             "{} {} {}",
             BOLD_GREEN.apply_to("deleted"),
@@ -183,6 +183,12 @@ impl Handler {
             BOLD_GREEN.apply_to("deleted"),
             BOLD_YELLOW.apply_to(deleted.1),
             BOLD_GREEN.apply_to("exit status rows")
+        );
+        println!(
+            "{} {} {}",
+            BOLD_GREEN.apply_to("signaled"),
+            BOLD_YELLOW.apply_to(deleted.2),
+            BOLD_GREEN.apply_to("connected clients")
         );
     }
 

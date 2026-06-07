@@ -27,6 +27,8 @@ use crate::{
 pub enum BartosToBartoc {
     /// Initialize bartoc with the given schedules
     Initialize(Initialize),
+    /// Request that bartoc clean up old entries from its local redb database
+    Cleanup,
 }
 
 impl<Context> Decode<Context> for BartosToBartoc {
@@ -37,6 +39,7 @@ impl<Context> Decode<Context> for BartosToBartoc {
                 let initialize_data: Initialize = Decode::decode(decoder)?;
                 Ok(BartosToBartoc::Initialize(initialize_data))
             }
+            1 => Ok(BartosToBartoc::Cleanup),
             _ => Err(DecodeError::UnexpectedVariant {
                 type_name: "BartocWs",
                 allowed: &bincode_next::error::AllowedEnumVariants::Range { min: 0, max: 2 },
@@ -56,6 +59,7 @@ impl<'de, Context> BorrowDecode<'de, Context> for BartosToBartoc {
                 let initialize_data: Initialize = BorrowDecode::borrow_decode(decoder)?;
                 Ok(BartosToBartoc::Initialize(initialize_data))
             }
+            1 => Ok(BartosToBartoc::Cleanup),
             _ => Err(DecodeError::UnexpectedVariant {
                 type_name: "BartocWs",
                 allowed: &bincode_next::error::AllowedEnumVariants::Range { min: 0, max: 2 },
@@ -72,6 +76,7 @@ impl Encode for BartosToBartoc {
                 0u32.encode(encoder)?;
                 initialize_data.encode(encoder)
             }
+            BartosToBartoc::Cleanup => 1u32.encode(encoder),
         }
     }
 }
@@ -85,8 +90,8 @@ pub enum BartosToBartoCli {
     InfoJson(String),
     /// Updates about a named bartoc client
     Updates(UpdateKind),
-    /// Result of a cleanup operation
-    Cleanup((u64, u64)),
+    /// Result of a cleanup operation: (output rows, exit-status rows, clients signaled)
+    Cleanup((u64, u64, usize)),
     /// Current connected clients
     Clients(HashMap<UuidWrapper, ClientData>),
     /// Result of a query operation
@@ -120,7 +125,7 @@ impl<Context> Decode<Context> for BartosToBartoCli {
                 Ok(BartosToBartoCli::Updates(updates_data))
             }
             3 => {
-                let cleanup_data: (u64, u64) = Decode::decode(decoder)?;
+                let cleanup_data: (u64, u64, usize) = Decode::decode(decoder)?;
                 Ok(BartosToBartoCli::Cleanup(cleanup_data))
             }
             4 => {
@@ -180,7 +185,7 @@ impl<'de, Context> BorrowDecode<'de, Context> for BartosToBartoCli {
                 Ok(BartosToBartoCli::Updates(updates_data))
             }
             3 => {
-                let cleanup_data: (u64, u64) = BorrowDecode::borrow_decode(decoder)?;
+                let cleanup_data: (u64, u64, usize) = BorrowDecode::borrow_decode(decoder)?;
                 Ok(BartosToBartoCli::Cleanup(cleanup_data))
             }
             4 => {
@@ -320,8 +325,22 @@ mod tests {
     }
 
     #[test]
+    fn test_bartos_to_bartoc_cleanup_encode_decode() {
+        let msg = BartosToBartoc::Cleanup;
+
+        let encoded = encode_to_vec(&msg, standard()).unwrap();
+        let (decoded, _): (BartosToBartoc, usize) =
+            decode_from_slice(&encoded, standard()).unwrap();
+        let (borrowed_decoded, _): (BartosToBartoc, usize) =
+            borrow_decode_from_slice(&encoded, standard()).unwrap();
+
+        assert_eq!(msg, decoded);
+        assert_eq!(msg, borrowed_decoded);
+    }
+
+    #[test]
     fn test_bartos_to_bartocli_cleanup_roundtrip() {
-        let original = BartosToBartoCli::Cleanup((42, 100));
+        let original = BartosToBartoCli::Cleanup((42, 100, 3));
 
         let encoded = encode_to_vec(&original, standard()).unwrap();
         let (decoded, _): (BartosToBartoCli, usize) =

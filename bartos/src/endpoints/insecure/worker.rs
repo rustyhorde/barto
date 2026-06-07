@@ -33,7 +33,7 @@ use tracing::{error, info, trace};
 use uuid::Uuid;
 
 use crate::{
-    common::Clients,
+    common::{Clients, WorkerSignal},
     config::Config,
     endpoints::insecure::{Name, bearer_auth_ok},
 };
@@ -48,7 +48,7 @@ pub(crate) async fn worker(
     pool: Data<MySqlPool>,
     clients: Data<Mutex<Clients>>,
     live_schedules: Data<RwLock<BTreeMap<String, Schedules>>>,
-    reload_bcast: Data<broadcast::Sender<()>>,
+    worker_bcast: Data<broadcast::Sender<WorkerSignal>>,
 ) -> Result<impl Responder> {
     let describe = name.describe(&request);
     info!("worker connection from '{describe}'");
@@ -66,7 +66,7 @@ pub(crate) async fn worker(
     let clients_c = clients.clone();
     // Capture client name before it is moved into initialize()
     let client_name = name.name();
-    let mut reload_rx = reload_bcast.subscribe();
+    let mut worker_rx = worker_bcast.subscribe();
     if let Err(e) = initialize(id, &mut init_session, request, name, config, clients).await {
         error!("unable to initialize worker session: {e}");
         let _ = init_session.close(None).await;
@@ -109,17 +109,28 @@ pub(crate) async fn worker(
                         }
                     }
                 }
-                reload = reload_rx.recv() => {
-                    if reload.is_ok() {
-                        let schedules_guard = live_schedules.read().await;
-                        let schedules = schedules_guard.get(&client_name).cloned();
-                        drop(schedules_guard);
-                        let init_bytes = build_init_bytes(id, schedules, &config_c);
-                        if let Err(e) = ws_session.binary(init_bytes).await {
-                            error!("unable to send updated schedules to '{describe}': {e}");
-                        } else {
-                            info!("sent updated schedules to '{describe}'");
+                signal = worker_rx.recv() => {
+                    match signal {
+                        Ok(WorkerSignal::Reload) => {
+                            let schedules_guard = live_schedules.read().await;
+                            let schedules = schedules_guard.get(&client_name).cloned();
+                            drop(schedules_guard);
+                            let init_bytes = build_init_bytes(id, schedules, &config_c);
+                            if let Err(e) = ws_session.binary(init_bytes).await {
+                                error!("unable to send updated schedules to '{describe}': {e}");
+                            } else {
+                                info!("sent updated schedules to '{describe}'");
+                            }
                         }
+                        Ok(WorkerSignal::Cleanup) => {
+                            let cleanup_bytes = build_cleanup_bytes(&config_c);
+                            if let Err(e) = ws_session.binary(cleanup_bytes).await {
+                                error!("unable to send cleanup signal to '{describe}': {e}");
+                            } else {
+                                info!("sent cleanup signal to '{describe}'");
+                            }
+                        }
+                        Err(_) => {}
                     }
                 }
             }
@@ -203,8 +214,28 @@ fn build_init_bytes(id: Uuid, schedules: Option<Schedules>, config: &Config) -> 
             return vec![];
         }
     };
+    sign_worker_payload(payload, config)
+}
+
+/// Builds and returns the encoded (and optionally signed) Cleanup payload, asking the
+/// worker to clean up old entries from its local redb database.
+fn build_cleanup_bytes(config: &Config) -> Vec<u8> {
+    trace!("building cleanup payload");
+    let payload = match encode_to_vec(BartosToBartoc::Cleanup, standard()) {
+        Ok(p) => p,
+        Err(e) => {
+            error!("unable to encode cleanup message: {e}");
+            return vec![];
+        }
+    };
+    sign_worker_payload(payload, config)
+}
+
+/// Applies the optional HMAC-SHA256 envelope and Ed25519 signature to a worker-bound
+/// payload, matching the auth configuration. Shared by all bartos → bartoc messages.
+fn sign_worker_payload(payload: Vec<u8>, config: &Config) -> Vec<u8> {
     let payload = if let Some(hmac_key_str) = config.hmac_key() {
-        trace!("wrapping initialize message with HMAC-SHA256 envelope");
+        trace!("wrapping worker message with HMAC-SHA256 envelope");
         hmac_sign(&parse_hmac_key(hmac_key_str), &payload)
     } else {
         payload
@@ -212,7 +243,7 @@ fn build_init_bytes(id: Uuid, schedules: Option<Schedules>, config: &Config) -> 
     if let Some(sk_b64) = config.signing_key() {
         match parse_signing_key(sk_b64) {
             Ok(sk) => {
-                trace!("signing initialize message with Ed25519 key");
+                trace!("signing worker message with Ed25519 key");
                 sign_payload(&sk, &payload)
             }
             Err(e) => {

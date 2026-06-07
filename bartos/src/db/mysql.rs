@@ -13,12 +13,10 @@ use anyhow::Result;
 use bon::Builder;
 use libbarto::{
     CliUpdateKind, FailedOutput, ListOutput, OffsetDataTimeWrapper, OutputTableName, UpdateKind,
+    midnight,
 };
 use sqlx::{AssertSqlSafe, Column, MySqlPool, Row};
-use time::{
-    OffsetDateTime,
-    macros::{offset, time},
-};
+use time::{OffsetDateTime, macros::offset};
 use tracing::info;
 use uuid::Uuid;
 
@@ -37,7 +35,8 @@ pub(crate) struct MySqlHandler {
 
 impl MySqlHandler {
     async fn delete_output_data(&self) -> Result<(u64, u64)> {
-        let midnight = Self::midnight()?;
+        let midnight = midnight()?;
+        info!("deleting records older than: {midnight}");
         let output_count = sqlx::query!("DELETE FROM output WHERE timestamp < ?", midnight)
             .execute(self.pool.as_ref())
             .await?
@@ -51,7 +50,8 @@ impl MySqlHandler {
     }
 
     async fn delete_output_test_data(&self) -> Result<(u64, u64)> {
-        let midnight = Self::midnight()?;
+        let midnight = midnight()?;
+        info!("deleting records older than: {midnight}");
         let output_count = sqlx::query!("DELETE FROM output_test WHERE timestamp < ?", midnight)
             .execute(self.pool.as_ref())
             .await?
@@ -350,13 +350,6 @@ where
             let _old = map.insert(i, row_map);
         }
         Ok(map)
-    }
-
-    fn midnight() -> Result<OffsetDateTime> {
-        let now = OffsetDateTime::now_local()?;
-        let midnight = now.replace_time(time!(0:0:0));
-        info!("deleting records older than: {midnight}");
-        Ok(midnight)
     }
 
     async fn cmd_output_by_name(
