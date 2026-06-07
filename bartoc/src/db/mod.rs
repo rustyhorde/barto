@@ -6,7 +6,7 @@
 // option. All files in the project carrying such notice may not be copied,
 // modified, or distributed except according to those terms.
 
-use std::time::Duration;
+use std::{path::PathBuf, time::Duration};
 
 use anyhow::Result;
 use libbarto::{Bincode, Data, Output, Status, midnight};
@@ -41,6 +41,7 @@ pub(crate) struct BartocDatabase {
     bartoc_name: String,
     db: Database,
     db_tx: UnboundedSender<BartocMessage>,
+    redb_path: PathBuf,
 }
 
 impl BartocDatabase {
@@ -60,6 +61,9 @@ impl BartocDatabase {
                 _ = cleanup_rx.recv() => {
                     if let Err(e) = self.cleanup_redb() {
                         error!("unable to clean up redb tables: {e}");
+                    }
+                    if let Err(e) = self.compact_redb() {
+                        error!("unable to compact redb database: {e}");
                     }
                 }
                 rx_opt = data_rx.recv() => {
@@ -97,12 +101,13 @@ impl BartocDatabase {
         if let Some(parent) = redb_path.parent() {
             std::fs::create_dir_all(parent)?;
         }
-        let db = Database::create(config.redb_path().as_ref().ok_or(Error::NoRedbPath)?)?;
+        let db = Database::create(redb_path)?;
         let bartoc_name = config.name().clone();
         Ok(Self {
             bartoc_name,
             db,
             db_tx,
+            redb_path: redb_path.clone(),
         })
     }
 
@@ -210,5 +215,20 @@ impl BartocDatabase {
         info!("deleted {output_deleted} redb output rows");
         info!("deleted {status_deleted} redb status rows");
         Ok((output_deleted, status_deleted))
+    }
+
+    /// Compact the redb file to reclaim disk space. redb uses a copy-on-write B-tree, so deleting
+    /// rows only frees pages for reuse — the file never shrinks on its own. [`Database::compact`]
+    /// rewrites the live pages and truncates the file, returning the freed space to the filesystem.
+    fn compact_redb(&mut self) -> Result<()> {
+        let before = std::fs::metadata(&self.redb_path)?.len();
+        let compacted = self.db.compact()?;
+        if compacted {
+            let after = std::fs::metadata(&self.redb_path)?.len();
+            info!("compacted redb database: {before} bytes -> {after} bytes");
+        } else {
+            info!("redb database already compact ({before} bytes)");
+        }
+        Ok(())
     }
 }
