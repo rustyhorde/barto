@@ -50,13 +50,13 @@ tracing = { version = "0.1.44", features = [
 ] }
 tracing-subscriber-init = { version = "0.2.6", features = ["tstime"] }
 uuid = { version = "1.23.1", features = ["v4"] }
-vergen-gix = { version = "10.0.0-beta.8", features = [
+vergen-gix = { version = "10.0.0", features = [
   "build",
   "cargo",
   "rustc",
   "si",
 ] }
-vergen-pretty = { version = "10.0.0-beta.8", features = ["serde"] }
+vergen-pretty = { version = "10.0.0", features = ["serde"] }
 webpki-roots = "1.0.7"
 keyring-core = "1.0.0"
 windows-native-keyring-store = "1.1.0"
