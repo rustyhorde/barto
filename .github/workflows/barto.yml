@@ -23,14 +23,14 @@ jobs:
   rustfmt:
     name: 📌 Formatting 📌
     # main
-    uses: rustyhorde/workflows/.github/workflows/rustfmt.yml@7a073ab416038755f63ff549d1331c9644d37cd7
+    uses: rustyhorde/workflows/.github/workflows/rustfmt.yml@60c2f58348fd709739df7af9e61b7556572e8003
     secrets: inherit
 
   lints-linux:
     name: 🕳️ Clippy (Linux) 🕳️
     needs: rustfmt
     # main
-    uses: rustyhorde/workflows/.github/workflows/clippy-all-features.yml@7a073ab416038755f63ff549d1331c9644d37cd7
+    uses: rustyhorde/workflows/.github/workflows/clippy-all-features.yml@60c2f58348fd709739df7af9e61b7556572e8003
     with:
       os: ubuntu-latest
       channel: nightly
@@ -40,7 +40,7 @@ jobs:
     name: 🕳️ Clippy (MacOS) 🕳️
     needs: rustfmt
     # main
-    uses: rustyhorde/workflows/.github/workflows/clippy-all-features.yml@7a073ab416038755f63ff549d1331c9644d37cd7
+    uses: rustyhorde/workflows/.github/workflows/clippy-all-features.yml@60c2f58348fd709739df7af9e61b7556572e8003
     with:
       os: macos-latest
       channel: nightly
@@ -50,7 +50,7 @@ jobs:
     name: 🕳️ Clippy (Windows) 🕳️
     needs: rustfmt
     # main
-    uses: rustyhorde/workflows/.github/workflows/clippy-all-features.yml@7a073ab416038755f63ff549d1331c9644d37cd7
+    uses: rustyhorde/workflows/.github/workflows/clippy-all-features.yml@60c2f58348fd709739df7af9e61b7556572e8003
     with:
       os: windows-latest
       channel: nightly
@@ -65,11 +65,12 @@ jobs:
         channel: ["1.95.0", "stable", "beta", "nightly"]
         target: [x86_64-unknown-linux-gnu]
     # main
-    uses: rustyhorde/workflows/.github/workflows/test-all-features.yml@7a073ab416038755f63ff549d1331c9644d37cd7
+    uses: rustyhorde/workflows/.github/workflows/test-all-features.yml@60c2f58348fd709739df7af9e61b7556572e8003
     with:
       os: ${{ matrix.os }}
       channel: ${{ matrix.channel }}
       target: ${{ matrix.target }}
+      nextest: true
 
   test-macos:
     name: 🧪 Test (MacOS) 🧪
@@ -80,11 +81,12 @@ jobs:
         channel: ["1.95.0", "stable", "beta", "nightly"]
         target: [apple-darwin]
     # main
-    uses: rustyhorde/workflows/.github/workflows/test-all-features.yml@7a073ab416038755f63ff549d1331c9644d37cd7
+    uses: rustyhorde/workflows/.github/workflows/test-all-features.yml@60c2f58348fd709739df7af9e61b7556572e8003
     with:
       os: ${{ matrix.os }}
       channel: ${{ matrix.channel }}
       target: ${{ matrix.target }}
+      nextest: true
 
   test-windows:
     name: 🧪 Test (Windows) 🧪
@@ -95,17 +97,18 @@ jobs:
         channel: ["1.95.0", "stable", "beta", "nightly"]
         target: [x86_64-pc-windows-gnu, x86_64-pc-windows-msvc]
     # main
-    uses: rustyhorde/workflows/.github/workflows/test-all-features.yml@7a073ab416038755f63ff549d1331c9644d37cd7
+    uses: rustyhorde/workflows/.github/workflows/test-all-features.yml@60c2f58348fd709739df7af9e61b7556572e8003
     with:
       os: ${{ matrix.os }}
       channel: ${{ matrix.channel }}
       target: ${{ matrix.target }}
+      nextest: true
 
   coverage-linux:
     name: 🧱 Coverage (Linux) 🧱
     needs: test-linux
     # main
-    uses: rustyhorde/workflows/.github/workflows/coverage.yml@7a073ab416038755f63ff549d1331c9644d37cd7
+    uses: rustyhorde/workflows/.github/workflows/coverage.yml@60c2f58348fd709739df7af9e61b7556572e8003
     with:
       os: ubuntu-latest
       channel: nightly
@@ -119,7 +122,7 @@ jobs:
     name: 🧱 Coverage (MacOS) 🧱
     needs: test-macos
     # main
-    uses: rustyhorde/workflows/.github/workflows/coverage.yml@7a073ab416038755f63ff549d1331c9644d37cd7
+    uses: rustyhorde/workflows/.github/workflows/coverage.yml@60c2f58348fd709739df7af9e61b7556572e8003
     with:
       os: macos-latest
       channel: nightly
@@ -136,7 +139,7 @@ jobs:
       matrix:
         target: [x86_64-pc-windows-gnu, x86_64-pc-windows-msvc]
     # main
-    uses: rustyhorde/workflows/.github/workflows/coverage.yml@7a073ab416038755f63ff549d1331c9644d37cd7
+    uses: rustyhorde/workflows/.github/workflows/coverage.yml@60c2f58348fd709739df7af9e61b7556572e8003
     with:
       os: windows-latest
       channel: nightly
