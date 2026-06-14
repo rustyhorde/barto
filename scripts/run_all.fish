@@ -76,7 +76,7 @@ run_step "cargo matrix build"
 if test $run_tests = true
     echo ""
     echo "=== Step 5: Tests ==="
-    run_step "cargo nextest run -p libbarto"
+    run_step "cargo nextest run -p libbarto -p bartoc"
 
     echo ""
     echo "=== Step 6: Documentation ==="
@@ -87,7 +87,7 @@ if test $run_tests = true
     if test $run_coverage = true
         echo ""
         echo "=== Step 7: Coverage ==="
-        run_step "cargo llvm-cov nextest -F unstable --no-report --exclude barto-cli --exclude bartoc --exclude bartos --exclude xtask --workspace"
+        run_step "cargo llvm-cov nextest -F unstable --no-report --exclude barto-cli --exclude bartos --exclude xtask --workspace"
 
         echo ""
         echo "=== Step 8: Coverage report (LCOV) ==="

@@ -64,7 +64,7 @@ Invoke-Step "cargo matrix build"
 if (-not $NoTest) {
     Write-Host ""
     Write-Host "=== Step 5: Tests ==="
-    Invoke-Step "cargo nextest run -p libbarto"
+    Invoke-Step "cargo nextest run -p libbarto -p bartoc"
 
     if (-not $NoDocs) {
         Write-Host ""
@@ -75,7 +75,7 @@ if (-not $NoTest) {
     if (-not $NoCoverage) {
         Write-Host ""
         Write-Host "=== Step 7: Coverage ==="
-        Invoke-Step "cargo llvm-cov nextest -F unstable --no-report --exclude barto-cli --exclude bartoc --exclude bartos --exclude xtask --workspace"
+        Invoke-Step "cargo llvm-cov nextest -F unstable --no-report --exclude barto-cli --exclude bartos --exclude xtask --workspace"
 
         Write-Host ""
         Write-Host "=== Step 8: Coverage report (LCOV) ==="

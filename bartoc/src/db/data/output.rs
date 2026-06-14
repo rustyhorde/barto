@@ -83,3 +83,91 @@ impl From<&Output> for OutputValue {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use libbarto::{OffsetDataTimeWrapper, Output, OutputKind, UuidWrapper};
+    use time::OffsetDateTime;
+    use uuid::Uuid;
+
+    use super::{OutputKey, OutputValue};
+
+    fn make_output(kind: OutputKind) -> Output {
+        Output::builder()
+            .bartoc_uuid(UuidWrapper(Uuid::new_v4()))
+            .bartoc_name("test-bartoc".to_string())
+            .timestamp(OffsetDataTimeWrapper(OffsetDateTime::now_utc()))
+            .cmd_uuid(UuidWrapper(Uuid::new_v4()))
+            .cmd_name("test-cmd".to_string())
+            .kind(kind)
+            .data("hello".to_string())
+            .build()
+    }
+
+    #[test]
+    fn output_key_from_preserves_timestamp() {
+        let output = make_output(OutputKind::Stdout);
+        let key = OutputKey::from(&output);
+        assert_eq!(key.timestamp(), output.timestamp());
+    }
+
+    #[test]
+    fn output_key_from_preserves_bartoc_id() {
+        let output = make_output(OutputKind::Stdout);
+        let key = OutputKey::from(&output);
+        assert_eq!(key.bartoc_id(), output.bartoc_uuid());
+    }
+
+    #[test]
+    fn output_key_from_preserves_cmd_uuid() {
+        let output = make_output(OutputKind::Stdout);
+        let key = OutputKey::from(&output);
+        assert_eq!(key.cmd_uuid(), output.cmd_uuid());
+    }
+
+    #[test]
+    fn output_key_display_contains_cmd_uuid() {
+        let output = make_output(OutputKind::Stdout);
+        let key = OutputKey::from(&output);
+        assert!(key.to_string().contains(&output.cmd_uuid().0.to_string()));
+    }
+
+    #[test]
+    fn output_key_display_contains_timestamp() {
+        let output = make_output(OutputKind::Stdout);
+        let key = OutputKey::from(&output);
+        assert!(key.to_string().contains('T'));
+    }
+
+    #[test]
+    fn output_value_from_stdout() {
+        let output = make_output(OutputKind::Stdout);
+        let value = OutputValue::from(&output);
+        assert_eq!(value.name(), output.cmd_name());
+        assert_eq!(value.kind(), OutputKind::Stdout);
+        assert_eq!(value.data(), output.data());
+    }
+
+    #[test]
+    fn output_value_from_stderr() {
+        let output = make_output(OutputKind::Stderr);
+        let value = OutputValue::from(&output);
+        assert_eq!(value.kind(), OutputKind::Stderr);
+    }
+
+    #[test]
+    fn output_value_display_stdout() {
+        let output = make_output(OutputKind::Stdout);
+        let value = OutputValue::from(&output);
+        let s = value.to_string();
+        assert!(s.contains("stdout"));
+        assert!(s.contains("hello"));
+    }
+
+    #[test]
+    fn output_value_display_stderr() {
+        let output = make_output(OutputKind::Stderr);
+        let value = OutputValue::from(&output);
+        assert!(value.to_string().contains("stderr"));
+    }
+}

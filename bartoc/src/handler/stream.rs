@@ -175,3 +175,87 @@ impl WsHandler {
         true
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    use tokio::sync::mpsc::unbounded_channel;
+    use tokio_util::sync::CancellationToken;
+
+    use super::WsHandler;
+
+    fn now_secs() -> u64 {
+        SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_secs()
+    }
+
+    fn make_handler() -> WsHandler {
+        let (tx, _rx) = unbounded_channel();
+        WsHandler::builder()
+            .tx(tx)
+            .token(CancellationToken::new())
+            .build()
+    }
+
+    #[test]
+    fn fresh_nonce_accepted() {
+        let mut handler = make_handler();
+        assert!(handler.check_and_record_nonce(1, now_secs()));
+    }
+
+    #[test]
+    fn duplicate_nonce_rejected() {
+        let mut handler = make_handler();
+        let ts = now_secs();
+        assert!(handler.check_and_record_nonce(99, ts));
+        assert!(!handler.check_and_record_nonce(99, ts));
+    }
+
+    #[test]
+    fn multiple_unique_nonces_accepted() {
+        let mut handler = make_handler();
+        let ts = now_secs();
+        assert!(handler.check_and_record_nonce(1, ts));
+        assert!(handler.check_and_record_nonce(2, ts));
+        assert!(handler.check_and_record_nonce(3, ts));
+    }
+
+    #[test]
+    fn expired_nonce_pruned_and_reaccepted() {
+        let mut handler = make_handler();
+        // Insert nonce 7 with a timestamp 120 seconds in the past (beyond default 60s window).
+        let old_ts = now_secs().saturating_sub(120);
+        assert!(handler.check_and_record_nonce(7, old_ts));
+        // On the next call retain() prunes nonce 7 (abs_diff > 60), so it is accepted again.
+        assert!(handler.check_and_record_nonce(7, now_secs()));
+    }
+
+    #[test]
+    fn zero_nonce_accepted() {
+        let mut handler = make_handler();
+        assert!(handler.check_and_record_nonce(0, now_secs()));
+    }
+
+    #[test]
+    fn u64_max_nonce_accepted() {
+        let mut handler = make_handler();
+        assert!(handler.check_and_record_nonce(u64::MAX, now_secs()));
+    }
+
+    #[test]
+    fn custom_replay_window_respected() {
+        let (tx, _rx) = unbounded_channel();
+        let mut handler = WsHandler::builder()
+            .tx(tx)
+            .token(CancellationToken::new())
+            .replay_window_secs(1_u64)
+            .build();
+        // Nonce 55 with a timestamp 5s old: abs_diff(now, old_ts) = 5 > 1, pruned on next call.
+        let old_ts = now_secs().saturating_sub(5);
+        assert!(handler.check_and_record_nonce(55, old_ts));
+        assert!(handler.check_and_record_nonce(55, now_secs()));
+    }
+}

@@ -63,3 +63,84 @@ impl From<&Status> for StatusValue {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use libbarto::{OffsetDataTimeWrapper, Status, UuidWrapper};
+    use time::OffsetDateTime;
+    use uuid::Uuid;
+
+    use super::{StatusKey, StatusValue};
+
+    fn make_status(exit_code: Option<i32>, success: bool) -> Status {
+        Status::builder()
+            .cmd_uuid(UuidWrapper(Uuid::new_v4()))
+            .timestamp(OffsetDataTimeWrapper(OffsetDateTime::now_utc()))
+            .exit_code(exit_code)
+            .success(success)
+            .build()
+    }
+
+    #[test]
+    fn status_key_from_preserves_cmd_uuid() {
+        let status = make_status(Some(0), true);
+        let key = StatusKey::from(&status);
+        assert_eq!(key.cmd_uuid(), status.cmd_uuid());
+    }
+
+    #[test]
+    fn status_key_display_is_uuid_string() {
+        let status = make_status(Some(0), true);
+        let key = StatusKey::from(&status);
+        assert_eq!(key.to_string(), status.cmd_uuid().0.to_string());
+    }
+
+    #[test]
+    fn status_value_from_with_exit_code() {
+        let status = make_status(Some(42), false);
+        let value = StatusValue::from(&status);
+        assert_eq!(value.exit_code(), Some(42));
+        assert!(!value.success());
+    }
+
+    #[test]
+    fn status_value_from_success() {
+        let status = make_status(Some(0), true);
+        let value = StatusValue::from(&status);
+        assert_eq!(value.exit_code(), Some(0));
+        assert!(value.success());
+    }
+
+    #[test]
+    fn status_value_from_no_exit_code() {
+        let status = make_status(None, false);
+        let value = StatusValue::from(&status);
+        assert_eq!(value.exit_code(), None);
+        assert!(!value.success());
+    }
+
+    #[test]
+    fn status_value_display_with_code() {
+        let status = make_status(Some(1), false);
+        let value = StatusValue::from(&status);
+        let s = value.to_string();
+        assert!(s.contains("exit code: 1"));
+        assert!(s.contains("success: false"));
+    }
+
+    #[test]
+    fn status_value_display_no_code() {
+        let status = make_status(None, true);
+        let value = StatusValue::from(&status);
+        let s = value.to_string();
+        assert!(s.contains("exit code: None"));
+        assert!(s.contains("success: true"));
+    }
+
+    #[test]
+    fn status_value_preserves_timestamp() {
+        let status = make_status(Some(0), true);
+        let value = StatusValue::from(&status);
+        assert_eq!(value.timestamp(), status.timestamp());
+    }
+}
