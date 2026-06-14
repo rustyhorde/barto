@@ -95,3 +95,56 @@ impl TracingConfigExt for Config {
         get_effective_level(self.quiet(), self.verbose())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use libbarto::TracingConfigExt;
+    use tracing_subscriber_init::{TracingConfig, get_effective_level};
+
+    use super::Config;
+
+    #[test]
+    fn defaults() {
+        let config = Config::default();
+        assert_eq!(config.verbose(), 0);
+        assert_eq!(config.quiet(), 0);
+        assert!(!config.enable_std_output());
+        assert!(config.schedules().is_empty());
+        assert!(config.signing_key().is_none());
+        assert!(config.hmac_key().is_none());
+        assert!(config.api_key().is_none());
+    }
+
+    #[test]
+    fn tracing_config_methods_match_stdout() {
+        let config = Config::default();
+        let stdout = config.tracing().stdout();
+        assert_eq!(TracingConfig::with_target(&config), stdout.with_target());
+        assert_eq!(
+            TracingConfig::with_thread_ids(&config),
+            stdout.with_thread_ids()
+        );
+        assert_eq!(
+            TracingConfig::with_thread_names(&config),
+            stdout.with_thread_names()
+        );
+        assert_eq!(
+            TracingConfig::with_line_number(&config),
+            stdout.with_line_number()
+        );
+        assert_eq!(TracingConfig::with_level(&config), stdout.with_level());
+        assert_eq!(TracingConfig::quiet(&config), config.quiet());
+        assert_eq!(TracingConfig::verbose(&config), config.verbose());
+    }
+
+    #[test]
+    fn tracing_config_ext_methods() {
+        let config = Config::default();
+        assert_eq!(config.enable_stdout(), config.enable_std_output());
+        assert_eq!(
+            config.directives(),
+            config.tracing().stdout().directives().as_ref()
+        );
+        assert_eq!(config.level(), get_effective_level(0, 0));
+    }
+}

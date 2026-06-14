@@ -31,6 +31,7 @@ pub(crate) struct BinaryMessageHandler {
     worker_bcast: Data<broadcast::Sender<WorkerSignal>>,
 }
 
+#[cfg_attr(coverage_nightly, coverage(off))]
 impl BinaryMessageHandler {
     fn config(&self) -> &Config {
         self.config.as_ref()

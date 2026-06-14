@@ -69,6 +69,7 @@ pub(crate) fn bearer_auth_ok(request: &HttpRequest, expected: Option<&str>) -> b
     token.as_bytes().ct_eq(expected.as_bytes()).into()
 }
 
+#[cfg_attr(coverage_nightly, coverage(off))]
 pub(crate) fn insecure_config(cfg: &mut ServiceConfig) {
     _ = cfg
         .route("/ws/cli", get().to(cli::cli))
@@ -79,7 +80,11 @@ pub(crate) fn insecure_config(cfg: &mut ServiceConfig) {
 mod tests {
     use actix_web::test::TestRequest;
 
-    use super::bearer_auth_ok;
+    use super::{Name, bearer_auth_ok};
+
+    fn name_from(json: &str) -> Name {
+        serde_json::from_str(json).expect("deserialize Name")
+    }
 
     #[test]
     fn no_api_key_configured_always_passes() {
@@ -123,5 +128,27 @@ mod tests {
             .insert_header(("Authorization", "Bearer "))
             .to_http_request();
         assert!(!bearer_auth_ok(&req, Some("my-secret")));
+    }
+
+    #[test]
+    fn name_returns_value_or_unknown() {
+        assert_eq!(name_from(r#"{"name":"host1"}"#).name(), "host1");
+        assert_eq!(name_from("{}").name(), "Unknown");
+    }
+
+    #[test]
+    fn ip_unknown_without_peer_addr() {
+        let req = TestRequest::get().to_http_request();
+        assert_eq!(Name::ip(&req), "Unknown");
+    }
+
+    #[test]
+    fn describe_formats_name_and_ip() {
+        let req = TestRequest::get().to_http_request();
+        assert_eq!(
+            name_from(r#"{"name":"host1"}"#).describe(&req),
+            "host1 (Unknown)"
+        );
+        assert_eq!(name_from("{}").describe(&req), "Unknown (Unknown)");
     }
 }

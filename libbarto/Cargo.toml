@@ -67,3 +67,11 @@ tempfile = "3.27.0"
 [package.metadata.docs.rs]
 all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
+
+[package.metadata.cargo-matrix]
+[[package.metadata.cargo-matrix.channel]]
+name = "default"
+
+[[package.metadata.cargo-matrix.channel]]
+name = "coverage"
+always_include = ["unstable"]

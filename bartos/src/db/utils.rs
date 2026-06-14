@@ -230,11 +230,15 @@ pub(crate) fn apt_filter(data: &[String]) -> Vec<String> {
 
 #[cfg(test)]
 mod test {
-    use super::{GARUDA_UPDATE_RE, apt_filter};
+    use super::{GARUDA_UPDATE_RE, apt_filter, cachyos_filter, garuda_filter, pacman_filter};
 
     use anyhow::Result;
 
     const NO_MATCH: &str = "this is not a match";
+
+    fn lines(data: &[&str]) -> Vec<String> {
+        data.iter().map(|s| (*s).to_string()).collect()
+    }
 
     #[test]
     fn test_garuda_update_re_no_match() {
@@ -285,5 +289,67 @@ mod test {
                 "libxml2-dev"
             ]
         );
+    }
+
+    #[test]
+    fn test_apt_filter_no_match() {
+        assert!(apt_filter(&[]).is_empty());
+        assert!(apt_filter(&lines(&["nothing to upgrade here"])).is_empty());
+    }
+
+    #[test]
+    fn test_garuda_filter_parses_and_sorts() {
+        let data = lines(&[
+            "extra/kio    6.19.0-1     6.19.0-2       0.00 MiB       3.59 MiB",
+            "core/glibc   2.41-1       2.41-2         1.00 MiB       5.00 MiB",
+            NO_MATCH,
+        ]);
+        let garudas = garuda_filter(data);
+        assert_eq!(garudas.len(), 2);
+        // Ord sorts by channel then package: "core" < "extra".
+        assert_eq!(garudas[0].channel(), "core");
+        assert_eq!(garudas[0].package(), "glibc");
+        assert_eq!(garudas[1].channel(), "extra");
+        assert_eq!(garudas[1].package(), "kio");
+        assert_eq!(garudas[1].old_version(), "6.19.0-1");
+        assert_eq!(garudas[1].new_version(), "6.19.0-2");
+        assert_eq!(garudas[1].size_change(), "0.00 MiB");
+        assert_eq!(garudas[1].download_size(), "3.59 MiB");
+    }
+
+    #[test]
+    fn test_pacman_filter_counts_and_sizes() {
+        let data = lines(&[
+            "Packages (2) foo bar",
+            "Total Download Size:   1.50 MiB",
+            "Total Installed Size:  2.00 MiB",
+            "Net Upgrade Size:   0.50 MiB",
+        ]);
+        let pacman = pacman_filter(&data);
+        assert_eq!(pacman.update_count(), 2);
+        assert_eq!(
+            pacman.packages(),
+            &vec!["foo".to_string(), "bar".to_string()]
+        );
+        assert!((pacman.download_size() - 1.50).abs() < f64::EPSILON);
+        assert!((pacman.install_size() - 2.00).abs() < f64::EPSILON);
+        assert!((pacman.net_size() - 0.50).abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn test_cachyos_filter_collects_packages() {
+        let data = lines(&[
+            "core/foo     1.0     2.0     0.00 MiB     3.00 MiB",
+            "extra/bar    1.0     2.0     0.00 MiB     1.00 MiB",
+            "Total Download Size:   4.00 MiB",
+        ]);
+        let pacman = cachyos_filter(&data);
+        assert_eq!(pacman.update_count(), 2);
+        assert_eq!(
+            pacman.packages(),
+            &vec!["foo".to_string(), "bar".to_string()]
+        );
+        assert!((pacman.download_size() - 4.00).abs() < f64::EPSILON);
+        assert!((pacman.install_size() - 0.00).abs() < f64::EPSILON);
     }
 }

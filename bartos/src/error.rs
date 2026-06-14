@@ -16,3 +16,29 @@ pub(crate) enum Error {
     #[error("Invalid IP address")]
     InvalidIp,
 }
+
+#[cfg(test)]
+mod tests {
+    use super::Error;
+
+    #[test]
+    fn config_load_display() {
+        assert_eq!(
+            Error::ConfigLoad.to_string(),
+            "Unable to load a valid configuration"
+        );
+    }
+
+    #[test]
+    fn tracing_init_display() {
+        assert_eq!(
+            Error::TracingInit.to_string(),
+            "Unable to initialize tracing"
+        );
+    }
+
+    #[test]
+    fn invalid_ip_display() {
+        assert_eq!(Error::InvalidIp.to_string(), "Invalid IP address");
+    }
+}

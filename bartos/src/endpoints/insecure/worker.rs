@@ -39,6 +39,7 @@ use crate::{
 };
 
 #[allow(clippy::too_many_arguments)]
+#[cfg_attr(coverage_nightly, coverage(off))]
 pub(crate) async fn worker(
     request: HttpRequest,
     body: Payload,
@@ -147,6 +148,7 @@ pub(crate) async fn worker(
 }
 
 /// Returns `true` if the loop should break (connection close or unrecoverable error).
+#[cfg_attr(coverage_nightly, coverage(off))]
 async fn handle_ws_msg(
     id: Uuid,
     msg: AggregatedMessage,
@@ -256,6 +258,7 @@ fn sign_worker_payload(payload: Vec<u8>, config: &Config) -> Vec<u8> {
     }
 }
 
+#[cfg_attr(coverage_nightly, coverage(off))]
 async fn initialize(
     id: Uuid,
     session: &mut Session,
@@ -288,6 +291,7 @@ async fn initialize(
     Ok(())
 }
 
+#[cfg_attr(coverage_nightly, coverage(off))]
 async fn handle_binary(
     id: Uuid,
     bytes: Bytes,
@@ -343,6 +347,7 @@ async fn handle_binary(
     Ok(())
 }
 
+#[cfg_attr(coverage_nightly, coverage(off))]
 async fn insert_output(pool: &MySqlPool, output: &Output) -> anyhow::Result<u64> {
     let id = sqlx::query!(
         r#"INSERT INTO output (bartoc_uuid, bartoc_name, cmd_uuid, cmd_name, timestamp, kind, data)
@@ -361,6 +366,7 @@ VALUES (?, ?, ?, ?, ?, ?, ?)"#,
     Ok(id)
 }
 
+#[cfg_attr(coverage_nightly, coverage(off))]
 async fn insert_output_test(pool: &MySqlPool, output: &Output) -> anyhow::Result<u64> {
     let id = sqlx::query!(
         r#"INSERT INTO output_test (bartoc_uuid, bartoc_name, cmd_uuid, cmd_name, timestamp, kind, data)
@@ -379,6 +385,7 @@ VALUES (?, ?, ?, ?, ?, ?, ?)"#,
     Ok(id)
 }
 
+#[cfg_attr(coverage_nightly, coverage(off))]
 async fn insert_status(pool: &MySqlPool, status: &Status) -> anyhow::Result<u64> {
     let id = sqlx::query!(
         r#"INSERT INTO exit_status (cmd_uuid, timestamp, exit_code, success)
@@ -394,6 +401,7 @@ VALUES (?, ?, ?, ?)"#,
     Ok(id)
 }
 
+#[cfg_attr(coverage_nightly, coverage(off))]
 async fn insert_status_test(pool: &MySqlPool, status: &Status) -> anyhow::Result<u64> {
     let id = sqlx::query!(
         r#"INSERT INTO exit_status_test (cmd_uuid, timestamp, exit_code, success)
@@ -407,4 +415,51 @@ VALUES (?, ?, ?, ?)"#,
     .await?
     .last_insert_id();
     Ok(id)
+}
+
+#[cfg(test)]
+mod tests {
+    use bincode_next::{config::standard, decode_from_slice};
+    use libbarto::{BartosToBartoc, Schedules};
+    use uuid::Uuid;
+
+    use super::{build_cleanup_bytes, build_init_bytes, sign_worker_payload};
+    use crate::config::Config;
+
+    fn empty_schedules() -> Schedules {
+        // `Schedules` only derives `Builder` under libbarto's own test cfg, so build
+        // it through its `Deserialize` impl here.
+        serde_json::from_str(r#"{"schedules":[]}"#).expect("deserialize Schedules")
+    }
+
+    #[test]
+    fn build_init_bytes_none_is_empty() {
+        let bytes = build_init_bytes(Uuid::new_v4(), None, &Config::default());
+        assert!(bytes.is_empty());
+    }
+
+    #[test]
+    fn build_init_bytes_some_is_non_empty() {
+        let bytes = build_init_bytes(Uuid::new_v4(), Some(empty_schedules()), &Config::default());
+        assert!(!bytes.is_empty());
+    }
+
+    #[test]
+    fn build_cleanup_bytes_round_trips() {
+        // Default config has no HMAC/signing configured, so the payload is the raw
+        // encoded message and decodes straight back.
+        let bytes = build_cleanup_bytes(&Config::default());
+        let (decoded, _): (BartosToBartoc, _) =
+            decode_from_slice(&bytes, standard()).expect("decode");
+        assert!(matches!(decoded, BartosToBartoc::Cleanup));
+    }
+
+    #[test]
+    fn sign_worker_payload_passthrough_without_auth() {
+        let payload = vec![1_u8, 2, 3, 4];
+        assert_eq!(
+            sign_worker_payload(payload.clone(), &Config::default()),
+            payload
+        );
+    }
 }
