@@ -37,7 +37,7 @@ pub(crate) struct Config {
     enable_std_output: bool,
     #[getset(get = "pub(crate)")]
     tracing: Tracing,
-    #[getset(get = "pub(crate)", set)]
+    #[getset(get = "pub(crate)", set = "pub(crate)")]
     redb_path: Option<PathBuf>,
     #[getset(get = "pub(crate)")]
     name: String,
@@ -145,4 +145,40 @@ where
     config_file_path.push(defaults.default_redb_file_name());
     let _ = config_file_path.set_extension("redb");
     Ok(config_file_path)
+}
+
+#[cfg(test)]
+mod tests {
+    use clap::Parser;
+
+    use crate::runtime::Cli;
+
+    use super::{default_redb_file_path, redb_file_path};
+
+    fn parse_cli(args: &[&str]) -> Cli {
+        Cli::parse_from(std::iter::once("bartoc").chain(args.iter().copied()))
+    }
+
+    #[test]
+    fn redb_file_path_uses_override() {
+        let cli = parse_cli(&["-r", "/tmp/bartoc_test_override.redb"]);
+        let path = redb_file_path(&cli).expect("redb_file_path with override");
+        assert_eq!(path.to_string_lossy(), "/tmp/bartoc_test_override.redb");
+    }
+
+    #[test]
+    fn redb_file_path_default_contains_bartoc() {
+        let cli = parse_cli(&[]);
+        let path = redb_file_path(&cli).expect("redb_file_path default");
+        let s = path.to_string_lossy();
+        assert!(s.contains("bartoc"), "path {s:?} should contain 'bartoc'");
+        assert!(s.ends_with(".redb"), "path {s:?} should end with '.redb'");
+    }
+
+    #[test]
+    fn default_redb_file_path_ends_with_redb() {
+        let cli = parse_cli(&[]);
+        let path = default_redb_file_path(&cli).expect("default_redb_file_path");
+        assert!(path.to_string_lossy().ends_with(".redb"));
+    }
 }

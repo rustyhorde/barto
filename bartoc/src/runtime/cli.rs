@@ -143,3 +143,98 @@ impl PathDefaultsExt for Cli {
         env!("CARGO_PKG_NAME").to_string()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use clap::Parser;
+    use libbarto::PathDefaults;
+
+    use super::{Cli, PathDefaultsExt};
+
+    fn parse(args: &[&str]) -> Cli {
+        Cli::parse_from(std::iter::once("bartoc").chain(args.iter().copied()))
+    }
+
+    #[test]
+    fn defaults_are_zero() {
+        let cli = parse(&[]);
+        assert_eq!(*cli.verbose(), 0);
+        assert_eq!(*cli.quiet(), 0);
+        assert!(!*cli.enable_std_output());
+        assert!(cli.config_absolute_path().is_none());
+        assert!(cli.tracing_absolute_path().is_none());
+        assert!(PathDefaultsExt::redb_absolute_path(&cli).is_none());
+    }
+
+    #[test]
+    fn verbose_flag_increments() {
+        let cli = parse(&["-v", "-v"]);
+        assert_eq!(*cli.verbose(), 2);
+    }
+
+    #[test]
+    fn quiet_flag_increments() {
+        let cli = parse(&["-q", "-q", "-q"]);
+        assert_eq!(*cli.quiet(), 3);
+    }
+
+    #[test]
+    fn enable_std_output_flag() {
+        let cli = parse(&["-e"]);
+        assert!(*cli.enable_std_output());
+    }
+
+    #[test]
+    fn redb_absolute_path_set() {
+        let cli = parse(&["-r", "/tmp/test.redb"]);
+        assert_eq!(cli.redb_absolute_path().as_deref(), Some("/tmp/test.redb"));
+    }
+
+    #[test]
+    fn config_absolute_path_set() {
+        let cli = parse(&["-c", "/etc/bartoc.toml"]);
+        assert_eq!(
+            cli.config_absolute_path().as_deref(),
+            Some("/etc/bartoc.toml")
+        );
+    }
+
+    #[test]
+    fn tracing_absolute_path_set() {
+        let cli = parse(&["-t", "/var/log/bartoc.log"]);
+        assert_eq!(
+            cli.tracing_absolute_path().as_deref(),
+            Some("/var/log/bartoc.log")
+        );
+    }
+
+    #[test]
+    fn path_defaults_env_prefix() {
+        let cli = parse(&[]);
+        assert_eq!(cli.env_prefix(), "BARTOC");
+    }
+
+    #[test]
+    fn path_defaults_default_file_path() {
+        let cli = parse(&[]);
+        assert_eq!(cli.default_file_path(), "bartoc");
+    }
+
+    #[test]
+    fn path_defaults_default_tracing_path() {
+        let cli = parse(&[]);
+        assert_eq!(cli.default_tracing_path(), "bartoc/logs");
+    }
+
+    #[test]
+    fn path_defaults_ext_default_redb_path() {
+        let cli = parse(&[]);
+        assert_eq!(cli.default_redb_path(), "bartoc/db");
+    }
+
+    #[test]
+    fn path_defaults_ext_default_redb_file_name() {
+        let cli = parse(&[]);
+        assert_eq!(cli.default_redb_file_name(), "bartoc");
+    }
+}

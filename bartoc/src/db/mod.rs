@@ -232,3 +232,137 @@ impl BartocDatabase {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use libbarto::{OffsetDataTimeWrapper, Output, OutputKind, Status, UuidWrapper};
+    use time::OffsetDateTime;
+    use tokio::sync::mpsc::unbounded_channel;
+    use uuid::Uuid;
+
+    use crate::{
+        config::Config,
+        db::data::{
+            output::{OutputKey, OutputValue},
+            status::{StatusKey, StatusValue},
+        },
+        handler::BartocMessage,
+    };
+
+    use super::BartocDatabase;
+
+    fn make_db() -> (
+        BartocDatabase,
+        tokio::sync::mpsc::UnboundedReceiver<BartocMessage>,
+    ) {
+        let path = std::env::temp_dir().join(format!("{}.redb", Uuid::new_v4()));
+        let (db_tx, rx) = unbounded_channel::<BartocMessage>();
+        let mut config = Config::default();
+        let _ = config.set_redb_path(Some(path));
+        let db = BartocDatabase::new(&config, db_tx).expect("BartocDatabase::new");
+        (db, rx)
+    }
+
+    fn make_output_kv() -> (OutputKey, OutputValue) {
+        let output = Output::builder()
+            .bartoc_uuid(UuidWrapper(Uuid::new_v4()))
+            .bartoc_name("test-bartoc".to_string())
+            .timestamp(OffsetDataTimeWrapper(OffsetDateTime::now_utc()))
+            .cmd_uuid(UuidWrapper(Uuid::new_v4()))
+            .cmd_name("test-cmd".to_string())
+            .kind(OutputKind::Stdout)
+            .data("output line".to_string())
+            .build();
+        (OutputKey::from(&output), OutputValue::from(&output))
+    }
+
+    fn make_status_kv() -> (StatusKey, StatusValue) {
+        let status = Status::builder()
+            .cmd_uuid(UuidWrapper(Uuid::new_v4()))
+            .timestamp(OffsetDataTimeWrapper(OffsetDateTime::now_utc()))
+            .exit_code(Some(0))
+            .success(true)
+            .build();
+        (StatusKey::from(&status), StatusValue::from(&status))
+    }
+
+    #[test]
+    fn new_creates_database() {
+        let (_db, _rx) = make_db();
+    }
+
+    #[test]
+    fn write_output_succeeds() {
+        let (mut db, _rx) = make_db();
+        let (key, value) = make_output_kv();
+        db.write_output(&key, &value).expect("write_output");
+    }
+
+    #[test]
+    fn write_status_succeeds() {
+        let (mut db, _rx) = make_db();
+        let (key, value) = make_status_kv();
+        db.write_status(&key, &value).expect("write_status");
+    }
+
+    #[test]
+    fn flush_output_sends_to_channel() {
+        let (mut db, mut rx) = make_db();
+        let (key, value) = make_output_kv();
+        db.write_output(&key, &value).expect("write_output");
+        db.flush_output().expect("flush_output");
+        let msg = rx.try_recv().expect("message from flush");
+        assert!(matches!(msg, BartocMessage::RecordData(_)));
+    }
+
+    #[test]
+    fn flush_status_sends_to_channel() {
+        let (mut db, mut rx) = make_db();
+        let (key, value) = make_status_kv();
+        db.write_status(&key, &value).expect("write_status");
+        db.flush_status().expect("flush_status");
+        let msg = rx.try_recv().expect("message from flush");
+        assert!(matches!(msg, BartocMessage::RecordData(_)));
+    }
+
+    #[test]
+    fn flush_output_empties_table() {
+        let (mut db, _rx) = make_db();
+        let (key, value) = make_output_kv();
+        db.write_output(&key, &value).expect("write_output");
+        db.flush_output().expect("first flush");
+        // A second flush on an empty table sends nothing and succeeds.
+        db.flush_output().expect("second flush (empty)");
+    }
+
+    #[test]
+    fn cleanup_redb_returns_zero_for_todays_records() {
+        let (mut db, _rx) = make_db();
+        let (key, value) = make_output_kv();
+        db.write_output(&key, &value).expect("write_output");
+        let (out_deleted, status_deleted) = db.cleanup_redb().expect("cleanup_redb");
+        assert_eq!(out_deleted, 0);
+        assert_eq!(status_deleted, 0);
+    }
+
+    #[test]
+    fn compact_redb_succeeds() {
+        let (mut db, _rx) = make_db();
+        db.compact_redb().expect("compact_redb");
+    }
+
+    #[test]
+    fn flush_output_multiple_records() {
+        let (mut db, mut rx) = make_db();
+        for _ in 0..3_u8 {
+            let (key, value) = make_output_kv();
+            db.write_output(&key, &value).expect("write_output");
+        }
+        db.flush_output().expect("flush_output");
+        let mut count = 0_u8;
+        while rx.try_recv().is_ok() {
+            count += 1;
+        }
+        assert_eq!(count, 3);
+    }
+}

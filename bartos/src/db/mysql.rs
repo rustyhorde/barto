@@ -33,6 +33,7 @@ pub(crate) struct MySqlHandler {
     pool: Data<MySqlPool>,
 }
 
+#[cfg_attr(coverage_nightly, coverage(off))]
 impl MySqlHandler {
     async fn delete_output_data(&self) -> Result<(u64, u64)> {
         let midnight = midnight()?;
@@ -455,6 +456,7 @@ ORDER BY
     }
 }
 
+#[cfg_attr(coverage_nightly, coverage(off))]
 impl Queryable for MySqlHandler {
     async fn delete_data(&self, config: &Config) -> Result<(u64, u64)> {
         match config.mariadb().output_table() {

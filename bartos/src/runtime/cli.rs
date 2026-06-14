@@ -114,3 +114,109 @@ impl PathDefaults for Cli {
         env!("CARGO_PKG_NAME").to_string()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use clap::Parser;
+    use config::Source;
+    use libbarto::PathDefaults;
+
+    use super::Cli;
+
+    fn parse(args: &[&str]) -> Cli {
+        Cli::parse_from(std::iter::once("bartos").chain(args.iter().copied()))
+    }
+
+    #[test]
+    fn defaults_are_zero() {
+        let cli = parse(&[]);
+        assert_eq!(*cli.verbose(), 0);
+        assert_eq!(*cli.quiet(), 0);
+        assert!(!*cli.enable_std_output());
+        assert!(cli.config_absolute_path().is_none());
+        assert!(cli.tracing_absolute_path().is_none());
+    }
+
+    #[test]
+    fn verbose_flag_increments() {
+        assert_eq!(*parse(&["-v", "-v"]).verbose(), 2);
+    }
+
+    #[test]
+    fn quiet_flag_increments() {
+        assert_eq!(*parse(&["-q", "-q", "-q"]).quiet(), 3);
+    }
+
+    #[test]
+    fn enable_std_output_flag() {
+        assert!(*parse(&["-e"]).enable_std_output());
+    }
+
+    #[test]
+    fn config_absolute_path_set() {
+        let cli = parse(&["-c", "/etc/bartos.toml"]);
+        assert_eq!(
+            cli.config_absolute_path().as_deref(),
+            Some("/etc/bartos.toml")
+        );
+    }
+
+    #[test]
+    fn tracing_absolute_path_set() {
+        let cli = parse(&["-t", "/var/log/bartos.log"]);
+        assert_eq!(
+            cli.tracing_absolute_path().as_deref(),
+            Some("/var/log/bartos.log")
+        );
+    }
+
+    #[test]
+    fn source_collect_basic_keys() {
+        let map = parse(&["-v"]).collect().expect("collect");
+        assert!(map.contains_key("verbose"));
+        assert!(map.contains_key("quiet"));
+        assert!(map.contains_key("enable_std_output"));
+        assert!(!map.contains_key("config_path"));
+        assert!(!map.contains_key("tracing_path"));
+    }
+
+    #[test]
+    fn source_collect_includes_paths_when_set() {
+        let map = parse(&["-c", "/a.toml", "-t", "/b.log"])
+            .collect()
+            .expect("collect");
+        assert!(map.contains_key("config_path"));
+        assert!(map.contains_key("tracing_path"));
+    }
+
+    #[test]
+    fn path_defaults_env_prefix() {
+        assert_eq!(parse(&[]).env_prefix(), "BARTOS");
+    }
+
+    #[test]
+    fn path_defaults_file_names() {
+        let cli = parse(&[]);
+        assert_eq!(cli.default_file_path(), "bartos");
+        assert_eq!(cli.default_file_name(), "bartos");
+        assert_eq!(cli.default_tracing_file_name(), "bartos");
+    }
+
+    #[test]
+    fn path_defaults_tracing_path() {
+        assert_eq!(parse(&[]).default_tracing_path(), "bartos/logs");
+    }
+
+    #[test]
+    fn path_defaults_round_trip_paths() {
+        let cli = parse(&["-c", "/a.toml", "-t", "/b.log"]);
+        assert_eq!(
+            PathDefaults::config_absolute_path(&cli).as_deref(),
+            Some("/a.toml")
+        );
+        assert_eq!(
+            PathDefaults::tracing_absolute_path(&cli).as_deref(),
+            Some("/b.log")
+        );
+    }
+}

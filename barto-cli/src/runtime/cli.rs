@@ -229,3 +229,225 @@ pub(crate) enum SecretsSubcommand {
         key: String,
     },
 }
+
+#[cfg(test)]
+mod tests {
+    use clap::Parser;
+    use config::Source;
+    use libbarto::PathDefaults;
+
+    use super::{Cli, Commands, SecretsSubcommand};
+
+    fn parse(args: &[&str]) -> Cli {
+        Cli::parse_from(std::iter::once("barto-cli").chain(args.iter().copied()))
+    }
+
+    #[test]
+    fn defaults_are_zero() {
+        let cli = parse(&["info"]);
+        assert_eq!(cli.verbose(), 0);
+        assert_eq!(cli.quiet(), 0);
+        assert!(cli.config_absolute_path().is_none());
+        assert!(cli.tracing_absolute_path().is_none());
+    }
+
+    #[test]
+    fn verbose_flag_increments() {
+        let cli = parse(&["-v", "-v", "info"]);
+        assert_eq!(cli.verbose(), 2);
+    }
+
+    #[test]
+    fn quiet_flag_increments() {
+        let cli = parse(&["-q", "-q", "-q", "info"]);
+        assert_eq!(cli.quiet(), 3);
+    }
+
+    #[test]
+    fn config_absolute_path_set() {
+        let cli = parse(&["-c", "/etc/barto-cli.toml", "info"]);
+        assert_eq!(
+            cli.config_absolute_path().as_deref(),
+            Some("/etc/barto-cli.toml")
+        );
+    }
+
+    #[test]
+    fn tracing_absolute_path_set() {
+        let cli = parse(&["-t", "/var/log/barto-cli.log", "info"]);
+        assert_eq!(
+            cli.tracing_absolute_path().as_deref(),
+            Some("/var/log/barto-cli.log")
+        );
+    }
+
+    #[test]
+    fn command_info() {
+        assert!(matches!(
+            parse(&["info"]).command(),
+            Commands::Info { json: false }
+        ));
+        assert!(matches!(
+            parse(&["info", "--json"]).command(),
+            Commands::Info { json: true }
+        ));
+    }
+
+    #[test]
+    fn command_updates() {
+        match parse(&["updates", "-n", "host1", "-u", "garuda"]).command() {
+            Commands::Updates { name, update_kind } => {
+                assert_eq!(name, "host1");
+                assert_eq!(update_kind, "garuda");
+            }
+            other => panic!("expected Updates, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn command_cleanup() {
+        assert!(matches!(parse(&["cleanup"]).command(), Commands::Cleanup));
+    }
+
+    #[test]
+    fn command_clients() {
+        assert!(matches!(
+            parse(&["clients"]).command(),
+            Commands::Clients { versions: false }
+        ));
+        assert!(matches!(
+            parse(&["clients", "--versions"]).command(),
+            Commands::Clients { versions: true }
+        ));
+    }
+
+    #[test]
+    fn command_query() {
+        match parse(&["query", "-q", "select 1"]).command() {
+            Commands::Query { query } => assert_eq!(query, "select 1"),
+            other => panic!("expected Query, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn command_list() {
+        match parse(&["list", "-n", "host1"]).command() {
+            Commands::List { name, cmd_name_opt } => {
+                assert_eq!(name, "host1");
+                assert!(cmd_name_opt.is_none());
+            }
+            other => panic!("expected List, got {other:?}"),
+        }
+        match parse(&["list", "-n", "host1", "-c", "backup"]).command() {
+            Commands::List { name, cmd_name_opt } => {
+                assert_eq!(name, "host1");
+                assert_eq!(cmd_name_opt.as_deref(), Some("backup"));
+            }
+            other => panic!("expected List, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn command_failed() {
+        assert!(matches!(parse(&["failed"]).command(), Commands::Failed));
+    }
+
+    #[test]
+    fn command_cmd() {
+        match parse(&["cmd", "backup"]).command() {
+            Commands::Cmd { cmd_name } => assert_eq!(cmd_name, "backup"),
+            other => panic!("expected Cmd, got {other:?}"),
+        }
+    }
+
+    fn secrets_subcommand(args: &[&str]) -> SecretsSubcommand {
+        match parse(args).command() {
+            Commands::Secrets(secrets) => secrets.command.clone(),
+            other => panic!("expected Secrets, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn command_secrets_set() {
+        match secrets_subcommand(&["secrets", "set", "K"]) {
+            SecretsSubcommand::Set { key } => assert_eq!(key, "K"),
+            other => panic!("expected Set, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn command_secrets_get() {
+        match secrets_subcommand(&["secrets", "get", "K"]) {
+            SecretsSubcommand::Get { key } => assert_eq!(key, "K"),
+            other => panic!("expected Get, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn command_secrets_list() {
+        assert!(matches!(
+            secrets_subcommand(&["secrets", "list"]),
+            SecretsSubcommand::List
+        ));
+    }
+
+    #[test]
+    fn command_secrets_delete() {
+        match secrets_subcommand(&["secrets", "delete", "K"]) {
+            SecretsSubcommand::Delete { key } => assert_eq!(key, "K"),
+            other => panic!("expected Delete, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn source_collect_basic_keys() {
+        let cli = parse(&["-v", "info"]);
+        let map = cli.collect().expect("collect");
+        assert!(map.contains_key("verbose"));
+        assert!(map.contains_key("quiet"));
+        assert!(map.contains_key("enable_std_output"));
+        // No path options provided, so these must be absent.
+        assert!(!map.contains_key("config_path"));
+        assert!(!map.contains_key("tracing_path"));
+    }
+
+    #[test]
+    fn source_collect_includes_paths_when_set() {
+        let cli = parse(&["-c", "/a.toml", "-t", "/b.log", "info"]);
+        let map = cli.collect().expect("collect");
+        assert!(map.contains_key("config_path"));
+        assert!(map.contains_key("tracing_path"));
+    }
+
+    #[test]
+    fn path_defaults_env_prefix() {
+        assert_eq!(parse(&["info"]).env_prefix(), "BARTO_CLI");
+    }
+
+    #[test]
+    fn path_defaults_default_file_path_and_name() {
+        let cli = parse(&["info"]);
+        assert_eq!(cli.default_file_path(), "barto-cli");
+        assert_eq!(cli.default_file_name(), "barto-cli");
+    }
+
+    #[test]
+    fn path_defaults_tracing_defaults() {
+        let cli = parse(&["info"]);
+        assert_eq!(cli.default_tracing_path(), "barto-cli/logs");
+        assert_eq!(cli.default_tracing_file_name(), "barto-cli");
+    }
+
+    #[test]
+    fn path_defaults_round_trip_paths() {
+        let cli = parse(&["-c", "/a.toml", "-t", "/b.log", "info"]);
+        assert_eq!(
+            PathDefaults::config_absolute_path(&cli).as_deref(),
+            Some("/a.toml")
+        );
+        assert_eq!(
+            PathDefaults::tracing_absolute_path(&cli).as_deref(),
+            Some("/b.log")
+        );
+    }
+}

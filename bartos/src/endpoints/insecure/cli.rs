@@ -30,6 +30,7 @@ use crate::{
 };
 
 #[allow(clippy::too_many_arguments)]
+#[cfg_attr(coverage_nightly, coverage(off))]
 pub(crate) async fn cli(
     request: HttpRequest,
     body: Payload,

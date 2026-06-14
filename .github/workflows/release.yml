@@ -26,9 +26,9 @@ jobs:
       pkgver: ${{ steps.version.outputs.pkgver }}
     steps:
       - name: Checkout
-        uses: Wandalen/wretry.action@71a909ebf09f3ffdc6f42a17bd54ecb43481da49 # v3.8.0
+        uses: Wandalen/wretry.action@e68c23e6309f2871ca8ae4763e7629b9c258e1ea # v3.8.0
         with:
-          action: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+          action: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
           attempt_limit: 3
           attempt_delay: 30000
 
@@ -42,7 +42,7 @@ jobs:
           toolchain: "1.95.0"
 
       - name: 💾 Install (cargo-binstall) 💾
-        uses: cargo-bins/cargo-binstall@1c2b96c2b86875d56caeec7b7ee9980812daf0d9 # main
+        uses: cargo-bins/cargo-binstall@252c5e70a6eae3a9de06b610159a568eaf705055 # main
 
       - name: 💾 Install (cross) 💾
         run: cargo binstall --no-confirm --no-symlinks --no-discover-github-token cross --version 0.2.5
@@ -166,9 +166,9 @@ jobs:
       contents: read
     steps:
       - name: Checkout
-        uses: Wandalen/wretry.action@71a909ebf09f3ffdc6f42a17bd54ecb43481da49 # v3.8.0
+        uses: Wandalen/wretry.action@e68c23e6309f2871ca8ae4763e7629b9c258e1ea # v3.8.0
         with:
-          action: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+          action: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
           attempt_limit: 3
           attempt_delay: 30000
 
@@ -226,9 +226,9 @@ jobs:
       contents: read
     steps:
       - name: Checkout
-        uses: Wandalen/wretry.action@71a909ebf09f3ffdc6f42a17bd54ecb43481da49 # v3.8.0
+        uses: Wandalen/wretry.action@e68c23e6309f2871ca8ae4763e7629b9c258e1ea # v3.8.0
         with:
-          action: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+          action: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
           attempt_limit: 3
           attempt_delay: 30000
 
@@ -385,9 +385,9 @@ jobs:
       pull-requests: write
     steps:
       - name: Checkout
-        uses: Wandalen/wretry.action@71a909ebf09f3ffdc6f42a17bd54ecb43481da49 # v3.8.0
+        uses: Wandalen/wretry.action@e68c23e6309f2871ca8ae4763e7629b9c258e1ea # v3.8.0
         with:
-          action: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+          action: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
           with: |
             token: ${{ secrets.GITHUB_TOKEN }}
           attempt_limit: 3
@@ -593,9 +593,9 @@ jobs:
       contents: read
     steps:
       - name: Checkout
-        uses: Wandalen/wretry.action@71a909ebf09f3ffdc6f42a17bd54ecb43481da49 # v3.8.0
+        uses: Wandalen/wretry.action@e68c23e6309f2871ca8ae4763e7629b9c258e1ea # v3.8.0
         with:
-          action: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+          action: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
           attempt_limit: 3
           attempt_delay: 30000
 
