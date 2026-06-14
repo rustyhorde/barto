@@ -528,6 +528,7 @@ dependencies = [
  "tokio-tungstenite",
  "tracing",
  "tracing-subscriber-init",
+ "uuid",
  "vergen-gix",
  "vergen-pretty",
  "webpki-roots",

@@ -74,3 +74,63 @@ impl TracingConfigExt for Config {
         get_effective_level(self.quiet(), self.verbose())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use tracing_subscriber_init::{TracingConfig, get_effective_level};
+
+    use super::Config;
+    use libbarto::TracingConfigExt;
+
+    #[test]
+    fn defaults() {
+        let config = Config::default();
+        assert_eq!(config.verbose(), 0);
+        assert_eq!(config.quiet(), 0);
+        assert!(!config.enable_std_output());
+        assert!(config.name().is_empty());
+    }
+
+    #[test]
+    fn set_enable_std_output_flips() {
+        let mut config = Config::default();
+        assert!(!config.enable_std_output());
+        let _ = config.set_enable_std_output(true);
+        assert!(config.enable_std_output());
+    }
+
+    #[test]
+    fn tracing_config_methods_match_stdout() {
+        let config = Config::default();
+        let stdout = config.tracing().stdout();
+        assert_eq!(TracingConfig::with_target(&config), stdout.with_target());
+        assert_eq!(
+            TracingConfig::with_thread_ids(&config),
+            stdout.with_thread_ids()
+        );
+        assert_eq!(
+            TracingConfig::with_thread_names(&config),
+            stdout.with_thread_names()
+        );
+        assert_eq!(
+            TracingConfig::with_line_number(&config),
+            stdout.with_line_number()
+        );
+        assert_eq!(TracingConfig::with_level(&config), stdout.with_level());
+        assert_eq!(TracingConfig::quiet(&config), config.quiet());
+        assert_eq!(TracingConfig::verbose(&config), config.verbose());
+    }
+
+    #[test]
+    fn tracing_config_ext_methods() {
+        let mut config = Config::default();
+        assert!(!config.enable_stdout());
+        let _ = config.set_enable_std_output(true);
+        assert!(config.enable_stdout());
+        assert_eq!(
+            config.directives(),
+            config.tracing().stdout().directives().as_ref()
+        );
+        assert_eq!(config.level(), get_effective_level(0, 0));
+    }
+}

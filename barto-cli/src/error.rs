@@ -16,3 +16,32 @@ pub(crate) enum Error {
     #[error("Invalid message received")]
     InvalidMessage,
 }
+
+#[cfg(test)]
+mod tests {
+    use super::Error;
+
+    #[test]
+    fn config_load_display() {
+        assert_eq!(
+            Error::ConfigLoad.to_string(),
+            "Unable to load a valid configuration"
+        );
+    }
+
+    #[test]
+    fn tracing_init_display() {
+        assert_eq!(
+            Error::TracingInit.to_string(),
+            "Unable to initialize tracing"
+        );
+    }
+
+    #[test]
+    fn invalid_message_display() {
+        assert_eq!(
+            Error::InvalidMessage.to_string(),
+            "Invalid message received"
+        );
+    }
+}

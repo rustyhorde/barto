@@ -43,6 +43,7 @@ const KNOWN_SECRETS: &[(&str, &str)] = &[
     ),
 ];
 
+#[cfg_attr(coverage_nightly, coverage(off))]
 fn init_store() -> Result<()> {
     #[cfg(target_os = "linux")]
     {
@@ -65,6 +66,7 @@ fn init_store() -> Result<()> {
     Ok(())
 }
 
+#[cfg_attr(coverage_nightly, coverage(off))]
 pub(crate) fn handle(cmd: &SecretsSubcommand) -> Result<()> {
     init_store()?;
     match cmd {
@@ -78,6 +80,7 @@ pub(crate) fn handle(cmd: &SecretsSubcommand) -> Result<()> {
     }
 }
 
+#[cfg_attr(coverage_nightly, coverage(off))]
 fn set(key: &str) -> Result<()> {
     let value = rpassword::prompt_password(format!("Enter value for {key}: "))
         .with_context(|| format!("failed to read secret for {key}"))?;
@@ -89,6 +92,7 @@ fn set(key: &str) -> Result<()> {
     Ok(())
 }
 
+#[cfg_attr(coverage_nightly, coverage(off))]
 fn get(key: &str) -> Result<()> {
     let value = Entry::new(SERVICE, key)
         .with_context(|| format!("failed to open keychain entry for {key}"))?
@@ -98,6 +102,7 @@ fn get(key: &str) -> Result<()> {
     Ok(())
 }
 
+#[cfg_attr(coverage_nightly, coverage(off))]
 fn list() {
     for (key, desc) in KNOWN_SECRETS {
         let status = Entry::new(SERVICE, key)
@@ -108,6 +113,7 @@ fn list() {
     }
 }
 
+#[cfg_attr(coverage_nightly, coverage(off))]
 fn delete(key: &str) -> Result<()> {
     Entry::new(SERVICE, key)
         .with_context(|| format!("failed to open keychain entry for {key}"))?

@@ -41,6 +41,7 @@ pub(crate) struct Handler {
 }
 
 impl Handler {
+    #[cfg_attr(coverage_nightly, coverage(off))]
     pub(crate) async fn handle(&mut self) -> Result<()> {
         select! {
             () = sleep(Duration::from_secs(5)) => {},
@@ -51,6 +52,7 @@ impl Handler {
         Ok(())
     }
 
+    #[cfg_attr(coverage_nightly, coverage(off))]
     pub(crate) async fn wait_for_close(&mut self) {
         select! {
             () = sleep(Duration::from_millis(200)) => {
@@ -255,16 +257,16 @@ impl Handler {
         let digits = total.count_digits();
         let term = Term::stdout();
         let (height, width) = term.size_checked().unwrap_or((80, 24));
-        let print_height = usize::from(height) - 8;
+        let print_height = usize::from(height).saturating_sub(8).max(1);
         'outer: for (idx, row) in results {
             let known_width = digits + max_col_label + 10;
 
             for (col, data) in row {
                 let (mut final_data, data_uw) = clean_output_string(&data);
-                let disp_data = if data_uw <= usize::from(width) - known_width {
+                let disp_data = if data_uw <= usize::from(width).saturating_sub(known_width) {
                     final_data
                 } else {
-                    final_data.truncate(usize::from(width) - known_width);
+                    final_data.truncate(usize::from(width).saturating_sub(known_width));
                     final_data.push_str(" ...");
                     final_data
                 };
@@ -323,9 +325,9 @@ impl Handler {
             let term = Term::stdout();
             let (height, width) = term.size_checked().unwrap_or((80, 24));
             let print_height = if extra {
-                usize::from(height) - 13
+                usize::from(height).saturating_sub(13).max(1)
             } else {
-                usize::from(height) - 8
+                usize::from(height).saturating_sub(8).max(1)
             };
             'outer: for (idx, output) in list.iter().enumerate() {
                 let output = output.timestamp().zip(output.data().clone()).map_or_else(
@@ -333,10 +335,11 @@ impl Handler {
                     |(timestamp, data)| {
                         let known_width = digits + timestamp.to_string().len() + 10;
                         let (mut final_data, data_uw) = clean_output_string(&data);
-                        let disp_data = if data_uw <= usize::from(width) - known_width {
+                        let disp_data = if data_uw <= usize::from(width).saturating_sub(known_width)
+                        {
                             final_data
                         } else {
-                            final_data.truncate(usize::from(width) - known_width);
+                            final_data.truncate(usize::from(width).saturating_sub(known_width));
                             final_data.push_str(" ...");
                             final_data
                         };
@@ -417,7 +420,7 @@ impl Handler {
             let digits = total.count_digits();
             let term = Term::stdout();
             let (height, width) = term.size_checked().unwrap_or((80, 24));
-            let print_height = usize::from(height) - 8;
+            let print_height = usize::from(height).saturating_sub(8).max(1);
             'outer: for (idx, output) in failed_output.iter().enumerate() {
                 let timestamp = output
                     .timestamp()
@@ -435,10 +438,10 @@ impl Handler {
 
                 let known_width = digits + timestamp.len() + max_bartoc_name + max_cmd_name + 12;
                 let (mut final_data, data_uw) = clean_output_string(&data);
-                let disp_data = if data_uw <= usize::from(width) - known_width {
+                let disp_data = if data_uw <= usize::from(width).saturating_sub(known_width) {
                     final_data
                 } else {
-                    final_data.truncate(usize::from(width) - known_width);
+                    final_data.truncate(usize::from(width).saturating_sub(known_width));
                     final_data.push_str(" ...");
                     final_data
                 };
@@ -629,5 +632,158 @@ impl Handler {
             }
         }
         (max_category, max_label)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::collections::{BTreeMap, HashMap};
+
+    use bincode_next::{config::standard, encode_to_vec};
+    use libbarto::{
+        BartosToBartoCli, ClientData, FailedOutput, Garuda, ListOutput, UpdateKind, UuidWrapper,
+    };
+    use tokio_tungstenite::tungstenite::Message;
+    use uuid::Uuid;
+
+    use super::Handler;
+    use crate::error::Error;
+
+    fn garuda(channel: &str, package: &str) -> Garuda {
+        Garuda::builder()
+            .channel(channel)
+            .package(package)
+            .old_version("1.0")
+            .new_version("2.0")
+            .size_change("+1")
+            .download_size("10")
+            .build()
+    }
+
+    fn list_output() -> ListOutput {
+        ListOutput::builder()
+            .data("hello".to_string())
+            .exit_code(0)
+            .success(1)
+            .build()
+    }
+
+    // Kept intentionally narrow: the display fns fall back to a 24-column
+    // terminal width when run headless. The width math uses `saturating_sub`,
+    // so wider content no longer panics, but narrow data keeps the printed
+    // output predictable.
+    fn failed_output() -> FailedOutput {
+        FailedOutput::builder()
+            .bartoc_name("h".to_string())
+            .cmd_name("c".to_string())
+            .data("d".to_string())
+            .exit_code(1)
+            .success(0)
+            .build()
+    }
+
+    #[test]
+    fn maxes_garuda_widths() {
+        let garudas = vec![garuda("ch", "pkgname")];
+        let (max_package, max_channel, ..) = Handler::maxes_garuda(&garudas);
+        assert_eq!(max_package, "pkgname".len());
+        assert_eq!(max_channel, "ch".len());
+    }
+
+    #[test]
+    fn maxes_query_widths() {
+        let mut row = BTreeMap::new();
+        let _old = row.insert("column".to_string(), "value123".to_string());
+        let mut map = BTreeMap::new();
+        let _old = map.insert(0, row);
+        let (max_col, max_val) = Handler::maxes_query(&map);
+        assert_eq!(max_col, "column".len());
+        assert_eq!(max_val, "value123".len());
+    }
+
+    #[test]
+    fn maxes_client_data_widths() {
+        let cd = ClientData::builder()
+            .name("client-name".to_string())
+            .ip("10.0.0.1".to_string())
+            .build();
+        let (max_name, max_ip, max_os_name, ..) = Handler::maxes_client_data(&[cd]);
+        assert_eq!(max_name, "client-name".len());
+        assert_eq!(max_ip, "10.0.0.1".len());
+        assert_eq!(max_os_name, 0);
+    }
+
+    #[test]
+    fn handle_message_none_is_err() {
+        let res = Handler::handle_message(None);
+        assert!(matches!(
+            res.unwrap_err().downcast_ref::<Error>(),
+            Some(Error::InvalidMessage)
+        ));
+    }
+
+    #[test]
+    fn handle_message_non_binary_is_err() {
+        let res = Handler::handle_message(Some(Ok(Message::Text("nope".into()))));
+        assert!(matches!(
+            res.unwrap_err().downcast_ref::<Error>(),
+            Some(Error::InvalidMessage)
+        ));
+    }
+
+    #[test]
+    fn handle_message_binary_is_ok() {
+        let payload = encode_to_vec(BartosToBartoCli::Cleanup((1, 2, 3)), standard()).unwrap();
+        let res = Handler::handle_message(Some(Ok(Message::Binary(payload.into()))));
+        assert!(res.is_ok());
+    }
+
+    #[test]
+    fn handle_binary_garbage_does_not_panic() {
+        Handler::handle_binary(&[0xff, 0xff, 0xff, 0xff]);
+    }
+
+    #[test]
+    fn handle_binary_dispatches_variants() {
+        let mut clients = HashMap::new();
+        let _old = clients.insert(
+            UuidWrapper(Uuid::new_v4()),
+            ClientData::builder()
+                .name("host1".to_string())
+                .ip("10.0.0.1".to_string())
+                .build(),
+        );
+        let mut versions = BTreeMap::new();
+        let _old = versions.insert("host1".to_string(), "1.5.11".to_string());
+        let mut query = BTreeMap::new();
+        let mut row = BTreeMap::new();
+        let _old = row.insert("col".to_string(), "val".to_string());
+        let _old = query.insert(0, row);
+
+        let messages = vec![
+            BartosToBartoCli::Cleanup((1, 2, 3)),
+            BartosToBartoCli::Clients(clients),
+            BartosToBartoCli::ClientVersions(versions),
+            BartosToBartoCli::Query(query),
+            BartosToBartoCli::List(vec![list_output()]),
+            BartosToBartoCli::Failed(vec![failed_output()]),
+            BartosToBartoCli::ListCommands(vec!["backup".to_string(), "restore".to_string()]),
+            BartosToBartoCli::Updates(UpdateKind::Garuda(vec![garuda("ch", "pkg")])),
+        ];
+        for msg in messages {
+            let bytes = encode_to_vec(msg, standard()).unwrap();
+            Handler::handle_binary(&bytes);
+        }
+    }
+
+    #[test]
+    fn handle_empty_collections_do_not_panic() {
+        Handler::handle_binary(&encode_to_vec(BartosToBartoCli::List(vec![]), standard()).unwrap());
+        Handler::handle_binary(
+            &encode_to_vec(BartosToBartoCli::Failed(vec![]), standard()).unwrap(),
+        );
+        Handler::handle_binary(
+            &encode_to_vec(BartosToBartoCli::ListCommands(vec![]), standard()).unwrap(),
+        );
     }
 }

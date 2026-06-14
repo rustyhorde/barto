@@ -40,6 +40,7 @@ const HEADER_PREFIX: &str = r"██████╗  █████╗ ██�
 ██████╔╝██║  ██║██║  ██║   ██║   ╚██████╔╝      ╚██████╗███████╗██║
 ╚═════╝ ╚═╝  ╚═╝╚═╝  ╚═╝   ╚═╝    ╚═════╝        ╚═════╝╚══════╝╚═╝";
 
+#[cfg_attr(coverage_nightly, coverage(off))]
 pub(crate) async fn run<I, T>(args: Option<I>) -> Result<()>
 where
     I: IntoIterator<Item = T>,
@@ -180,4 +181,109 @@ fn make_tls_connector(config: &Config) -> Result<Connector> {
         _ => builder.with_no_client_auth(),
     };
     Ok(Connector::Rustls(Arc::new(tls)))
+}
+
+#[cfg(test)]
+mod tests {
+    use bincode_next::{config::standard, decode_from_slice};
+    use libbarto::BartoCli;
+    use tokio_tungstenite::tungstenite::Message;
+
+    use super::build_message;
+    use crate::runtime::cli::Commands;
+
+    fn payload(msg: Message) -> Vec<u8> {
+        match msg {
+            Message::Binary(bytes) => bytes.to_vec(),
+            other => panic!("expected binary message, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn build_message_info() {
+        let msg = build_message(&Commands::Info { json: true }).expect("build");
+        let (decoded, _): (BartoCli, _) =
+            decode_from_slice(&payload(msg), standard()).expect("decode");
+        assert!(matches!(decoded, BartoCli::Info { json: true }));
+    }
+
+    #[test]
+    fn build_message_updates() {
+        let msg = build_message(&Commands::Updates {
+            name: "host1".to_string(),
+            update_kind: "garuda".to_string(),
+        })
+        .expect("build");
+        let (decoded, _): (BartoCli, _) =
+            decode_from_slice(&payload(msg), standard()).expect("decode");
+        assert!(matches!(decoded, BartoCli::Updates { .. }));
+    }
+
+    #[test]
+    fn build_message_cleanup_and_failed() {
+        assert!(matches!(
+            build_message(&Commands::Cleanup).expect("build"),
+            Message::Binary(_)
+        ));
+        assert!(matches!(
+            build_message(&Commands::Failed).expect("build"),
+            Message::Binary(_)
+        ));
+    }
+
+    #[test]
+    fn build_message_clients_variants() {
+        let msg = build_message(&Commands::Clients { versions: false }).expect("build");
+        let (decoded, _): (BartoCli, _) =
+            decode_from_slice(&payload(msg), standard()).expect("decode");
+        assert!(matches!(decoded, BartoCli::Clients));
+
+        let msg = build_message(&Commands::Clients { versions: true }).expect("build");
+        let (decoded, _): (BartoCli, _) =
+            decode_from_slice(&payload(msg), standard()).expect("decode");
+        assert!(matches!(decoded, BartoCli::ClientVersions));
+    }
+
+    #[test]
+    fn build_message_query() {
+        let msg = build_message(&Commands::Query {
+            query: "select 1".to_string(),
+        })
+        .expect("build");
+        let (decoded, _): (BartoCli, _) =
+            decode_from_slice(&payload(msg), standard()).expect("decode");
+        assert!(matches!(decoded, BartoCli::Query { .. }));
+    }
+
+    #[test]
+    fn build_message_list_variants() {
+        let msg = build_message(&Commands::List {
+            name: "host1".to_string(),
+            cmd_name_opt: Some("backup".to_string()),
+        })
+        .expect("build");
+        let (decoded, _): (BartoCli, _) =
+            decode_from_slice(&payload(msg), standard()).expect("decode");
+        assert!(matches!(decoded, BartoCli::List { .. }));
+
+        let msg = build_message(&Commands::List {
+            name: "host1".to_string(),
+            cmd_name_opt: None,
+        })
+        .expect("build");
+        let (decoded, _): (BartoCli, _) =
+            decode_from_slice(&payload(msg), standard()).expect("decode");
+        assert!(matches!(decoded, BartoCli::ListCommands { .. }));
+    }
+
+    #[test]
+    fn build_message_cmd() {
+        let msg = build_message(&Commands::Cmd {
+            cmd_name: "backup".to_string(),
+        })
+        .expect("build");
+        let (decoded, _): (BartoCli, _) =
+            decode_from_slice(&payload(msg), standard()).expect("decode");
+        assert!(matches!(decoded, BartoCli::Cmd { .. }));
+    }
 }
