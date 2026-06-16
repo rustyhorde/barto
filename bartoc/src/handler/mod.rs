@@ -13,6 +13,10 @@ use std::env::var_os;
 use std::{
     collections::HashMap,
     process::Stdio,
+    sync::{
+        Arc,
+        atomic::{AtomicI64, Ordering},
+    },
     time::{Duration, Instant},
 };
 
@@ -32,7 +36,7 @@ use tokio::{
     select, spawn,
     sync::mpsc::UnboundedSender,
     task::JoinHandle,
-    time::{MissedTickBehavior, interval},
+    time::{Instant as TokioInstant, MissedTickBehavior, interval, interval_at},
     try_join,
 };
 use tokio_tungstenite::{
@@ -108,6 +112,12 @@ pub(crate) struct Handler {
     id: Option<UuidWrapper>,
     bartoc_name: String,
     missed_tick: Option<MissedTick>,
+    // Unix-second of the most recently dispatched schedule tick. Shared across every
+    // monitor task spawned by this handler so that a given wall-clock second can be
+    // dispatched at most once, even when `Burst` replays a missed tick or a restarted
+    // monitor's immediate first tick overlaps the outgoing one.
+    #[builder(default = Arc::new(AtomicI64::new(i64::MIN)))]
+    last_dispatch_ts: Arc<AtomicI64>,
 }
 
 impl Handler {
@@ -277,12 +287,18 @@ impl Handler {
         let cloned_tx = self.tx.clone();
         let cloned_bartoc_name = self.bartoc_name.clone();
         let cloned_missed_tick = self.missed_tick;
+        let last_dispatch_ts = self.last_dispatch_ts.clone();
         if let Some(bartoc_id) = self.id {
             if let Some(handle) = &self.rt_monitor_handle {
                 handle.abort();
             }
             let rt_mon_handle = spawn(async move {
-                let mut interval = interval(Duration::from_secs(1));
+                // Start one second out so a restarted monitor's first tick cannot re-fire
+                // the second the outgoing monitor just handled.
+                let mut interval = interval_at(
+                    TokioInstant::now() + Duration::from_secs(1),
+                    Duration::from_secs(1),
+                );
                 if let Some(missed_tick) = &cloned_missed_tick {
                     match missed_tick {
                         MissedTick::Skip => {
@@ -309,6 +325,13 @@ impl Handler {
                         _ = interval.tick() => {
                             let start = Instant::now();
                             let now = OffsetDateTime::now_utc();
+                            // Claim this wall-second before dispatching. `is_now` is
+                            // second-granular, so re-processing a second already claimed
+                            // (by a Burst replay or an overlapping/restarted monitor) is
+                            // always a duplicate.
+                            if !claim_second(&last_dispatch_ts, now.unix_timestamp()) {
+                                continue;
+                            }
                             let run_nows: Vec<Realtime> = cloned_rt_map.keys().filter(|&rt| rt.is_now(now)).cloned().collect();
                             let cmds: HashMap<String, Vec<String>> = run_nows.into_iter().filter_map(|rt| {
                                 cloned_rt_map.get(&rt).map(|(name, cmds)| (name.clone(), cmds.clone()))
@@ -459,5 +482,60 @@ async fn flatten<T>(handle: JoinHandle<Result<T>>) -> Result<T> {
         Ok(Ok(result)) => Ok(result),
         Ok(Err(err)) => Err(err),
         Err(_err) => Err(anyhow!("handling failed")),
+    }
+}
+
+/// Atomically claim a wall-clock second for dispatch.
+///
+/// Returns `true` if `ts` was successfully claimed (the caller should dispatch), or `false`
+/// if `ts` was already claimed — by a `Burst` tick replay or by another monitor task sharing
+/// the same slot — in which case the caller must skip to avoid a duplicate dispatch.
+fn claim_second(slot: &AtomicI64, ts: i64) -> bool {
+    let prev = slot.load(Ordering::Acquire);
+    if prev == ts {
+        return false;
+    }
+    slot.compare_exchange(prev, ts, Ordering::AcqRel, Ordering::Acquire)
+        .is_ok()
+}
+
+#[cfg(test)]
+mod tests {
+    use std::sync::atomic::AtomicI64;
+
+    use super::claim_second;
+
+    #[test]
+    fn first_claim_for_a_second_succeeds() {
+        let slot = AtomicI64::new(i64::MIN);
+        assert!(claim_second(&slot, 1_000));
+    }
+
+    #[test]
+    fn repeat_claim_for_same_second_is_rejected() {
+        let slot = AtomicI64::new(i64::MIN);
+        assert!(claim_second(&slot, 1_000));
+        // A Burst replay (same second) must not dispatch again.
+        assert!(!claim_second(&slot, 1_000));
+        assert!(!claim_second(&slot, 1_000));
+    }
+
+    #[test]
+    fn a_new_second_can_be_claimed() {
+        let slot = AtomicI64::new(i64::MIN);
+        assert!(claim_second(&slot, 1_000));
+        assert!(claim_second(&slot, 1_001));
+        assert!(!claim_second(&slot, 1_001));
+    }
+
+    #[test]
+    fn only_one_of_two_interleaved_claims_for_the_same_second_wins() {
+        // Both observe the same prior value, then race the compare_exchange: exactly one
+        // succeeds, mirroring an outgoing and a restarted monitor overlapping on a second.
+        let slot = AtomicI64::new(i64::MIN);
+        let first = claim_second(&slot, 2_000);
+        let second = claim_second(&slot, 2_000);
+        assert!(first ^ second, "exactly one claim must win");
+        assert!(first && !second);
     }
 }
