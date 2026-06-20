@@ -3,126 +3,111 @@
 set run_tests true
 set run_coverage true
 set run_docs true
-set run_install true
-set run_musl true
-set musl_features ""
+set run_install false
+set run_musl false
+set musl_unstable false
 set run_clean false
-set help false
 
 for arg in $argv
-    if test "$arg" = "--no-test"
-        set run_tests false
-    else if test "$arg" = "--no-coverage"
-        set run_coverage false
-    else if test "$arg" = "--no-docs"
-        set run_docs false
-    else if test "$arg" = "--no-install"
-        set run_install false
-    else if test "$arg" = "--no-musl"
-        set run_musl false
-    else if test "$arg" = "--unstable"
-        set musl_features "--unstable"
-    else if test "$arg" = "--clean"
-        set run_clean true
-    else if test "$arg" = "--help"
-        set help true
+    switch $arg
+        case --help -h
+            echo "Usage: run_all.fish [OPTIONS]"
+            echo ""
+            echo "Runs the full barto CI pipeline locally."
+            echo ""
+            echo "Options:"
+            echo "  --no-test      Skip nextest and all coverage steps"
+            echo "  --no-coverage  Skip coverage steps only (lcov + html reports)"
+            echo "  --no-docs      Skip the documentation step"
+            echo "  --install      Run the cargo install step"
+            echo "  --musl         Run the MUSL Docker build step (stable)"
+            echo "  --unstable     Run the MUSL Docker build step with the unstable feature"
+            echo "  --clean        Run cargo clean after all steps complete"
+            echo "  --help, -h     Show this help message"
+            echo ""
+            echo "Steps (in order):"
+            echo "  1.  cargo fmt --all"
+            echo "  2.  cargo fmt --all -- --check"
+            echo "  3.  cargo matrix clippy --all-targets -- -Dwarnings"
+            echo "  4.  cargo matrix build"
+            echo "  5.  cargo matrix nextest run                          (skipped with --no-test)"
+            echo "  6.  cargo test -p libbarto --doc                      (skipped with --no-test)"
+            echo "  7.  cargo doc -p libbarto                             (skipped with --no-docs)"
+            echo "  8.  cargo matrix -c coverage llvm-cov nextest ...     (skipped with --no-test or --no-coverage)"
+            echo "  9.  cargo llvm-cov report --lcov ...                  (skipped with --no-test or --no-coverage)"
+            echo "  10. cargo llvm-cov report --html                     (skipped with --no-test or --no-coverage)"
+            echo "  11. run_install.fish                                 (only with --install)"
+            echo "  12. run_musl.fish                                    (only with --musl or --unstable; --unstable builds unstable)"
+            echo "  13. cargo clean                                      (only with --clean)"
+            exit 0
+        case --no-test
+            set run_tests false
+            set run_coverage false
+        case --no-coverage
+            set run_coverage false
+        case --no-docs
+            set run_docs false
+        case --install
+            set run_install true
+        case --musl
+            set run_musl true
+        case --unstable
+            set run_musl true
+            set musl_unstable true
+        case --clean
+            set run_clean true
+        case '*'
+            echo "Unknown argument: $arg"
+            echo "Run 'run_all.fish --help' for usage."
+            exit 1
     end
 end
 
-if test $help = true
-    echo "Usage: run_all.fish [OPTIONS]"
-    echo ""
-    echo "Run the full local CI pipeline."
-    echo ""
-    echo "Options:"
-    echo "  --no-test       Skip tests and coverage"
-    echo "  --no-coverage   Skip coverage reports (keep tests)"
-    echo "  --no-docs       Skip cargo doc"
-    echo "  --no-install    Skip run_install.fish"
-    echo "  --no-musl       Skip run_musl.fish"
-    echo "  --unstable      Build MUSL with --features unstable"
-    echo "  --clean         Run cargo clean at end"
-    echo "  --help          Show this help message"
-    exit 0
-end
-
 function run_step
+    echo ""
     echo "==> $argv"
     eval $argv
     if test $status -ne 0
-        echo "Error: Command failed"
+        echo "FAILED: $argv"
         exit 1
     end
 end
 
-set script_dir (dirname (status filename))
-
-echo ""
-echo "=== Step 1: Format code ==="
-run_step "cargo fmt --all"
-
-echo ""
-echo "=== Step 2: Check formatting ==="
-run_step "cargo fmt --all -- --check"
-
-echo ""
-echo "=== Step 3: Clippy lint ==="
-run_step "cargo matrix clippy --all-targets -- -Dwarnings"
-
-echo ""
-echo "=== Step 4: Build ==="
-run_step "cargo matrix build"
+run_step cargo fmt --all
+run_step cargo fmt --all -- --check
+run_step cargo matrix clippy --all-targets -- -Dwarnings
+run_step cargo matrix build
 
 if test $run_tests = true
-    echo ""
-    echo "=== Step 5: Tests ==="
-    run_step "cargo matrix nextest run"
-    run_step "cargo test -p libbarto --doc"
+    run_step cargo matrix nextest run
+    run_step cargo test -p libbarto --doc
+end
 
-    echo ""
-    echo "=== Step 6: Documentation ==="
-    if test $run_docs = true
-        run_step "cargo doc -p libbarto"
-    end
+if test $run_docs = true
+    run_step cargo doc -p libbarto
+end
 
-    if test $run_coverage = true
-        echo ""
-        echo "=== Step 7: Coverage ==="
-        run_step "cargo matrix -c coverage llvm-cov nextest --no-report"
-
-        echo ""
-        echo "=== Step 8: Coverage report (LCOV) ==="
-        run_step "cargo llvm-cov report --lcov --output-path lcov.info"
-
-        echo ""
-        echo "=== Step 9: Coverage report (HTML) ==="
-        run_step "cargo llvm-cov report --html"
-    end
-else
-    if test $run_docs = true
-        echo ""
-        echo "=== Step 6: Documentation ==="
-        run_step "cargo doc -p libbarto"
-    end
+if test $run_coverage = true
+    run_step cargo matrix -c coverage llvm-cov nextest --no-report
+    run_step cargo llvm-cov report --lcov --output-path lcov.info
+    run_step cargo llvm-cov report --html
 end
 
 if test $run_install = true
-    echo ""
-    echo "=== Step 10: Install ==="
-    run_step "$script_dir/run_install.fish"
+    run_step (dirname (status filename))/run_install.fish
 end
 
 if test $run_musl = true
-    echo ""
-    echo "=== Step 11: Build MUSL ==="
-    run_step "$script_dir/run_musl.fish $musl_features"
+    if test $musl_unstable = true
+        run_step (dirname (status filename))/run_musl.fish --unstable
+    else
+        run_step (dirname (status filename))/run_musl.fish
+    end
 end
 
 if test $run_clean = true
-    echo ""
-    echo "=== Step 12: Clean ==="
-    run_step "cargo clean"
+    run_step cargo clean
 end
 
 echo ""
-echo "✓ CI pipeline complete"
+echo "All steps completed successfully."
