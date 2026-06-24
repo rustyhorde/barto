@@ -9,8 +9,8 @@ function run_step
     end
 end
 
-run_step "cargo install --force --locked -p bartos"
-run_step "cargo install --force --locked -p bartoc"
-run_step "cargo install --force --locked -p barto-cli"
+run_step "cargo install --path bartos --force --locked"
+run_step "cargo install --path bartoc --force --locked"
+run_step "cargo install --path barto-cli --force --locked"
 
 echo "✓ All binaries installed"

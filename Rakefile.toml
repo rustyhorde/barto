@@ -1,0 +1,233 @@
+# =============================================================================
+# Rakefile.toml — barto build pipeline
+#
+# Mirrors scripts/run_all.fish.  Leave the fish scripts in place until you
+# have verified that `cargo rake` produces equivalent results.
+#
+# Equivalences with fish flags:
+#
+#   run_all.fish                         cargo rake   (default → most)
+#   run_all.fish --no-test               cargo rake most ^test ^coverage
+#   run_all.fish --no-coverage           cargo rake most ^coverage
+#   run_all.fish --no-docs               cargo rake most ^docs
+#   run_all.fish --install               cargo rake most install
+#   run_all.fish --musl                  cargo rake most musl
+#   run_all.fish --unstable              cargo rake most musl-unstable
+#   run_all.fish --clean                 cargo rake most clean
+#   run_all.fish --install --musl --clean  cargo rake all
+# =============================================================================
+
+[tool.cargo.matrix]
+crate = "cargo-matrix"
+check = ["cargo", "matrix", "--version"]
+install = ["cargo", "install", "cargo-matrix", "--force", "--locked"]
+update = true
+
+[tool.cargo.nextest]
+crate = "cargo-nextest"
+check = ["cargo", "nextest", "--version"]
+install = ["cargo", "install", "cargo-nextest", "--force", "--locked"]
+update = true
+
+[tool.cargo.llvm-cov]
+crate = "cargo-llvm-cov"
+check = ["cargo", "llvm-cov", "--version"]
+install = ["cargo", "install", "cargo-llvm-cov", "--force", "--locked"]
+update = true
+
+[tool.os.docker]
+check = ["docker", "--version"]
+hint = "install Docker: https://docs.docker.com/get-docker/"
+
+# ---------------------------------------------------------------------------
+# fmt
+# ---------------------------------------------------------------------------
+
+[[target.fmt.command]]
+name = "fmt"
+cmd = ["cargo", "fmt", "--all"]
+
+[[target.fmt.command]]
+name = "fmt check"
+cmd = ["cargo", "fmt", "--all", "--", "--check"]
+
+# ---------------------------------------------------------------------------
+# clippy
+# ---------------------------------------------------------------------------
+
+[target.clippy]
+tools = ["matrix"]
+
+[[target.clippy.command]]
+name = "clippy"
+cmd = ["cargo", "matrix", "clippy", "--all-targets", "--", "-Dwarnings"]
+
+# ---------------------------------------------------------------------------
+# build
+# ---------------------------------------------------------------------------
+
+[target.build]
+tools = ["matrix"]
+
+[[target.build.command]]
+name = "build"
+cmd = ["cargo", "matrix", "build"]
+
+# ---------------------------------------------------------------------------
+# test
+# ---------------------------------------------------------------------------
+
+[target.test]
+depends_on = ["build"]
+tools = ["matrix", "nextest"]
+
+[[target.test.command]]
+name = "nextest"
+cmd = ["cargo", "matrix", "nextest", "run"]
+
+[[target.test.command]]
+name = "doc test"
+cmd = ["cargo", "test", "-p", "libbarto", "--doc"]
+
+# ---------------------------------------------------------------------------
+# docs
+# ---------------------------------------------------------------------------
+
+[[target.docs.command]]
+name = "docs"
+cmd = ["cargo", "doc", "-p", "libbarto"]
+
+# ---------------------------------------------------------------------------
+# coverage
+# ---------------------------------------------------------------------------
+
+[target.coverage]
+depends_on = ["test"]
+tools = ["llvm-cov", "matrix", "nextest"]
+
+[[target.coverage.command]]
+name = "coverage"
+cmd = ["cargo", "matrix", "-c", "coverage", "llvm-cov", "nextest", "--no-report"]
+
+[[target.coverage.command]]
+name = "lcov.info"
+cmd = ["cargo", "llvm-cov", "report", "--lcov", "--output-path", "lcov.info"]
+
+[[target.coverage.command]]
+name = "html"
+cmd = ["cargo", "llvm-cov", "report", "--html"]
+
+# ---------------------------------------------------------------------------
+# install
+# ---------------------------------------------------------------------------
+
+[[target.install.command]]
+name = "install bartos"
+cmd = ["cargo", "install", "--path", "bartos", "--force", "--locked"]
+
+[[target.install.command]]
+name = "install bartoc"
+cmd = ["cargo", "install", "--path", "bartoc", "--force", "--locked"]
+
+[[target.install.command]]
+name = "install barto-cli"
+cmd = ["cargo", "install", "--path", "barto-cli", "--force", "--locked"]
+
+# ---------------------------------------------------------------------------
+# musl  (regular build)
+# ---------------------------------------------------------------------------
+
+[target.musl]
+tools = ["docker"]
+
+[[target.musl.command]]
+name = "docker build"
+platform = ["linux", "macos"]
+fish = "docker run -v cargo-cache:/root/.cargo/registry -v (pwd):/home/rust/src -v ~/.gitconfig:/root/.gitconfig:ro -e SQLX_OFFLINE=true --rm -t blackdex/rust-musl:x86_64-musl-nightly cargo build --release --locked"
+sh = "docker run -v cargo-cache:/root/.cargo/registry -v \"$(pwd)\":/home/rust/src -v \"$HOME/.gitconfig\":/root/.gitconfig:ro -e SQLX_OFFLINE=true --rm -t blackdex/rust-musl:x86_64-musl-nightly cargo build --release --locked"
+
+[[target.musl.command]]
+name = "chown"
+platform = ["linux", "macos"]
+fish = "sudo chown -R $USER:$USER target/"
+sh = "sudo chown -R $USER:$USER target/"
+
+[[target.musl.command]]
+name = "copy bartos"
+platform = ["linux", "macos"]
+fish = "cp target/x86_64-unknown-linux-musl/release/bartos ~/bartos"
+sh = "cp target/x86_64-unknown-linux-musl/release/bartos $HOME/bartos"
+
+[[target.musl.command]]
+name = "copy bartoc"
+platform = ["linux", "macos"]
+fish = "cp target/x86_64-unknown-linux-musl/release/bartoc ~/bartoc"
+sh = "cp target/x86_64-unknown-linux-musl/release/bartoc $HOME/bartoc"
+
+[[target.musl.command]]
+name = "copy barto-cli"
+platform = ["linux", "macos"]
+fish = "cp target/x86_64-unknown-linux-musl/release/barto-cli ~/barto-cli"
+sh = "cp target/x86_64-unknown-linux-musl/release/barto-cli $HOME/barto-cli"
+
+# ---------------------------------------------------------------------------
+# musl-unstable  (with --features unstable)
+# ---------------------------------------------------------------------------
+
+[target.musl-unstable]
+tools = ["docker"]
+
+[[target.musl-unstable.command]]
+name = "docker build"
+platform = ["linux", "macos"]
+fish = "docker run -v cargo-cache:/root/.cargo/registry -v (pwd):/home/rust/src -v ~/.gitconfig:/root/.gitconfig:ro -e SQLX_OFFLINE=true --rm -t blackdex/rust-musl:x86_64-musl-nightly cargo build --release --locked --features unstable"
+sh = "docker run -v cargo-cache:/root/.cargo/registry -v \"$(pwd)\":/home/rust/src -v \"$HOME/.gitconfig\":/root/.gitconfig:ro -e SQLX_OFFLINE=true --rm -t blackdex/rust-musl:x86_64-musl-nightly cargo build --release --locked --features unstable"
+
+[[target.musl-unstable.command]]
+name = "chown"
+platform = ["linux", "macos"]
+fish = "sudo chown -R $USER:$USER target/"
+sh = "sudo chown -R $USER:$USER target/"
+
+[[target.musl-unstable.command]]
+name = "copy bartos"
+platform = ["linux", "macos"]
+fish = "cp target/x86_64-unknown-linux-musl/release/bartos ~/bartos"
+sh = "cp target/x86_64-unknown-linux-musl/release/bartos $HOME/bartos"
+
+[[target.musl-unstable.command]]
+name = "copy bartoc"
+platform = ["linux", "macos"]
+fish = "cp target/x86_64-unknown-linux-musl/release/bartoc ~/bartoc"
+sh = "cp target/x86_64-unknown-linux-musl/release/bartoc $HOME/bartoc"
+
+[[target.musl-unstable.command]]
+name = "copy barto-cli"
+platform = ["linux", "macos"]
+fish = "cp target/x86_64-unknown-linux-musl/release/barto-cli ~/barto-cli"
+sh = "cp target/x86_64-unknown-linux-musl/release/barto-cli $HOME/barto-cli"
+
+# ---------------------------------------------------------------------------
+# clean
+# ---------------------------------------------------------------------------
+
+[[target.clean.command]]
+name = "clean"
+cmd = ["cargo", "clean"]
+
+[[target.clean.command]]
+name = "rm lcov.info"
+cmd = ["rm", "-f", "lcov.info"]
+
+# ---------------------------------------------------------------------------
+# aggregates
+# ---------------------------------------------------------------------------
+
+[target.most]
+depends_on = ["fmt", "clippy", "build", "test", "docs", "coverage"]
+
+[target.all]
+depends_on = ["fmt", "clippy", "build", "test", "docs", "coverage", "install", "musl", "clean"]
+
+[target.default]
+depends_on = ["most"]
