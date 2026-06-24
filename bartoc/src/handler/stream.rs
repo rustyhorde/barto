@@ -55,67 +55,7 @@ impl WsHandler {
             match msg_res {
                 Ok(msg) => match msg {
                     Message::Text(_utf8_bytes) => error!("text message received, ignoring"),
-                    Message::Binary(bytes) => {
-                        // Layer 5: Ed25519 verify (outermost layer).
-                        let after_ed25519: Option<Vec<u8>> = if let Some(vk) = &self.verifying_key {
-                            match verify_and_extract(vk, &bytes) {
-                                Ok(payload) => {
-                                    trace!("binary message Ed25519 signature verified");
-                                    Some(payload)
-                                }
-                                Err(e) => {
-                                    warn!("message Ed25519 signature invalid, dropping: {e}");
-                                    None
-                                }
-                            }
-                        } else {
-                            Some(bytes.to_vec())
-                        };
-
-                        // Layer 4: HMAC-SHA256 verify and replay check.
-                        let decode_target: Option<Vec<u8>> = if let Some(payload) = after_ed25519 {
-                            if let Some(hmac_key) = &self.hmac_key.clone() {
-                                match hmac_verify_and_extract(
-                                    hmac_key,
-                                    &payload,
-                                    self.replay_window_secs,
-                                ) {
-                                    Ok((inner, ts, nonce)) => {
-                                        if self.check_and_record_nonce(nonce, ts) {
-                                            trace!("binary message HMAC verified");
-                                            Some(inner)
-                                        } else {
-                                            warn!("replayed nonce detected, dropping message");
-                                            None
-                                        }
-                                    }
-                                    Err(e) => {
-                                        warn!("message HMAC invalid, dropping: {e}");
-                                        None
-                                    }
-                                }
-                            } else {
-                                Some(payload)
-                            }
-                        } else {
-                            None
-                        };
-
-                        if let Some(payload) = decode_target {
-                            if let Ok((btb, _)) = decode_from_slice::<BartosToBartoc, Configuration>(
-                                &payload,
-                                standard(),
-                            ) {
-                                trace!("binary message received");
-                                let bm = BartocMessage::BartosToBartoc(btb);
-                                if let Err(e) = self.tx.send(bm) {
-                                    error!("unable to send binary message to handler: {e}");
-                                }
-                            } else {
-                                error!("unable to decode binary message, ignoring");
-                            }
-                        }
-                    }
+                    Message::Binary(bytes) => self.handle_binary(&bytes),
                     Message::Ping(bytes) => {
                         trace!("ping message received, sending pong");
                         if let Err(e) = self.tx.send(BartocMessage::Ping(bytes.into())) {
@@ -153,8 +93,77 @@ impl WsHandler {
                     self.tx.send(BartocMessage::Close)?;
                 }
             }
+        } else {
+            // The stream ended (`None`) without a Close frame — an abrupt TCP/TLS drop.
+            // Cancel the token so the connection loop breaks and reconnects cleanly
+            // instead of busy-spinning on a terminated stream.
+            trace!("websocket stream ended, shutting down bartoc");
+            self.token.cancel();
+            self.tx.send(BartocMessage::Close)?;
         }
         Ok(())
+    }
+
+    /// Verifies, authenticates, decodes, and forwards an inbound binary message.
+    ///
+    /// Peels the Ed25519 signature (layer 5) and HMAC/replay envelope (layer 4) when those keys
+    /// are configured, then decodes the `BartosToBartoc` payload and forwards it to the handler.
+    /// Messages that fail any layer are dropped and logged.
+    fn handle_binary(&mut self, bytes: &[u8]) {
+        // Layer 5: Ed25519 verify (outermost layer).
+        let after_ed25519: Option<Vec<u8>> = if let Some(vk) = &self.verifying_key {
+            match verify_and_extract(vk, bytes) {
+                Ok(payload) => {
+                    trace!("binary message Ed25519 signature verified");
+                    Some(payload)
+                }
+                Err(e) => {
+                    warn!("message Ed25519 signature invalid, dropping: {e}");
+                    None
+                }
+            }
+        } else {
+            Some(bytes.to_vec())
+        };
+
+        // Layer 4: HMAC-SHA256 verify and replay check.
+        let decode_target: Option<Vec<u8>> = if let Some(payload) = after_ed25519 {
+            if let Some(hmac_key) = &self.hmac_key.clone() {
+                match hmac_verify_and_extract(hmac_key, &payload, self.replay_window_secs) {
+                    Ok((inner, ts, nonce)) => {
+                        if self.check_and_record_nonce(nonce, ts) {
+                            trace!("binary message HMAC verified");
+                            Some(inner)
+                        } else {
+                            warn!("replayed nonce detected, dropping message");
+                            None
+                        }
+                    }
+                    Err(e) => {
+                        warn!("message HMAC invalid, dropping: {e}");
+                        None
+                    }
+                }
+            } else {
+                Some(payload)
+            }
+        } else {
+            None
+        };
+
+        if let Some(payload) = decode_target {
+            if let Ok((btb, _)) =
+                decode_from_slice::<BartosToBartoc, Configuration>(&payload, standard())
+            {
+                trace!("binary message received");
+                let bm = BartocMessage::BartosToBartoc(btb);
+                if let Err(e) = self.tx.send(bm) {
+                    error!("unable to send binary message to handler: {e}");
+                }
+            } else {
+                error!("unable to decode binary message, ignoring");
+            }
+        }
     }
 
     /// Returns `true` if the nonce is fresh (not seen before), recording it for future checks.
