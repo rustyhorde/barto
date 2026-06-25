@@ -17,6 +17,10 @@
 #   run_all.fish --install --musl --clean  cargo rake all
 # =============================================================================
 
+# ---------------------------------------------------------------------------
+# tools
+# ---------------------------------------------------------------------------
+
 [tool.cargo.matrix]
 crate = "cargo-matrix"
 check = ["cargo", "matrix", "--version"]
@@ -38,6 +42,20 @@ update = true
 [tool.os.docker]
 check = ["docker", "--version"]
 hint = "install Docker: https://docs.docker.com/get-docker/"
+
+[tool.fish.puc]
+hint = "The 'puc' fish function is required to run this target"
+
+# ---------------------------------------------------------------------------
+# update
+# ---------------------------------------------------------------------------
+
+[target.puc]
+tools = ["puc"]
+[[target.puc.command]]
+name = "puc"
+platform = ["linux"]
+fish = "puc"
 
 # ---------------------------------------------------------------------------
 # fmt
@@ -217,17 +235,22 @@ cmd = ["cargo", "clean"]
 
 [[target.clean.command]]
 name = "rm lcov.info"
-cmd = ["rm", "-f", "lcov.info"]
+sh = "rm -f lcov.info"
+fish = "rm -f lcov.info"
+ps = "Remove-Item -Force lcov.info -ErrorAction Ignore"
 
 # ---------------------------------------------------------------------------
 # aggregates
 # ---------------------------------------------------------------------------
 
 [target.most]
-depends_on = ["fmt", "clippy", "build", "test", "docs", "coverage"]
+depends_on = ["fmt", "clippy", "build", "test", "docs", "coverage", "musl"]
+
+[target.daily]
+depends_on = ["all", "^install"]
 
 [target.all]
-depends_on = ["fmt", "clippy", "build", "test", "docs", "coverage", "install", "musl", "clean"]
+depends_on = ["puc", "fmt", "clippy", "build", "test", "docs", "coverage", "install", "musl", "clean"]
 
 [target.default]
 depends_on = ["most"]
