@@ -1,20 +1,17 @@
 # =============================================================================
 # Rakefile.toml — barto build pipeline
 #
-# Mirrors scripts/run_all.fish.  Leave the fish scripts in place until you
-# have verified that `cargo rake` produces equivalent results.
+# Quick reference:
 #
-# Equivalences with fish flags:
-#
-#   run_all.fish                         cargo rake   (default → most)
-#   run_all.fish --no-test               cargo rake most ^test ^coverage
-#   run_all.fish --no-coverage           cargo rake most ^coverage
-#   run_all.fish --no-docs               cargo rake most ^docs
-#   run_all.fish --install               cargo rake most install
-#   run_all.fish --musl                  cargo rake most musl
-#   run_all.fish --unstable              cargo rake most musl-unstable
-#   run_all.fish --clean                 cargo rake most clean
-#   run_all.fish --install --musl --clean  cargo rake all
+#   cargo rake                           default (most: fmt→clippy→build→test→docs→coverage→musl)
+#   cargo rake most ^test ^coverage      skip tests and coverage
+#   cargo rake most ^coverage            skip coverage only
+#   cargo rake most ^docs                skip docs
+#   cargo rake most ^musl                skip MUSL build
+#   cargo rake most install              add local binary install
+#   cargo rake most musl-unstable        add unstable-feature MUSL build
+#   cargo rake most clean                add cargo clean
+#   cargo rake all                       everything (puc + most + install + clean)
 # =============================================================================
 
 # ---------------------------------------------------------------------------
