@@ -1,21 +1,22 @@
 # =============================================================================
 # Rakefile.toml — barto build pipeline
 #
-# Mirrors scripts/run_all.fish.  Leave the fish scripts in place until you
-# have verified that `cargo rake` produces equivalent results.
+# Quick reference:
 #
-# Equivalences with fish flags:
-#
-#   run_all.fish                         cargo rake   (default → most)
-#   run_all.fish --no-test               cargo rake most ^test ^coverage
-#   run_all.fish --no-coverage           cargo rake most ^coverage
-#   run_all.fish --no-docs               cargo rake most ^docs
-#   run_all.fish --install               cargo rake most install
-#   run_all.fish --musl                  cargo rake most musl
-#   run_all.fish --unstable              cargo rake most musl-unstable
-#   run_all.fish --clean                 cargo rake most clean
-#   run_all.fish --install --musl --clean  cargo rake all
+#   cargo rake                           default (most: fmt→clippy→build→test→docs→coverage→musl)
+#   cargo rake most ^test ^coverage      skip tests and coverage
+#   cargo rake most ^coverage            skip coverage only
+#   cargo rake most ^docs                skip docs
+#   cargo rake most ^musl                skip MUSL build
+#   cargo rake most install              add local binary install
+#   cargo rake most musl-unstable        add unstable-feature MUSL build
+#   cargo rake most clean                add cargo clean
+#   cargo rake all                       everything (puc + most + install + clean)
 # =============================================================================
+
+# ---------------------------------------------------------------------------
+# tools
+# ---------------------------------------------------------------------------
 
 [tool.cargo.matrix]
 crate = "cargo-matrix"
@@ -38,6 +39,20 @@ update = true
 [tool.os.docker]
 check = ["docker", "--version"]
 hint = "install Docker: https://docs.docker.com/get-docker/"
+
+[tool.fish.puc]
+hint = "The 'puc' fish function is required to run this target"
+
+# ---------------------------------------------------------------------------
+# update
+# ---------------------------------------------------------------------------
+
+[target.puc]
+tools = ["puc"]
+[[target.puc.command]]
+name = "puc"
+platform = ["linux"]
+fish = "puc"
 
 # ---------------------------------------------------------------------------
 # fmt
@@ -217,17 +232,22 @@ cmd = ["cargo", "clean"]
 
 [[target.clean.command]]
 name = "rm lcov.info"
-cmd = ["rm", "-f", "lcov.info"]
+sh = "rm -f lcov.info"
+fish = "rm -f lcov.info"
+ps = "Remove-Item -Force lcov.info -ErrorAction Ignore"
 
 # ---------------------------------------------------------------------------
 # aggregates
 # ---------------------------------------------------------------------------
 
 [target.most]
-depends_on = ["fmt", "clippy", "build", "test", "docs", "coverage"]
+depends_on = ["fmt", "clippy", "build", "test", "docs", "coverage", "musl"]
+
+[target.daily]
+depends_on = ["all", "^install"]
 
 [target.all]
-depends_on = ["fmt", "clippy", "build", "test", "docs", "coverage", "install", "musl", "clean"]
+depends_on = ["puc", "fmt", "clippy", "build", "test", "docs", "coverage", "install", "musl", "clean"]
 
 [target.default]
 depends_on = ["most"]

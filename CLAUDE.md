@@ -24,10 +24,10 @@ Barto is a 4-component websocket-based job scheduling system:
 After any change to Rust source files or configuration files (`.toml`, `.env`, migrations), always run the full CI pipeline before declaring work complete:
 
 ```bash
-scripts/run_all.fish
+cargo rake
 ```
 
-This runs format check, nightly clippy (pedantic, all targets), tests, docs, and coverage in one pass. The install and MUSL Docker build steps are opt-in (`--install` / `--musl`) and skipped by default. Fix all errors before finishing.
+This runs format check, nightly clippy (pedantic, all targets), tests, docs, coverage, and MUSL build in one pass. Install is opt-in (`cargo rake most install`); use `cargo rake most ^musl` to skip the MUSL build. Fix all errors before finishing.
 
 ## Commands
 
