@@ -255,7 +255,7 @@ depends_on = ["fmt", "clippy", "build", "test", "docs", "coverage", "musl"]
 depends_on = ["all", "^install"]
 
 [target.daily.windows]
-depends_on = ["all", "^install", "^musl"]
+depends_on = ["all", "^docs", "^install", "^musl"]
 
 [target.all]
 depends_on = ["puc", "fmt", "clippy", "build", "test", "docs", "coverage", "install", "musl", "clean"]
