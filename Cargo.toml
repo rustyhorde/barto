@@ -5,15 +5,15 @@ members = ["barto-cli", "bartoc", "bartos", "libbarto", "xtask"]
 
 [workspace.dependencies]
 actix-web = "4.13.0"
-anyhow = "1.0.102"
+anyhow = "1.0.103"
 base64 = "0.22.1"
-bincode-next = { version = "3.0.0-rc.15", features = ["serde", "derive"] }
-bon = "3.9.2"
-bytes = "1.11.1"
+bincode-next = { version = "3.1.1", features = ["serde", "derive"] }
+bon = "3.9.3"
+bytes = "1.12.1"
 clap = { version = "4.6.1", features = ["derive"] }
-config = { version = "0.15.23", features = ["toml"] }
+config = { version = "0.15.25", features = ["toml"] }
 dirs2 = "3.0.1"
-ed25519-dalek = { version = "3.0.0-rc.0", features = ["serde"] }
+ed25519-dalek = { version = "3.0.0", features = ["serde"] }
 futures-util = { version = "0.3.32", default-features = false, features = [
   "std",
 ] }
@@ -28,7 +28,7 @@ rustls = { version = "0.23.40", default-features = false, features = [
   "tls12",
   "ring",
 ] }
-rustversion = "1.0.22"
+rustversion = "1.0.23"
 serde = { version = "1.0.228", features = ["derive"] }
 sha2 = "0.11.0"
 sqlx = { version = "0.9.0", features = [
@@ -39,9 +39,9 @@ sqlx = { version = "0.9.0", features = [
   "uuid",
 ] }
 subtle = "2.6.1"
-sysinfo = { version = "0.39.3", features = ["serde"] }
+sysinfo = { version = "0.39.5", features = ["serde"] }
 thiserror = "2.0.18"
-time = "=0.3.51"
+time = "0.3.53"
 tokio = { version = "1.52.3", features = ["macros", "rt-multi-thread"] }
 tokio-tungstenite = { version = "0.29.0", features = ["__rustls-tls"] }
 tokio-util = "0.7.18"
@@ -50,15 +50,15 @@ tracing = { version = "0.1.44", features = [
   "release_max_level_trace",
 ] }
 tracing-subscriber-init = { version = "0.2.6", features = ["tstime"] }
-uuid = { version = "1.23.3", features = ["v4"] }
-vergen-gix = { version = "10.0.0", features = [
+uuid = { version = "1.23.4", features = ["v4"] }
+vergen-gix = { version = "10.0.1", features = [
   "build",
   "cargo",
   "rustc",
   "si",
 ] }
-vergen-pretty = { version = "10.0.0", features = ["serde"] }
-webpki-roots = "1.0.7"
+vergen-pretty = { version = "10.0.1", features = ["serde"] }
+webpki-roots = "1.0.8"
 keyring-core = "1.0.0"
 windows-native-keyring-store = "1.1.0"
 windows-service = "0.8.1"
