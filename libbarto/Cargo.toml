@@ -24,13 +24,13 @@ bon = { workspace = true }
 bytes = { workspace = true }
 clap = { workspace = true }
 config = { workspace = true }
-console = "0.16.3"
+console = "0.16.4"
 dirs2 = { workspace = true }
 ed25519-dalek = { workspace = true }
 getset = { workspace = true }
 hmac = { workspace = true }
 num-traits = "0.2.19"
-rand = "0.10.1"
+rand = "0.10.2"
 redb = { workspace = true }
 regex = { workspace = true }
 rustls = { workspace = true }
@@ -61,7 +61,7 @@ vergen-gix = { workspace = true }
 
 [dev-dependencies]
 proptest = "1.11.0"
-rand = "0.10.1"
+rand = "0.10.2"
 tempfile = "3.27.0"
 
 [package.metadata.docs.rs]
