@@ -210,11 +210,11 @@ impl Add for MonthOfYear {
             self
         } else {
             let new = MonthOfYear(self.0 + rhs.0 - 1);
-            if new > MonthOfYear::max_value() {
-                panic!("MonthOfYear addition overflowed");
-            } else {
-                new
-            }
+            assert!(
+                new <= MonthOfYear::max_value(),
+                "MonthOfYear addition overflowed"
+            );
+            new
         }
     }
 }

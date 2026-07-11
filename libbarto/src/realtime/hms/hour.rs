@@ -196,11 +196,11 @@ impl Add for HourOfDay {
             self
         } else {
             let new = HourOfDay(self.0 + rhs.0);
-            if new > HourOfDay::max_value() {
-                panic!("HourOfDay addition overflowed");
-            } else {
-                new
-            }
+            assert!(
+                new <= HourOfDay::max_value(),
+                "HourOfDay addition overflowed"
+            );
+            new
         }
     }
 }

@@ -189,11 +189,11 @@ impl Add for DayOfMonth {
             self
         } else {
             let new = DayOfMonth(self.0 + rhs.0 - 1);
-            if new > DayOfMonth::max_value() {
-                panic!("DayOfMonth addition overflowed");
-            } else {
-                new
-            }
+            assert!(
+                new <= DayOfMonth::max_value(),
+                "DayOfMonth addition overflowed"
+            );
+            new
         }
     }
 }
