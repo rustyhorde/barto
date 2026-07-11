@@ -197,11 +197,11 @@ impl Add for MinuteOfHour {
             self
         } else {
             let new = MinuteOfHour(self.0 + rhs.0);
-            if new > MinuteOfHour::max_value() {
-                panic!("MinuteOfHour addition overflowed");
-            } else {
-                new
-            }
+            assert!(
+                new <= MinuteOfHour::max_value(),
+                "MinuteOfHour addition overflowed"
+            );
+            new
         }
     }
 }

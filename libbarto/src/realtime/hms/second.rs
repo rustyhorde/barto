@@ -197,11 +197,11 @@ impl Add for SecondOfMinute {
             self
         } else {
             let new = SecondOfMinute(self.0 + rhs.0);
-            if new > SecondOfMinute::max_value() {
-                panic!("SecondOfMinute addition overflowed");
-            } else {
-                new
-            }
+            assert!(
+                new <= SecondOfMinute::max_value(),
+                "SecondOfMinute addition overflowed"
+            );
+            new
         }
     }
 }
